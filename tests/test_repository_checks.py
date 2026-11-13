@@ -448,3 +448,33 @@ def test_111_ac23_a_suppression_in_code_syntax_is_an_exception_to_list(repo_root
     assert unlisted.returncode != 0
     assert name in unlisted.stdout + unlisted.stderr
     assert listed.returncode == 0, listed.stdout + listed.stderr
+
+
+@pytest.mark.parametrize(
+    ("path", "line", "blanket", "size_rule"),
+    [
+        ("services/ai-document/src/ai_document/parse.py", "def parse(a, b, c, d, e, f):  # noqa", "ruff", "PLR0913"),
+        ("services/ai-document/src/ai_document/parse.py", "# ruff: noqa", "ruff", "PLR0913"),
+        ("services/ai-document/src/ai_document/parse.py", "# flake8: noqa", "ruff", "PLR0913"),
+        ("apps/web/src/mapping.ts", "/* eslint-disable */", "eslint", "max-lines"),
+        ("apps/web/src/mapping.ts", "// eslint-disable-next-line", "eslint", "max-params"),
+        ("apps/web/src/mapping.ts", "map(a, b, c, d, e); // eslint-disable-line -- one call", "eslint", "max-params"),
+    ],
+)
+def test_111_ac23_a_blanket_ruff_or_eslint_suppression_is_a_size_limit_exception_to_list(
+    repo_root, change_repo, path, line, blanket, size_rule
+):
+    # A suppression naming no rule hides every size rule, so it is listed with the tool, as PMD is (SA-2.3-7).
+    commit_lines(change_repo, path, [line])
+    name = Path(path).name
+
+    unlisted = check_size(repo_root, change_repo, template_body(repo_root))
+    size_rule_only = check_size(
+        repo_root, change_repo, template_body(repo_root, limit_exceptions=f"- {name} {size_rule}: one")
+    )
+    listed = check_size(repo_root, change_repo, template_body(repo_root, limit_exceptions=f"- {name} {blanket}: one"))
+
+    assert unlisted.returncode != 0
+    assert name in unlisted.stdout + unlisted.stderr
+    assert size_rule_only.returncode != 0
+    assert listed.returncode == 0, listed.stdout + listed.stderr
