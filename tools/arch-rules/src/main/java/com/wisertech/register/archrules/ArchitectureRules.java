@@ -242,6 +242,11 @@ public final class ArchitectureRules {
                     .resideInAPackage(DOMAIN)
                     .should(RuleConditions.notTakeOrReturnFloatingPoint())
                     .allowEmptyShould(true))
+            .and(classes()
+                    .that()
+                    .resideInAPackage(DOMAIN)
+                    .should(RuleConditions.notComputeWithFloatingPoint())
+                    .allowEmptyShould(true))
             .as("AR-J13 no float, double, java.util.Date or Calendar in domain");
 
     /** Every rule, in the order of their ids. */

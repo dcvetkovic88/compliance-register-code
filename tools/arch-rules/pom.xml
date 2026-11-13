@@ -27,6 +27,7 @@
 
     <properties>
         <archunit.version>1.5.1</archunit.version>
+        <asm.version>9.11.1</asm.version>
     </properties>
 
     <dependencies>
@@ -34,6 +35,12 @@
             <groupId>com.tngtech.archunit</groupId>
             <artifactId>archunit-junit5</artifactId>
             <version>${archunit.version}</version>
+        </dependency>
+        <!-- AR-J13 reads the float and double instructions inside domain methods, which ArchUnit does not expose. -->
+        <dependency>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm-tree</artifactId>
+            <version>${asm.version}</version>
         </dependency>
         <!-- The fixtures name Spring types (a problem response, field injection, a framework type). -->
         <dependency>

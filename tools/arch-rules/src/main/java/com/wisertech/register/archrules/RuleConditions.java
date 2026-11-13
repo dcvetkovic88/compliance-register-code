@@ -105,6 +105,18 @@ final class RuleConditions {
         };
     }
 
+    static ArchCondition<JavaClass> notComputeWithFloatingPoint() {
+        return new ArchCondition<>("not compute with float or double inside a method") {
+            @Override
+            public void check(JavaClass javaClass, ConditionEvents events) {
+                for (String method : FloatingPointBytecode.methodsUsingFloatingPoint(javaClass)) {
+                    events.add(SimpleConditionEvent.violated(
+                            javaClass, javaClass.getName() + "." + method + " computes with float or double"));
+                }
+            }
+        };
+    }
+
     private static boolean isGenerated(JavaCodeUnit codeUnit) {
         return codeUnit.getModifiers().contains(JavaModifier.SYNTHETIC)
                 || codeUnit.getModifiers().contains(JavaModifier.BRIDGE);
