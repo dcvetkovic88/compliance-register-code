@@ -1,7 +1,8 @@
 # CI of the Wiser Compliance Register (111-FR2, 111-FR22; plan D1, D18).
 # The job `required` is the one status check branch protection requires on main. In block 1 it needs
-# install and the suites (the registry check and one job per suite); the quality job joins it when
-# blocks 1b and 1c land, until then its targets fail and name the missing tool (OD-21).
+# install and the suites (the registry, one job per suite, and the registry check, which reads the
+# JUnit XML reports the suite jobs wrote); the quality job joins it when blocks 1b and 1c land, until
+# then its targets fail and name the missing tool (OD-21).
 # Suites come from the registry (every suites.yaml), so this file is not edited when a suite is added.
 name: ci
 
@@ -86,21 +87,6 @@ jobs:
       - uses: astral-sh/setup-uv@v10.3.3
         with:
           version: ${{ steps.pins.outputs.uv }}
-      # The tasks.md checks are required: without vars.SPEC_REPO this job fails (111-FR22, 111-AC22).
-      - name: check out the spec repository
-        uses: actions/checkout@v7.0.1
-        with:
-          repository: ${{ vars.SPEC_REPO }}
-          token: ${{ secrets.SPEC_REPO_TOKEN }}
-          path: .spec-repo
-      - name: check the registry against every tasks.md
-        run: |
-          if [ ! -d .spec-repo/specs ]; then
-            echo "::error::.spec-repo has no specs folder; set vars.SPEC_REPO to the spec repository"
-            exit 1
-          fi
-          mv .spec-repo "$RUNNER_TEMP/spec-repo"
-          tools/check-suites $(printf -- '--tasks %s ' "$RUNNER_TEMP"/spec-repo/specs/*/tasks.md)
       - name: list the registered suites
         id: matrix
         run: echo "matrix=$(tools/suite --matrix)" >> "$GITHUB_OUTPUT"
@@ -138,9 +124,53 @@ jobs:
         run: make stack-up
       - name: run the suite
         run: make suite S=${{ matrix.suite }}
+      - name: keep the JUnit XML reports of the suite
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: suite-reports-${{ matrix.suite }}
+          path: .suite-reports/
+          include-hidden-files: true
+          if-no-files-found: ignore
       - name: stop the stack
         if: always() && matrix.stack
         run: make stack-down
+
+  check:
+    name: suites registry check
+    if: always()
+    needs: [registry, suites]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: read the uv pin
+        id: pins
+        run: echo "uv=$(cat .uv-version)" >> "$GITHUB_OUTPUT"
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: ${{ steps.pins.outputs.uv }}
+      # The tasks.md checks are required: without vars.SPEC_REPO this job fails (111-FR22, 111-AC22).
+      - name: check out the spec repository
+        uses: actions/checkout@v7.0.1
+        with:
+          repository: ${{ vars.SPEC_REPO }}
+          token: ${{ secrets.SPEC_REPO_TOKEN }}
+          path: .spec-repo
+      # Only tests that ran count: the check reads the reports of every suite job (plan D18).
+      - name: collect the JUnit XML reports of every suite
+        uses: actions/download-artifact@v8.0.2
+        with:
+          pattern: suite-reports-*
+          path: .suite-reports
+          merge-multiple: true
+      - name: check the registry against every tasks.md
+        run: |
+          if [ ! -d .spec-repo/specs ]; then
+            echo "::error::.spec-repo has no specs folder; set vars.SPEC_REPO to the spec repository"
+            exit 1
+          fi
+          mv .spec-repo "$RUNNER_TEMP/spec-repo"
+          tools/check-suites $(printf -- '--tasks %s ' "$RUNNER_TEMP"/spec-repo/specs/*/tasks.md)
 
   browser:
     name: web build and browser specs
@@ -176,7 +206,7 @@ jobs:
   required:
     name: required
     if: always()
-    needs: [install, registry, suites]
+    needs: [install, registry, suites, check]
     runs-on: ubuntu-24.04
     steps:
       - name: every job passed

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # make ci (plan D1; OD-21): what the required CI jobs of block 1 run, in order: install from the lock
-# files, the registry check, then every registered suite. The lint, format check, type check and test
-# targets join when blocks 1b and 1c make their CI jobs required.
+# files, every registered suite, then the registry check, which reads the JUnit XML reports the suites
+# wrote. A failing suite does not stop the others or the check; make ci then fails. The lint, format
+# check, type check and test targets join when blocks 1b and 1c make their CI jobs required.
 # SPEC_REPO=<spec repository checkout> adds every specs/*/tasks.md to the registry check;
 # BLOCK=<suite id> also checks the block being built (OD-23).
 set -euo pipefail
@@ -12,6 +13,13 @@ if [ -x deploy/scripts/stack-guard.sh ]; then
 fi
 
 tools/install
+
+matrix="$(tools/suite --matrix)"
+suites="$(node -e 'for (const row of JSON.parse(process.argv[1]).include) console.log(row.suite)' "$matrix")"
+failed=()
+for suite in $suites; do
+  tools/suite "$suite" || failed+=("$suite")
+done
 
 check_arguments=()
 if [ -n "${SPEC_REPO:-}" ]; then
@@ -24,8 +32,7 @@ if [ -n "${BLOCK:-}" ]; then
 fi
 tools/check-suites ${check_arguments[@]+"${check_arguments[@]}"}
 
-matrix="$(tools/suite --matrix)"
-suites="$(node -e 'for (const row of JSON.parse(process.argv[1]).include) console.log(row.suite)' "$matrix")"
-for suite in $suites; do
-  tools/suite "$suite"
-done
+if [ "${#failed[@]}" -gt 0 ]; then
+  echo "make ci: suite(s) failed: ${failed[*]}" >&2
+  exit 1
+fi

@@ -67,16 +67,16 @@ tests that carry its tag (JUnit `@Tag`, a pytest marker, the id in a Vitest or P
 ## CI
 
 `.github/workflows/ci.yml` runs on every pull request to `main`: install from the lock files
-(`tools/install`); lint, format check, type check and unit tests; the registry check and one job
-per registered suite (a suite marked `stack: true` starts the dev stack on the runner first); one
-job that builds the web and runs the browser specs. The job `required` is the status check that
-branch protection on `main` requires. In block 1 it needs install, the registry check and the
-suites (OD-21): until blocks 1b (Java) and 1c (TypeScript, Python) add their tools,
+(`tools/install`); lint, format check, type check and unit tests; one job per registered suite
+(a suite marked `stack: true` starts the dev stack on the runner first), each keeping its JUnit XML
+reports, then the registry check on the reports of every suite job; one job that builds the web
+and runs the browser specs. The job `required` is the status check that branch protection on
+`main` requires. In block 1 it needs install, the suites and the registry check (OD-21): until blocks 1b (Java) and 1c (TypeScript, Python) add their tools,
 `make lint`, `format-check`, `typecheck` and `test` fail and name the missing tool, and no target
 passes without running a check. To check every tasks.md, CI checks out the spec repository named
 by the repository variable `SPEC_REPO`, read with the secret `SPEC_REPO_TOKEN`; without them the
-registry job fails, so the tasks.md checks never skip.
+registry check fails, so the tasks.md checks never skip.
 
-`make ci` runs what the required jobs run: install, the registry check and every registered
-suite. `SPEC_REPO=<spec repository checkout>` adds every `specs/*/tasks.md` to the registry check
+`make ci` runs what the required jobs run: install, every registered suite, then the registry
+check on their reports; a failing suite does not stop the others or the check. `SPEC_REPO=<spec repository checkout>` adds every `specs/*/tasks.md` to the registry check
 and `BLOCK=<suite id>` also checks the block being built.
