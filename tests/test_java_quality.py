@@ -28,6 +28,8 @@ VIOLATIONS = [
     ("class-suffix", LINT, "banned generic suffix"),
     ("todo", LINT, "names its issue, as TODO(#123) (SA-2.7-2)"),
     ("port-doc", LINT, "Missing a Javadoc comment for 'EvidencePort'"),
+    ("definition-source-doc", LINT, "Missing a Javadoc comment for 'DefinitionSource'"),
+    ("model-gateway-doc", LINT, "Missing a Javadoc comment for 'ModelGateway'"),
     ("adapter-doc", LINT, "Missing a Javadoc comment for 'ArrangementController'"),
     ("method-length", LINT, "Rule:MethodLength"),
     ("class-length", LINT, "Rule:ClassLength"),
