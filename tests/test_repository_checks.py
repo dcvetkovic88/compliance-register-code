@@ -274,12 +274,10 @@ def test_111_ac23_size_limit_exception_in_code_must_be_listed_in_the_pull_reques
 
 
 def test_111_ac23_every_size_limit_exception_in_code_is_listed_not_only_one(repo_root, change_repo):
-    commit_lines(change_repo, "services/register/src/main/java/demo/Mapping.java", [SUPPRESSION])
-    commit_lines(
-        change_repo,
-        "services/register/src/main/java/demo/Ledger.java",
-        ['@SuppressWarnings("PMD.ClassLength") // the ledger keeps its entries together'],
-    )
+    demo = change_repo / "services/register/src/main/java/demo"
+    demo.mkdir(parents=True)
+    (demo / "Mapping.java").write_text(SUPPRESSION + "\n", encoding="utf-8")
+    (demo / "Ledger.java").write_text('@SuppressWarnings("PMD.ClassLength") // one ledger\n', encoding="utf-8")
     commit_lines(
         change_repo, "services/ai-document/src/ai_document/parse.py", ["def parse(a, b, c, d, e, f):  # noqa: PLR0913"]
     )
