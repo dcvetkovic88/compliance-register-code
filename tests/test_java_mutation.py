@@ -115,6 +115,19 @@ def test_111_ac23_mutation_gate_mutates_the_nested_classes_of_a_changed_file(rep
     assert "below the threshold of 70 percent" in result.stdout + result.stderr
 
 
+def test_111_ac23_mutation_gate_mutates_the_top_level_companion_classes_of_a_changed_file(repo_root, service_repo):
+    commit_change(
+        service_repo,
+        {"companion/NoticeWindow.java": DOMAIN, "companion-weak-test/NoticeArithmeticTest.java": DOMAIN_TESTS},
+    )
+
+    result = mutation_gate(repo_root, service_repo)
+
+    assert result.returncode != 0, result.stdout + result.stderr
+    assert "NoticeWindow: 0 of " in result.stdout
+    assert "below the threshold of 70 percent" in result.stdout + result.stderr
+
+
 def test_mutation_gate_skips_java_sources_outside_the_reactor_modules(repo_root, service_repo):
     fixture = Path("tests/fixtures/java/adapter-doc/src/main/java/com/wisertech/register/fixture/domain")
     commit_change(service_repo, {"outside-reactor/Fixture.java": fixture})
