@@ -37,3 +37,20 @@ repeats them and a root test keeps the two equal.
 
 Keycloak, PostgreSQL, React, Vite, TypeScript, Vitest and Playwright are pinned by the blocks
 that add them, under the same rule, and are added to this table then.
+
+## Check suites
+
+Every block of a tasks.md names one check suite, for example `111-B1`. A suite is the set of
+tests that carry its tag (JUnit `@Tag`, a pytest marker, the id in a Vitest or Playwright title).
+
+- Each path lists its suites in its own `suites.yaml`; this root's `suites.yaml` holds the
+  root-level suites. The registry is all of these files together.
+- A suite is the union of the entries with its id, so a block whose tests span several paths
+  registers the suite once in each path. Every task that adds tests registers the block's suite
+  in the `suites.yaml` of its own path, and every block's last task adds its suite to the
+  `suites.yaml` of its own path.
+- `make suite S=<id>` (or `tools/suite <id>`) runs one suite in any language.
+- `tools/check-suites --tasks <tasks.md>` fails when a finished block names a suite that is not
+  registered, when a task of the block adds tests in a path with no entry for the block's suite,
+  when a registered suite selects no test, or when an acceptance test name lacks the full
+  criterion id (`109-F4-AC6 ...`). `--suite <id>` checks that suite's block before it is ticked.
