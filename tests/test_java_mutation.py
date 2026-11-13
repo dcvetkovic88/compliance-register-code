@@ -101,6 +101,29 @@ def test_111_ac23_mutation_gate_reports_an_adapter_change_without_failing(repo_r
     assert "adapters (reported only)" in result.stdout
 
 
+def test_111_ac23_mutation_gate_mutates_the_nested_classes_of_a_changed_file(repo_root, service_repo):
+    commit_change(
+        service_repo, {"nested/NoticePolicy.java": DOMAIN, "nested-weak-test/NoticePolicyTest.java": DOMAIN_TESTS}
+    )
+
+    result = mutation_gate(repo_root, service_repo)
+
+    assert result.returncode != 0, result.stdout + result.stderr
+    assert "NoticePolicy: 0 of " in result.stdout
+    assert "below the threshold of 70 percent" in result.stdout + result.stderr
+
+
+def test_mutation_gate_skips_java_sources_outside_the_reactor_modules(repo_root, service_repo):
+    fixture = Path("tests/fixtures/java/adapter-doc/src/main/java/com/wisertech/register/fixture/domain")
+    commit_change(service_repo, {"outside-reactor/Fixture.java": fixture})
+
+    result = mutation_gate(repo_root, service_repo)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "outside the Maven reactor" in result.stdout
+    assert "no changed Java class" in result.stdout
+
+
 def test_mutation_gate_passes_a_change_without_java_classes(repo_root, service_repo):
     (service_repo / "notes.md").write_text("a change without Java\n", encoding="utf-8")
     git(service_repo, "add", "-A")
