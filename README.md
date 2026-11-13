@@ -164,9 +164,13 @@ which matches that suffix only, and Vitest never runs them.
 | pull request size | `tools/check-pr-size --base <ref> --body-file <body>` | more than 400 changed lines, without fixtures, lock files and generated code, unless a `## Size exception` section of the body gives the reason (the runner appends one, OD-28); a size limit suppression in the code that the body's `## Size limit exceptions` does not list |
 | Spectral | `tools/spectral` | an error of the rule set `config/spectral/ruleset.yaml` in an OpenAPI or AsyncAPI file under `contracts/` that the ratchet list `config/spectral/ratchet.json` does not allow for that file; an entry above the count passes and is named, to be lowered in the spec repository |
 | Spectral sync | `tools/sync-spectral --spec-repo <spec repository>`; `--check` | the rule set and ratchet list are byte copies of the spec repository's `docs/standards/spectral/`, with their hashes in `config/spectral/SOURCE.lock`; the check fails on a copy edited by hand and, given the spec repository (or `SPEC_REPO_DIR`), on a copy behind it |
+| language rule | `tools/check-language [--root <folder>]` | a Python file in `services/`, `libs/`, `apps/` or `packages/` outside `services/ai-document`; a Java file outside `services/`, `libs/` and `tools/arch-rules`, or in `services/ai-document` (suite readiness rule 6) |
+| own schema | `tools/check-sql-schemas [--root <folder>]` | a `.sql` file of `services/<folder>` naming another service's schema, `keycloak` or `public`, or a `platform` object other than a call of a function listed in `tools/sql-schemas.yaml`; the BFF calls none (suite readiness rule 3) |
+| module length | `tools/check-size [--root <folder>]` | a Python module of `services/` or `libs/` over 300 lines (SA-2.3-2) |
 | Renovate | `tools/check-renovate-config` | an invalid `renovate.json`; Renovate proposes a release once it is 14 days old |
 | pre-commit | `uv tool run --from pre-commit==4.7.0 pre-commit install --hook-type pre-commit --hook-type commit-msg` | the format check, lint or secrets scan before a commit; the message check on commit |
 
+`make lint` runs the language rule, the own-schema rule and the module length first, for any language.
 The pull request template `.github/pull_request_template.md` holds the two exception sections.
 Fixtures break these rules on purpose; `.semgrepignore` leaves them to their own tests.
 
