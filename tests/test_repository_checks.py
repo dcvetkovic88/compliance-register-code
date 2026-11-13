@@ -307,6 +307,22 @@ def test_111_ac23_an_entry_names_the_file_and_the_rule_of_its_exception(repo_roo
     assert listed.returncode == 0, listed.stdout + listed.stderr
 
 
+@pytest.mark.parametrize(
+    "entry",
+    ["- Mapping.java PMD.MethodLength", "- Mapping.java PMD.MethodLength:", "- Mapping.java PMD.MethodLength:   "],
+)
+def test_111_ac23_an_entry_gives_a_one_line_reason_for_its_exception(repo_root, change_repo, entry):
+    commit_lines(
+        change_repo, "services/register/src/main/java/demo/Mapping.java", ['@SuppressWarnings("PMD.MethodLength")']
+    )
+
+    result = check_size(repo_root, change_repo, template_body(repo_root, limit_exceptions=entry))
+
+    assert result.returncode != 0
+    assert "Mapping.java" in result.stdout + result.stderr
+    assert "reason" in result.stderr
+
+
 def test_111_ac23_ci_runs_the_repository_and_pull_request_checks_as_required_jobs(repo_root):
     workflow = yaml.safe_load((repo_root / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
     jobs = workflow["jobs"]
