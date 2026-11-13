@@ -51,10 +51,11 @@ def join(directory: str, path: str) -> str:
 
 
 def walk_files(root: Path, start: Path, pattern: str):
-    """Files under `start` matching `pattern`, outside build output and test fixtures."""
+    """Files under `start` matching `pattern`, outside build output and test fixtures; `start` may be a file."""
     if not start.exists():
         return
-    for path in sorted(start.rglob(pattern)):
+    candidates = [start] if start.is_file() and start.match(pattern) else sorted(start.rglob(pattern))
+    for path in candidates:
         relative_parts = path.relative_to(root).parts
         if not SKIPPED_DIRS.intersection(relative_parts) and path.is_file():
             yield path
