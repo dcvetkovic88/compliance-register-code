@@ -62,6 +62,17 @@ run() {
   "$@"
 }
 
+# Lint first runs the repository structure checks of T1.12, whatever the language: the language rule, the
+# own-schema rule of service SQL and the Python module length. Each runs, then lint fails if one failed.
+structure_checks() {
+  local name failed=0
+  for name in check-language check-sql-schemas check-size; do
+    if [ -x "tools/$name" ]; then run "tools/$name" || failed=1; fi
+  done
+  return "$failed"
+}
+if [ "$check" = lint ]; then structure_checks; fi
+
 # Java: the parent build, with the plugins it binds to the lifecycle phase.
 java_check() {
   run ./mvnw -B -ntp -q "${maven[@]}"

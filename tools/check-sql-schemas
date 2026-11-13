@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# tools/check-sql-schemas [--root <folder>] (T1.12): the SQL of a service names only its own schema and the listed platform functions.
+# See tools/structure_checks.py; make lint runs it.
+set -euo pipefail
+tools_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec uv run --quiet --project "$tools_dir" --frozen python "$tools_dir/structure_checks.py" sql-schemas "$@"
