@@ -4,7 +4,8 @@ A pull request changes about 400 lines at most, counted without fixtures, lock f
 A larger one passes only when the section `## Size exception` of its body gives the reason. Every exception
 to a size limit it adds to the code (a PMD, ruff or ESLint suppression of a size rule) must be listed in the
 section `## Size limit exceptions`, one list entry per exception naming its file and its rules, as
-`- Mapping.java PMD.MethodLength: the reason`.
+`- Mapping.java PMD.MethodLength: the reason`. A blanket PMD suppression (`@SuppressWarnings("PMD")`,
+`@SuppressWarnings("all")` or a `// NOPMD` marker) hides every size rule, so it is listed with the rule `PMD`.
 """
 
 import argparse
@@ -21,11 +22,13 @@ SIZE_SUPPRESSION = re.compile(
     r"|noqa:[^\n]*\b(PLR0913|PLR0915|PLR1702|C901)\b"
     r"|eslint-disable[^\n]*\b(max-lines|max-lines-per-function|max-params|max-depth|complexity)\b"
 )
+# A PMD suppression of every rule, size rules among them: the PMD or all annotation value, or a NOPMD marker.
+BLANKET_PMD = re.compile(r'@SuppressWarnings\s*\(\s*(?:value\s*=\s*)?\{?[^)]*"(?:PMD|all)"|NOPMD')
 # The size rules a suppression names, each as the entry of the section names it.
 SIZE_RULES = re.compile(
     r"(?<![\w.-])(?:PMD\.(?:MethodLength|ClassLength|ExcessiveParameterList|NestingDepth|CyclomaticComplexity)"
     r"|PLR0913|PLR0915|PLR1702|C901"
-    r"|max-lines-per-function|max-lines|max-params|max-depth|complexity)(?![\w-])"
+    r"|max-lines-per-function|max-lines|max-params|max-depth|complexity|PMD(?!\.))(?![\w-])"
 )
 
 
@@ -64,9 +67,12 @@ def added_size_suppressions(root: Path, base: str) -> list[Suppression]:
     for line in git(root, "diff", "-U0", "--no-renames", f"{base}...HEAD").splitlines():
         if line.startswith("+++ "):
             path = line.removeprefix("+++ b/")
-        elif line.startswith("+") and not LEFT_OUT.search(path) and SIZE_SUPPRESSION.search(line):
+        elif line.startswith("+") and not LEFT_OUT.search(path):
             text = line[1:].strip()
-            suppressions.append(Suppression(path, text, frozenset(SIZE_RULES.findall(text))))
+            blanket = BLANKET_PMD.search(text)
+            if blanket or SIZE_SUPPRESSION.search(text):
+                rules = {rule for rule in SIZE_RULES.findall(text) if rule != "PMD"} | ({"PMD"} if blanket else set())
+                suppressions.append(Suppression(path, text, frozenset(rules)))
     return suppressions
 
 
