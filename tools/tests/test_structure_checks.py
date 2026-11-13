@@ -36,6 +36,8 @@ SQL_VIOLATIONS = [
     ("platform-table", f"services/register/{MIGRATIONS}/V0002__read_outbox.sql:1: platform.outbox"),
     ("unlisted-platform-function", f"services/monitoring/{MIGRATIONS}/V0002__reset.sql:1: platform.reset_offsets"),
     ("bff-platform-function", f"services/bff/{MIGRATIONS}/V0001__create_sessions.sql:1: platform.current_user_id"),
+    ("search-path", f"services/register/{MIGRATIONS}/V0002__read_assessments.sql:1: search_path ictrisk"),
+    ("search-path-set-config", f"services/register/{MIGRATIONS}/V0002__read_assessments.sql:1: search_path ictrisk"),
 ]
 
 

@@ -7,3 +7,5 @@ CREATE TABLE register.arrangements (
 );
 SELECT platform.publish('register.arrangement.created', '{}'::jsonb, gen_random_uuid());
 SELECT pg_catalog.set_config('search_path', 'register', true);
+-- SET search_path TO ictrisk; a comment is not read.
+SET LOCAL search_path = register, pg_catalog;
