@@ -345,3 +345,49 @@ def test_111_ac23_a_blanket_pmd_suppression_is_a_size_limit_exception_to_list(re
     assert "Mapping.java" in unlisted.stdout + unlisted.stderr
     assert size_rule_only.returncode != 0
     assert listed.returncode == 0, listed.stdout + listed.stderr
+
+
+NOT_SUPPRESSIONS = FIXTURES / "pr-size/not-suppressions"
+
+
+@pytest.mark.parametrize(
+    ("fixture", "path"),
+    [
+        ("Guide.md", "docs/size-limits.md"),
+        ("Examples.java", "services/register/src/main/java/demo/Examples.java"),
+        ("examples.py", "services/ai-document/src/ai_document/examples.py"),
+        ("examples.ts", "apps/web/src/examples.ts"),
+    ],
+)
+def test_111_ac23_suppressions_named_in_documentation_comments_or_strings_are_not_exceptions(
+    repo_root, change_repo, fixture, path
+):
+    commit_lines(change_repo, path, (NOT_SUPPRESSIONS / fixture).read_text(encoding="utf-8").splitlines())
+
+    result = check_size(repo_root, change_repo, template_body(repo_root))
+
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize(
+    ("path", "lines", "rule"),
+    [
+        (
+            "services/register/src/main/java/demo/Mapping.java",
+            ["class Mapping {", "    @SuppressWarnings({", '        "unchecked",', '        "PMD.MethodLength"})', "}"],
+            "PMD.MethodLength",
+        ),
+        ("apps/web/src/mapping.ts", ["// eslint-disable-next-line max-params", "export function map() {}"], "max-params"),
+        ("apps/web/src/mapping.ts", ["/* eslint-disable max-lines */"], "max-lines"),
+    ],
+)
+def test_111_ac23_a_suppression_in_code_syntax_is_an_exception_to_list(repo_root, change_repo, path, lines, rule):
+    commit_lines(change_repo, path, lines)
+    name = Path(path).name
+
+    unlisted = check_size(repo_root, change_repo, template_body(repo_root))
+    listed = check_size(repo_root, change_repo, template_body(repo_root, limit_exceptions=f"- {name} {rule}: one"))
+
+    assert unlisted.returncode != 0
+    assert name in unlisted.stdout + unlisted.stderr
+    assert listed.returncode == 0, listed.stdout + listed.stderr
