@@ -50,10 +50,14 @@ tests that carry its tag (JUnit `@Tag`, a pytest marker, the id in a Vitest or P
   in the `suites.yaml` of its own path, and every block's last task adds its suite to the
   `suites.yaml` of its own path.
 - `make suite S=<id>` (or `tools/suite <id>`) runs one suite in any language.
-- `tools/check-suites --tasks <tasks.md>` fails when a finished block names a suite that is not
-  registered, when a task of the block adds tests in a path with no entry for the block's suite,
-  when a registered suite selects no test, or when an acceptance test name lacks the full
-  criterion id (`109-F4-AC6 ...`). `--suite <id>` checks that suite's block before it is ticked.
+- `tools/check-suites --tasks <tasks.md>` fails when a registered suite selects no test (it
+  counts tests, not tag text: a tagged file or class that holds no test selects nothing), when a
+  test name cites a criterion without its full id (`109-F4-AC6 ...`), and, for every ticked block,
+  when the block names a suite that is not registered, when a task of the block adds tests in a
+  path with no entry for the block's suite, or when a criterion the block proves has no
+  acceptance test: a test of its suite whose name or display name starts with the full criterion
+  id. `--block <suite id>` also checks the block being built; blocks still to come are never
+  checked (OD-22, OD-23).
 
 ## CI
 
