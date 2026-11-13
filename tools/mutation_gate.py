@@ -1,7 +1,9 @@
 """tools/mutation-gate: PIT on the Java classes a pull request changes (T1.7; SA-3-4, SA-4-6; PQ-23, OD-25).
 
 The changed classes are the files under `<module>/src/main/java` that `git diff <base>...HEAD` adds, edits or
-renames. PIT mutates them with the module's own tests. The gate fails when the mutation score of the changed
+renames, where `<module>` is a module of the Maven reactor (the `<module>` entries of the root `pom.xml` and its
+profiles whose `pom.xml` exists); sources elsewhere, such as test fixtures, are skipped. PIT mutates each changed
+class with its nested and anonymous classes, using the module's own tests. The gate fails when the mutation score of the changed
 classes in the gated layers of `tdd-profile.yaml` (`domain`, `application`) is below its threshold; classes of
 the reported layers (`adapters`) and of no layer are scored and never fail it.
 """
@@ -18,6 +20,7 @@ import yaml
 
 SOURCES = "/src/main/java/"
 REPORT = "target/pit-reports/mutations.xml"
+POM = "{http://maven.apache.org/POM/4.0.0}"
 
 
 @dataclass(frozen=True)
@@ -51,6 +54,18 @@ def read_profile(root: Path) -> Profile:
     )
 
 
+def reactor_modules(root: Path, folder: str = ".") -> set[str]:
+    """The folders of the reactor modules under `folder`, relative to the root, read from the `<module>` entries."""
+    pom = root / folder / "pom.xml"
+    if not pom.is_file():
+        return set()
+    modules = {folder}
+    for entry in ElementTree.parse(pom).getroot().iter(f"{POM}module"):
+        child = (Path(folder) / (entry.text or "").strip()).as_posix()
+        modules |= reactor_modules(root, child)
+    return modules
+
+
 def changed_classes(root: Path, base: str) -> list[ChangedClass]:
     names = subprocess.run(
         ["git", "diff", "--name-only", "--diff-filter=AMR", f"{base}...HEAD"],
@@ -59,16 +74,21 @@ def changed_classes(root: Path, base: str) -> list[ChangedClass]:
         capture_output=True,
         text=True,
     ).stdout.split()
+    modules = reactor_modules(root)
     classes = []
     for name in names:
         if name.endswith(".java") and SOURCES in f"/{name}":
             module, source = f"/{name}".split(SOURCES, 1)
-            classes.append(ChangedClass(module.strip("/") or ".", source.removesuffix(".java").replace("/", ".")))
+            module = module.strip("/") or "."
+            if module not in modules:
+                print(f"mutation-gate: {name}: outside the Maven reactor, skipped")
+                continue
+            classes.append(ChangedClass(module, source.removesuffix(".java").replace("/", ".")))
     return classes
 
 
 def run_pit(root: Path, module: str, classes: list[ChangedClass]) -> Path:
-    targets = ",".join(changed.name for changed in classes)
+    targets = ",".join(f"{changed.name},{changed.name}$*" for changed in classes)
     command = ["./mvnw", "-B", "-ntp", "-q", "-pl", module, "-am", "test-compile"]
     command += ["org.pitest:pitest-maven:mutationCoverage", f"-DtargetClasses={targets}"]
     print(f"mutation-gate: {' '.join(command)}", flush=True)
