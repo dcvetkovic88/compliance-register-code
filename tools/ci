@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# make ci (plan D1; OD-21): what the required CI jobs of block 1 run, in order: install from the lock
+# files, the registry check, then every registered suite. The lint, format check, type check and test
+# targets join when blocks 1b and 1c make their CI jobs required.
+# SPEC_REPO=<spec repository checkout> adds every specs/*/tasks.md to the registry check;
+# BLOCK=<suite id> also checks the block being built (OD-23).
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+if [ -x deploy/scripts/stack-guard.sh ]; then
+  deploy/scripts/stack-guard.sh
+fi
+
+tools/install
+
+check_arguments=()
+if [ -n "${SPEC_REPO:-}" ]; then
+  for tasks in "$SPEC_REPO"/specs/*/tasks.md; do
+    check_arguments+=(--tasks "$tasks")
+  done
+fi
+if [ -n "${BLOCK:-}" ]; then
+  check_arguments+=(--block "$BLOCK")
+fi
+tools/check-suites ${check_arguments[@]+"${check_arguments[@]}"}
+
+matrix="$(tools/suite --matrix)"
+suites="$(node -e 'for (const row of JSON.parse(process.argv[1]).include) console.log(row.suite)' "$matrix")"
+for suite in $suites; do
+  tools/suite "$suite"
+done

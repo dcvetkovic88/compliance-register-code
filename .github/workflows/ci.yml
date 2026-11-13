@@ -1,5 +1,7 @@
 # CI of the Wiser Compliance Register (111-FR2, 111-FR22; plan D1, D18).
-# The job `required` is the one status check branch protection requires on main.
+# The job `required` is the one status check branch protection requires on main. In block 1 it needs
+# install and the suites (the registry check and one job per suite); the quality job joins it when
+# blocks 1b and 1c land, until then its targets fail and name the missing tool (OD-21).
 # Suites come from the registry (every suites.yaml), so this file is not edited when a suite is added.
 name: ci
 
@@ -17,8 +19,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: install, lint, format check, type check, unit tests
+  install:
+    name: install from lock files
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7.0.1
@@ -38,10 +40,30 @@ jobs:
         with:
           version: ${{ steps.pins.outputs.uv }}
       - name: install from lock files
-        run: |
-          npm ci
-          uv sync --project tools --frozen
-          ./mvnw -B -ntp verify -DskipTests
+        run: tools/install
+
+  quality:
+    name: lint, format check, type check, unit tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-java@v6.1.0
+        with:
+          distribution: temurin
+          java-version-file: .java-version
+          cache: maven
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: read the uv pin
+        id: pins
+        run: echo "uv=$(cat .uv-version)" >> "$GITHUB_OUTPUT"
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: ${{ steps.pins.outputs.uv }}
+      - name: install from lock files
+        run: tools/install
       - name: lint
         run: make lint
       - name: format check
@@ -154,7 +176,7 @@ jobs:
   required:
     name: required
     if: always()
-    needs: [build, registry, suites, browser]
+    needs: [install, registry, suites]
     runs-on: ubuntu-24.04
     steps:
       - name: every job passed

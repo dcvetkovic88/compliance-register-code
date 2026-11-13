@@ -210,7 +210,8 @@ def run_make_ci(repo_root, tmp_path, failing_call="", **env_vars):
         (repo / "tools" / name).chmod(0o755)
     log = tmp_path / "calls.log"
     log.touch()
-    env = {**os.environ, "STUB_LOG": str(log), "FAILING_CALL": failing_call, **env_vars}
+    outer = {name: value for name, value in os.environ.items() if name not in {"SPEC_REPO", "BLOCK"}}
+    env = {**outer, "STUB_LOG": str(log), "FAILING_CALL": failing_call, **env_vars}
     result = subprocess.run(["make", "-s", "ci"], cwd=repo, check=False, capture_output=True, text=True, env=env)
     return result, log.read_text(encoding="utf-8").splitlines()
 

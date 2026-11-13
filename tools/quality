@@ -1,20 +1,49 @@
 #!/usr/bin/env bash
-# The checks behind make lint, format-check, typecheck and test (plan D1; 111-FR2, 111-AC2).
+# The checks behind make lint, format-check, typecheck and test (plan D1; 111-FR2, 111-AC2; OD-21).
 # Each check runs for the three languages: the Maven build, every npm workspace and every uv project.
-# A later block adds its tools to that build, workspace or project; this script stays as it is.
+# Until its tooling block lands (1b for Java, 1c for TypeScript and Python), a check fails and names
+# the missing tool, and runs nothing: no target passes without running a check. A block adds its
+# tool to pom.xml, the root package.json or tools/pyproject.toml; this script stays as it is.
 set -euo pipefail
 
 check="${1:-}"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 
+# Per check: the Maven goals, the npm script, and the tool each language needs for it.
 case "$check" in
-  lint) maven=(verify -DskipTests) npm_script=lint ;;
-  format-check) maven=(validate) npm_script=format:check ;;
-  typecheck) maven=(test-compile) npm_script=typecheck ;;
-  test) maven=(test) npm_script=test ;;
+  lint) maven=(verify -DskipTests) npm_script=lint java_tools=(maven-checkstyle-plugin maven-pmd-plugin) \
+    typescript_tool=eslint python_tool=ruff ;;
+  format-check) maven=(validate) npm_script=format:check java_tools=(spotless-maven-plugin) \
+    typescript_tool=prettier python_tool=ruff ;;
+  typecheck) maven=(test-compile) npm_script=typecheck java_tools=(error_prone_core) \
+    typescript_tool=typescript python_tool=mypy ;;
+  test) maven=(test) npm_script=test java_tools=(junit-jupiter) typescript_tool=vitest python_tool=pytest ;;
   *) echo "usage: tools/quality lint|format-check|typecheck|test" >&2; exit 2 ;;
 esac
+
+missing=()
+
+for tool in "${java_tools[@]}"; do
+  if ! grep -q "<artifactId>$tool</artifactId>" pom.xml 2>/dev/null; then
+    missing+=("Java: $tool is not in pom.xml (block 1b adds it)")
+  fi
+done
+
+if ! node -e 'const m = require("./package.json"); process.exit(process.argv[1] in {...m.dependencies, ...m.devDependencies} ? 0 : 1)' \
+  "$typescript_tool" 2>/dev/null; then
+  missing+=("TypeScript: $typescript_tool is not in package.json (block 1c adds it)")
+fi
+
+if ! grep -Eq "\"$python_tool[=<>~!]" tools/pyproject.toml 2>/dev/null; then
+  missing+=("Python: $python_tool is not in tools/pyproject.toml (block 1c adds it)")
+fi
+
+if [ ${#missing[@]} -gt 0 ]; then
+  for line in "${missing[@]}"; do echo "$check: missing tool for $line" >&2; done
+  echo "$check: failed, ${#missing[@]} tool(s) missing; no check ran" >&2
+  exit 1
+fi
 
 run() {
   echo "$check: $*"
