@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites name="pytest tests">
+  <testsuite name="pytest" errors="0" failures="0" skipped="5" tests="5" time="0.015">
+    <testcase classname="tools.tests.test_skipped" name="test_a_skipped_check" time="0.000">
+      <skipped type="pytest.skip" message="never runs">tools/tests/test_skipped.py:6: never runs</skipped>
+    </testcase>
+    <testcase classname="tools.tests.test_skipped" name="test_only_skipped_cases[a-skipped-case]" time="0.000">
+      <skipped type="pytest.skip" message="unconditional skip">tools/tests/test_skipped.py:11: unconditional skip</skipped>
+    </testcase>
+    <testcase classname="tools.tests.test_skipped.TestASkippedGroup" name="test_a_check_in_the_skipped_group" time="0.000">
+      <skipped type="pytest.skip" message="unconditional skip">tools/tests/test_skipped.py:18: unconditional skip</skipped>
+    </testcase>
+    <testcase classname="tools.tests.test_skipped.TestAGroupWithASkipMark" name="test_a_check_under_the_class_skip_mark" time="0.000">
+      <skipped type="pytest.skip" message="never runs">tools/tests/test_skipped.py:25: never runs</skipped>
+    </testcase>
+    <testcase classname="tools.tests.test_skipped_module" name="test_a_check_in_a_skipped_module" time="0.000">
+      <skipped type="pytest.skip" message="never runs">tools/tests/test_skipped_module.py:6: never runs</skipped>
+    </testcase>
+  </testsuite>
+</testsuites>

@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites name="pytest tests">
+  <testsuite name="pytest" errors="0" failures="0" skipped="1" tests="1" time="0.012">
+    <testcase classname="tools.tests.test_no_cases" name="test_a_check_without_cases[NOTSET]" time="0.000">
+      <skipped type="pytest.skip" message="got empty parameter set for (value)">tools/tests/test_no_cases.py:6: got empty parameter set for (value)</skipped>
+    </testcase>
+  </testsuite>
+</testsuites>

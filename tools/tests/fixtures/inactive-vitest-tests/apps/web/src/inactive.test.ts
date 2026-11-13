@@ -8,7 +8,6 @@ test.todo("900-B1 a check still to write");
 test.skip("900-B1 a skipped check", () => {});
 it.skip("900-B1 another skipped check", () => {});
 it.todo("900-B1 another check still to write");
-test.fixme("900-B1 a check to fix", () => {});
 const note = 'it("900-B1 a check inside a string", () => {})';
 
 describe.skip("900-B1 a skipped group", () => {

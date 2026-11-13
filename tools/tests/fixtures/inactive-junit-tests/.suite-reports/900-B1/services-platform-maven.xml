@@ -1,0 +1,21 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <testsuite xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="demo.DisabledClassCheckTest" time="0.0" tests="1" errors="0" skipped="1" failures="0" flakes="0">
+    <testcase name="aCheckInTheDisabledClass" classname="demo.DisabledClassCheckTest" time="0.0">
+      <skipped message="class demo.DisabledClassCheckTest is @Disabled" />
+    </testcase>
+  </testsuite>
+  <testsuite xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="demo.DisabledMethodCheckTest" time="0.018" tests="2" errors="0" skipped="2" failures="0" flakes="0">
+    <testcase name="aDisabledCheck" classname="demo.DisabledMethodCheckTest" time="0.0">
+      <skipped message="never runs" />
+    </testcase>
+    <testcase name="anotherDisabledCheck" classname="demo.DisabledMethodCheckTest" time="0.0">
+      <skipped message="void demo.DisabledMethodCheckTest.anotherDisabledCheck() is @Disabled" />
+    </testcase>
+  </testsuite>
+  <testsuite xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="demo.OtherDisabledClassCheckTest" time="0.0" tests="1" errors="0" skipped="1" failures="0" flakes="0">
+    <testcase name="aCheckInTheOtherDisabledClass" classname="demo.OtherDisabledClassCheckTest" time="0.0">
+      <skipped message="never runs" />
+    </testcase>
+  </testsuite>
+</testsuites>

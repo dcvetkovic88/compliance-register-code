@@ -1,4 +1,10 @@
-"""Tests of tools/check-suites (plan D18; 111-FR22, 111-AC22; conventions SA-3-2)."""
+"""Tests of tools/check-suites (plan D18; 111-FR22, 111-AC22; conventions SA-3-2).
+
+Each fixture holds its test sources and, under `.suite-reports`, the JUnit XML reports `tools/suite`
+wrote when it ran them; the check reads only the reports, so only tests that ran count.
+"""
+
+import shutil
 
 import pytest
 from conftest import run_tool
@@ -64,14 +70,37 @@ def test_111_ac22_fails_when_a_task_adds_tests_in_a_path_without_the_suite(fixtu
         ("junit-integration-test-only", "services/platform/suites.yaml"),
         ("inactive-pytest-tests", "tools/suites.yaml"),
         ("inactive-junit-tests", "services/platform/suites.yaml"),
+        ("skipif-pytest-tests", "tools/suites.yaml"),
+        ("empty-parameters-pytest", "tools/suites.yaml"),
     ],
 )
-def test_111_ac22_fails_when_the_tagged_file_or_class_holds_no_test(fixture_root, case, file):
+def test_111_ac22_fails_when_no_test_of_the_suite_ran(fixture_root, case, file):
     result = check(fixture_root(case))
 
     assert result.returncode == 1
     assert f"suite 900-B1 in {file} selects no test" in result.stdout
     assert "selects no test" in result.stdout
+
+
+def test_111_ac22_fails_when_a_registered_suite_has_not_run(fixture_root):
+    result = check(fixture_root("suite-without-report"))
+
+    assert result.returncode == 1
+    assert (
+        "suite 900-B1 in tools/suites.yaml: no test report at .suite-reports/900-B1/tools-pytest.xml" in result.stdout
+    )
+    assert "run tools/suite 900-B1 first" in result.stdout
+
+
+def test_111_ac22_reads_the_reports_where_they_were_written(fixture_root, tmp_path):
+    root = fixture_root("clean")
+    shutil.copytree(root / ".suite-reports", tmp_path / "reports")
+
+    result = run_tool(
+        "check-suites", "--root", str(root), "--reports", str(tmp_path / "reports"), "--tasks", str(root / "tasks.md")
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_111_ac22_tagged_tests_count_in_each_runner(fixture_root):
@@ -92,7 +121,7 @@ def test_111_ac22_fails_when_a_proved_criterion_has_no_acceptance_test(fixture_r
 @pytest.mark.parametrize(
     "case", ["inactive-vitest-acceptance-test", "inactive-pytest-acceptance-test", "inactive-junit-acceptance-test"]
 )
-def test_111_ac22_a_commented_skipped_or_todo_test_is_no_acceptance_test(fixture_root, case):
+def test_111_ac22_a_skipped_disabled_or_todo_test_is_no_acceptance_test(fixture_root, case):
     result = check(fixture_root(case))
 
     assert result.returncode == 1

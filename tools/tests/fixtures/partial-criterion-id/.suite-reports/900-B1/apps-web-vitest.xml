@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites name="vitest tests" tests="1" failures="0" errors="0" time="0.001372292">
+  <testsuite name="src/names.test.ts" tests="1" failures="0" errors="0" skipped="0" time="0.001372292">
+    <testcase classname="src/names.test.ts" name="900-B1 names &gt; F2-AC3 the screen renders" time="0.000661542">
+        </testcase>
+  </testsuite>
+</testsuites>
