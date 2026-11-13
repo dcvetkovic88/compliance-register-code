@@ -35,14 +35,14 @@
 
     <rule name="NestingDepth" language="java" class="net.sourceforge.pmd.lang.rule.xpath.XPathRule"
           message="Control statements nest at most 3 deep (SA-2.3-4).">
-        <description>A control statement inside three others is too deep; an else-if continues its if, it does not nest.</description>
+        <description>A control statement inside three others is too deep; an else-if (an if that is the else branch of its parent if) continues its if, it does not nest. An if in the then branch, braced or not, nests.</description>
         <priority>3</priority>
         <properties>
             <property name="xpath">
                 <value><![CDATA[
 //(IfStatement|ForStatement|ForeachStatement|WhileStatement|DoStatement|SwitchStatement|TryStatement|SynchronizedStatement)
-  [not(self::IfStatement and parent::IfStatement)]
-  [count(ancestor::*[self::IfStatement or self::ForStatement or self::ForeachStatement or self::WhileStatement or self::DoStatement or self::SwitchStatement or self::TryStatement or self::SynchronizedStatement][not(self::IfStatement and parent::IfStatement)]) >= 3]
+  [not(self::IfStatement and parent::IfStatement and count(preceding-sibling::*) = 2)]
+  [count(ancestor::*[self::IfStatement or self::ForStatement or self::ForeachStatement or self::WhileStatement or self::DoStatement or self::SwitchStatement or self::TryStatement or self::SynchronizedStatement][not(self::IfStatement and parent::IfStatement and count(preceding-sibling::*) = 2)]) >= 3]
 ]]></value>
             </property>
         </properties>
