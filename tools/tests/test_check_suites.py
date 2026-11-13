@@ -164,6 +164,16 @@ def test_111_ac22_fails_when_the_block_being_built_is_in_no_tasks_file(fixture_r
     assert "--block 900-B9 names no block of the tasks files" in result.stdout
 
 
+def test_111_ac22_the_suite_is_read_after_other_heading_text(fixture_root):
+    result = check(fixture_root("suite-after-other-heading-text"), "--block", "900-B3")
+
+    assert result.returncode == 1
+    assert "names no block" not in result.stdout
+    assert "900-B3" in result.stdout
+    assert "not in the registry" in result.stdout
+    assert "900-AC3" in result.stdout
+
+
 def test_111_ac22_each_entry_of_a_suite_is_checked_on_its_own_report(fixture_root):
     result = check(fixture_root("entries-sharing-a-path-and-runner"))
 
