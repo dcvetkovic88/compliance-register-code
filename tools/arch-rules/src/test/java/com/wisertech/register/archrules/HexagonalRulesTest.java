@@ -79,6 +79,18 @@ class HexagonalRulesTest {
     }
 
     @Test
+    @DisplayName("111-AC17 AR-J13 fails on a double computed inside a domain method")
+    void localDoubleInTheDomain() {
+        assertViolation(ArchitectureRules.EXACT_NUMBERS_AND_TIME_IN_DOMAIN, "FeeTotal", SERVICES + "arj13localdouble");
+    }
+
+    @Test
+    @DisplayName("111-AC17 AR-J13 fails on double arithmetic inside a domain method that returns an integer")
+    void doubleArithmeticInTheDomain() {
+        assertViolation(ArchitectureRules.EXACT_NUMBERS_AND_TIME_IN_DOMAIN, "NoticeDays", SERVICES + "arj13arithmetic");
+    }
+
+    @Test
     @DisplayName("111-AC17 AR-J13 fails on java.util.Date in the domain")
     void legacyDateInTheDomain() {
         assertViolation(ArchitectureRules.EXACT_NUMBERS_AND_TIME_IN_DOMAIN, "ReviewDate", SERVICES + "arj13date");
