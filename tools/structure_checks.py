@@ -5,7 +5,8 @@ deploy/, contracts/scripts) and never sits in services/, libs/, apps/ or package
 (not in the Python service), libs/ and tools/arch-rules (suite readiness rule 6).
 sql-schemas: the SQL files of services/<folder> name only the folder's own schema and, unless the service has no
 usage on schema platform, the platform functions of tools/sql-schemas.yaml, called (suite readiness rule 3).
-Comments and string literals are not read.
+A search_path, set by SET or set_config, names no listed schema but the folder's own, so no unqualified name
+reaches another schema. Comments and string literals are not read, but the value of a search_path is.
 size: a Python module of services/ or libs/ is at most 300 lines (SA-2.3-2).
 Build output, dependencies, virtual environments and test fixtures are never read.
 """
@@ -26,6 +27,10 @@ JAVA_PATHS = ("services/", "libs/", "tools/arch-rules/")
 MODULE_LINES = 300
 SQL_NOISE = re.compile(r"--[^\n]*|/\*.*?\*/|'(?:[^']|'')*'", re.DOTALL)
 QUALIFIED_NAME = r'"?\b({schemas})\b"?\s*\.\s*"?([A-Za-z_][A-Za-z0-9_]*)"?(\s*\()?'
+SET_SEARCH_PATH = re.compile(r"\bSET\s+(?:SESSION\s+|LOCAL\s+)?search_path\s*(?:TO|=)\s*([^;]*)", re.IGNORECASE)
+SET_CONFIG_CALL = re.compile(r"\bset_config\s*\(", re.IGNORECASE)
+SET_CONFIG_SEARCH_PATH = re.compile(r"\s*'search_path'\s*,\s*'((?:[^']|'')*)'", re.IGNORECASE)
+PATH_ENTRY = re.compile(r'"([^"]+)"|\'([^\']+)\'|([A-Za-z_][A-Za-z0-9_$]*)')
 
 
 def files(root: Path, suffix: str) -> Iterator[str]:
@@ -52,6 +57,28 @@ def blank_noise(sql: str) -> str:
     return SQL_NOISE.sub(lambda noise: re.sub(r"[^\n]", " ", noise.group()), sql)
 
 
+def search_paths(sql: str, blanked: str) -> Iterator[tuple[int, str]]:
+    """(offset, schema) for each schema a SET search_path or set_config('search_path', ...) outside comments names."""
+    values = [(match.start(), sql[match.start(1) : match.end(1)]) for match in SET_SEARCH_PATH.finditer(blanked)]
+    for call in SET_CONFIG_CALL.finditer(blanked):
+        argument = SET_CONFIG_SEARCH_PATH.match(sql, call.end())
+        if argument:
+            values.append((call.start(), argument.group(1).replace("''", "'")))
+    for offset, value in values:
+        for entry in PATH_ENTRY.finditer(value):
+            yield offset, next(name for name in entry.groups() if name).strip().lower()
+
+
+def search_path_findings(path: str, sql: str, own: str, schemas: list[str]) -> list[str]:
+    blanked = blank_noise(sql)
+    return [
+        f"{path}:{blanked.count(chr(10), 0, offset) + 1}: search_path {schema}; the search_path of a service names"
+        f" only its own schema {own} (tools/sql-schemas.yaml)"
+        for offset, schema in search_paths(sql, blanked)
+        if schema in schemas and schema != own
+    ]
+
+
 def sql_findings(root: Path, rules_file: Path) -> list[str]:
     rules = yaml.safe_load(rules_file.read_text(encoding="utf-8"))
     services: dict[str, dict[str, object]] = rules["services"]
@@ -64,7 +91,9 @@ def sql_findings(root: Path, rules_file: Path) -> list[str]:
         service = services.get(parts[1]) if parts[0] == "services" and len(parts) > 2 else None
         if service is None:
             continue
-        sql = blank_noise((root / path).read_text(encoding="utf-8"))
+        original = (root / path).read_text(encoding="utf-8")
+        sql = blank_noise(original)
+        findings += search_path_findings(path, original, str(service["schema"]), schemas)
         for match in qualified.finditer(sql):
             schema, name, call = match.group(1).lower(), match.group(2), match.group(3)
             listed = schema == "platform" and service["platform_functions"] and call and name in platform_functions
