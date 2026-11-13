@@ -51,7 +51,8 @@
 
         <module name="MissingJavadocType">
             <property name="id" value="portAndAdapterDocComment"/>
-            <property name="scope" value="public"/>
+            <!-- Every visibility: a package-private adapter or a nested type of one is an adapter type too. -->
+            <property name="scope" value="private"/>
             <message key="missing.javadoc.type" value="A port or adapter type carries a short doc comment (SA-2.7-3)."/>
         </module>
 
