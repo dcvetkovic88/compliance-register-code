@@ -4,8 +4,8 @@
     {
       "task": "T1.5",
       "test_command": "uv run --project tools --frozen pytest tests/test_java_quality.py -q",
-      "red_commit": "8623a2456de789392572b1afe0cef7985fe07201",
-      "green_commit": "373f9d3e7fae94acfac930c7b79f2258814edfed"
+      "red_commit": "c1e5465b613120fd12bfddbc7704c9bbd4b6c3ed",
+      "green_commit": "a6c60c64b8eec410c2d567a28d5a2a0058a00614"
     },
     {
       "task": "T1.6",
@@ -22,8 +22,8 @@
     {
       "task": "T1.8",
       "test_command": "uv run --project tools --frozen pytest tests/test_repository_checks.py -q",
-      "red_commit": "d50a701de800bc520524964c08ca3907aa912857",
-      "green_commit": "49c324f58efa640fa21d6f55e62bc930504ce001"
+      "red_commit": "ba7aeca0272b6c1e3db0377eeba19e7a1a3922fd",
+      "green_commit": "b6a187db8743b65071044b07afa9ee5576cd4f28"
     }
   ]
 }
