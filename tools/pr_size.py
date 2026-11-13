@@ -5,7 +5,9 @@ A larger one passes only when the section `## Size exception` of its body gives 
 to a size limit it adds to the code (a PMD, ruff or ESLint suppression of a size rule) must be listed in the
 section `## Size limit exceptions`, one list entry per exception naming its file and its rules, then a one-line
 reason after a colon, as `- Mapping.java PMD.MethodLength: the reason`; an entry without a reason lists nothing. A blanket PMD suppression (`@SuppressWarnings("PMD")`,
-`@SuppressWarnings("all")` or a `// NOPMD` marker) hides every size rule, so it is listed with the rule `PMD`.
+`@SuppressWarnings("all")` or a `// NOPMD` marker) hides every size rule, so it is listed with the rule `PMD`;
+a ruff one naming no rule (`# noqa`, `# ruff: noqa`) is listed with `ruff`, an ESLint directive naming no rule
+(`/* eslint-disable */`, `// eslint-disable-next-line`) with `eslint`.
 Suppressions are recognized by the syntax of their language (a Java annotation or NOPMD line comment, a Python
 `noqa` comment, an ESLint directive comment), so documentation, other comments and string literals naming one
 suppress nothing and need no entry.
@@ -35,11 +37,14 @@ PYTHON = (".py", ".pyi")
 SIZE_RULES = re.compile(
     r"(?<![\w.-])(?:PMD\.(?:MethodLength|ClassLength|ExcessiveParameterList|NestingDepth|CyclomaticComplexity)"
     r"|PLR0913|PLR0915|PLR1702|C901"
-    r"|max-lines-per-function|max-lines|max-params|max-depth|complexity|PMD(?!\.))(?![\w-])"
+    r"|max-lines-per-function|max-lines|max-params|max-depth|complexity|PMD(?!\.)|ruff|eslint)(?![\w-])"
 )
 SUPPRESS_WARNINGS = re.compile(r"@(?:java\.lang\.)?SuppressWarnings\s*\(")
 STRING_LITERAL = re.compile(r'"((?:[^"\\\n]|\\.)*)"')
-NOQA = re.compile(r"\bnoqa\s*:(.*)", re.IGNORECASE)
+# A ruff suppression: `# noqa` for a line, `# ruff: noqa` or `# flake8: noqa` for the file, each with its codes.
+NOQA = re.compile(r"#\s*(?:(?:ruff|flake8)\s*:\s*)?noqa\b(?P<codes>\s*:.*)?", re.IGNORECASE)
+RULE_CODE = re.compile(r"\b[A-Z]+[0-9]+\b")
+ESLINT_DISABLE = re.compile(r"eslint-disable(?:-line|-next-line)?(?![\w-])(?P<rules>.*)", re.DOTALL)
 
 
 @dataclass(frozen=True)
@@ -140,19 +145,23 @@ def java_suppressions(text: str) -> list[tuple[range, str, set[str]]]:
 
 
 def script_suppressions(text: str) -> list[tuple[range, str, set[str]]]:
-    """The size suppressions of a JavaScript or TypeScript source: eslint-disable directive comments."""
+    """The size suppressions of a JavaScript or TypeScript source: eslint-disable directive comments.
+
+    A directive naming no rule disables every rule, so it suppresses the size rules as `eslint`.
+    """
     found = []
     for comment in lex(text, ('"', "'", "`")).comments:
         directive = comment.text.strip()
-        if directive.startswith("eslint-disable"):
-            rules = set(SIZE_RULES.findall(directive.split("--")[0])) & ESLINT_SIZE_RULES
+        if disable := ESLINT_DISABLE.match(directive):
+            named = disable.group("rules").split("--")[0]
+            rules = set(SIZE_RULES.findall(named)) & ESLINT_SIZE_RULES if named.strip() else {"eslint"}
             lines = range(_line(text, comment.start), _line(text, comment.end) + 1)
             found.append((lines, " ".join(directive.split()), rules))
     return found
 
 
 def python_suppressions(text: str) -> list[tuple[range, str, set[str]]]:
-    """The size suppressions of a Python source: noqa comments naming a size rule."""
+    """The size suppressions of a Python source: noqa comments naming a size rule, or no rule at all as `ruff`."""
     try:
         tokens = list(tokenize.generate_tokens(io.StringIO(text).readline))
         comments = [(token.start[0], token.string) for token in tokens if token.type == tokenize.COMMENT]
@@ -163,7 +172,8 @@ def python_suppressions(text: str) -> list[tuple[range, str, set[str]]]:
     found = []
     for number, comment in comments:
         if noqa := NOQA.search(comment):
-            rules = set(SIZE_RULES.findall(noqa.group(1))) & RUFF_SIZE_RULES
+            codes = RULE_CODE.findall(noqa.group("codes") or "")
+            rules = set(codes) & RUFF_SIZE_RULES if codes else {"ruff"}
             found.append((range(number, number + 1), comment, rules))
     return found
 
