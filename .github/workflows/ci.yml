@@ -163,14 +163,25 @@ jobs:
           pattern: suite-reports-*
           path: .suite-reports
           merge-multiple: true
+      # A pull request also checks the block its branch builds, although its tasks are not ticked yet:
+      # the branch is <lane>/<functionality>-<block> (conventions SA-1.2-14), and its last part names
+      # the block's suite in any case; a branch naming no block fails (111-AC22, OD-23).
+      # A push to main checks the ticked blocks only.
       - name: check the registry against every tasks.md
+        env:
+          HEAD_REF: ${{ github.head_ref }}
         run: |
           if [ ! -d .spec-repo/specs ]; then
             echo "::error::.spec-repo has no specs folder; set vars.SPEC_REPO to the spec repository"
             exit 1
           fi
           mv .spec-repo "$RUNNER_TEMP/spec-repo"
-          tools/check-suites $(printf -- '--tasks %s ' "$RUNNER_TEMP"/spec-repo/specs/*/tasks.md)
+          block_arguments=()
+          if [ -n "${HEAD_REF:-}" ]; then
+            block_arguments=(--block "${HEAD_REF##*/}")
+          fi
+          tools/check-suites $(printf -- '--tasks %s ' "$RUNNER_TEMP"/spec-repo/specs/*/tasks.md) \
+            ${block_arguments[@]+"${block_arguments[@]}"}
 
   browser:
     name: web build and browser specs

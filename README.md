@@ -78,7 +78,10 @@ and runs the browser specs. The job `required` is the status check that branch p
 `make lint`, `format-check`, `typecheck` and `test` fail and name the missing tool, and no target
 passes without running a check. To check every tasks.md, CI checks out the spec repository named
 by the repository variable `SPEC_REPO`, read with the secret `SPEC_REPO_TOKEN`; without them the
-registry check fails, so the tasks.md checks never skip.
+registry check fails, so the tasks.md checks never skip. On a pull request the registry check
+also checks the block being built, named by the last part of the branch
+(`<lane>/<functionality>-<block>`, so `lane/platform/111-b1` checks block `111-B1`); a branch that
+names no block of the tasks files fails the check.
 
 `make ci` runs what the required jobs run: install, every registered suite, then the registry
 check on their reports; a failing suite does not stop the others or the check. `SPEC_REPO=<spec repository checkout>` adds every `specs/*/tasks.md` to the registry check
