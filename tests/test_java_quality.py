@@ -45,7 +45,7 @@ VIOLATIONS = [
     ("error-prone", TYPECHECK, "[DeadException]"),
     ("lombok", FORMAT_CHECK, "Lombok is banned"),
     ("mysql-driver", FORMAT_CHECK, "The only database driver is PostgreSQL's"),
-    ("duckdb-driver", FORMAT_CHECK, DRIVER_CHECK),
+    ("duckdb-driver", LINT, DRIVER_CHECK),
     ("other-service", FORMAT_CHECK, "A service never depends on another service"),
 ]
 
@@ -86,14 +86,14 @@ def test_111_ac23_java_tool_fails_the_build_on_its_fixture(repo_root, tmp_path, 
 
 @pytest.mark.parametrize("case", ["mysql-driver", "duckdb-driver"])
 def test_111_ac23_driver_check_fails_on_any_driver_but_postgresql_without_the_group_bans(repo_root, tmp_path, case):
-    result = build_fixture(repo_root, tmp_path, case, [*FORMAT_CHECK, "-Denforcer.skip=true"])
+    result = build_fixture(repo_root, tmp_path, case, [*LINT, "-Denforcer.skip=true"])
 
     assert result.returncode != 0, f"{case} passed the driver check"
     assert DRIVER_CHECK in result.stdout + result.stderr, (result.stdout + result.stderr)[-4000:]
 
 
 def test_111_ac23_driver_check_passes_the_postgresql_driver(repo_root, tmp_path):
-    result = build_fixture(repo_root, tmp_path, "postgresql-driver", FORMAT_CHECK)
+    result = build_fixture(repo_root, tmp_path, "postgresql-driver", LINT)
 
     assert result.returncode == 0, (result.stdout + result.stderr)[-4000:]
 
