@@ -1,0 +1,10 @@
+# Two entries of one suite in one path with one runner and one selector: they would write one report.
+suites:
+  - id: 900-B1
+    runner: pytest
+    selector: suite_900_B1
+    paths: [tests]
+  - id: 900-B1
+    runner: pytest
+    selector: suite_900_B1
+    paths: [other]

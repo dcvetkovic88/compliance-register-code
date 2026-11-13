@@ -1,0 +1,8 @@
+# Two entries of one suite in one path with one runner, told apart by their selectors; each writes its own report.
+suites:
+  - id: 900-B1
+    runner: pytest
+    selector: suite_900_B1
+  - id: 900-B1
+    runner: pytest
+    selector: suite_900_B1_none

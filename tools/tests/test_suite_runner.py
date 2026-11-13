@@ -30,14 +30,37 @@ def test_111_ac22_one_id_runs_every_entry_with_its_own_runner_and_report(fixture
 
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip().splitlines() == [
-        f"uv run --project tools --frozen pytest -m suite_900_B1 tests --junitxml={reports}/root-pytest.xml",
+        f"uv run --project tools --frozen pytest -m suite_900_B1 tests --junitxml={reports}/root-pytest-suite_900_B1.xml",
         (
             "npm exec --workspace=apps/web -- vitest run --testNamePattern 900-B1 --reporter=default --reporter=junit"
-            f" --outputFile.junit={reports}/apps-web-vitest.xml"
+            f" --outputFile.junit={reports}/apps-web-vitest-900-B1.xml"
         ),
         "./mvnw -B -pl services/platform -am test -Dgroups=900-B1",
-        f"uv run --project tools --frozen pytest -m suite_900_B1 tools --junitxml={reports}/tools-pytest.xml",
+        f"uv run --project tools --frozen pytest -m suite_900_B1 tools --junitxml={reports}/tools-pytest-suite_900_B1.xml",
     ]
+
+
+def test_111_ac22_entries_sharing_a_path_and_runner_write_one_report_each(fixture_root):
+    root = fixture_root("entries-sharing-a-path-and-runner").resolve()
+    reports = root / ".suite-reports/900-B1"
+
+    result = suite(root, "--dry-run", "900-B1")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip().splitlines() == [
+        f"uv run --project tools --frozen pytest -m suite_900_B1 tools --junitxml={reports}/tools-pytest-suite_900_B1.xml",
+        (
+            "uv run --project tools --frozen pytest -m suite_900_B1_none tools"
+            f" --junitxml={reports}/tools-pytest-suite_900_B1_none.xml"
+        ),
+    ]
+
+
+def test_111_ac22_entries_that_would_write_one_report_are_refused(fixture_root):
+    result = suite(fixture_root("entries-writing-one-report"), "--dry-run", "900-B1")
+
+    assert result.returncode == 2
+    assert "tools/suites.yaml: two entries of suite 900-B1 write one report" in result.stderr
 
 
 def test_playwright_and_script_commands(fixture_root):
@@ -46,7 +69,7 @@ def test_playwright_and_script_commands(fixture_root):
     script = suite(root, "--dry-run", "900-B3")
 
     assert browser.stdout.strip() == (
-        f"env PLAYWRIGHT_JUNIT_OUTPUT_FILE={root}/.suite-reports/900-B2/apps-web-playwright.xml"
+        f"env PLAYWRIGHT_JUNIT_OUTPUT_FILE={root}/.suite-reports/900-B2/apps-web-playwright-900-B2.xml"
         " npm exec --workspace=apps/web -- playwright test --grep 900-B2 --reporter=list,junit"
     )
     assert script.stdout.strip() == "bash deploy/scripts/passes.sh"
@@ -74,7 +97,7 @@ def test_suite_passes_when_its_commands_pass_and_reports_the_script(fixture_root
     result = suite(fixture_root("runners"), "--reports", str(tmp_path), "900-B3")
 
     assert result.returncode == 0, result.stdout + result.stderr
-    cases = reported_cases(tmp_path / "900-B3/deploy-script.xml")
+    cases = reported_cases(tmp_path / "900-B3/deploy-script-scripts-passes.sh.xml")
     assert [case.get("name") for case in cases] == ["scripts/passes.sh"]
     assert cases[0].find("failure") is None
 
@@ -84,7 +107,7 @@ def test_suite_fails_when_a_command_fails(fixture_root, tmp_path):
 
     assert result.returncode == 1
     assert "900-B4" in result.stdout
-    assert reported_cases(tmp_path / "900-B4/deploy-script.xml")[0].find("failure") is not None
+    assert reported_cases(tmp_path / "900-B4/deploy-script-scripts-fails.sh.xml")[0].find("failure") is not None
 
 
 def test_unknown_suite_is_refused(fixture_root):

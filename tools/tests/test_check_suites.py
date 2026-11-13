@@ -87,7 +87,7 @@ def test_111_ac22_fails_when_a_registered_suite_has_not_run(fixture_root):
 
     assert result.returncode == 1
     assert (
-        "suite 900-B1 in tools/suites.yaml: no test report at .suite-reports/900-B1/tools-pytest.xml" in result.stdout
+        "suite 900-B1 in tools/suites.yaml: no test report at .suite-reports/900-B1/tools-pytest-suite_900_B1.xml" in result.stdout
     )
     assert "run tools/suite 900-B1 first" in result.stdout
 
@@ -148,6 +148,36 @@ def test_111_ac22_the_block_being_built_is_checked(fixture_root):
     assert "900-B3" in result.stdout
     assert "not in the registry" in result.stdout
     assert "900-AC3" in result.stdout
+
+
+def test_111_ac22_the_block_being_built_is_named_in_any_case(fixture_root):
+    result = check(fixture_root("later-block-unbuilt-suite"), "--block", "900-b3")
+
+    assert result.returncode == 1
+    assert "900-AC3" in result.stdout
+
+
+def test_111_ac22_fails_when_the_block_being_built_is_in_no_tasks_file(fixture_root):
+    result = check(fixture_root("later-block-unbuilt-suite"), "--block", "900-B9")
+
+    assert result.returncode == 1
+    assert "--block 900-B9 names no block of the tasks files" in result.stdout
+
+
+def test_111_ac22_each_entry_of_a_suite_is_checked_on_its_own_report(fixture_root):
+    result = check(fixture_root("entries-sharing-a-path-and-runner"))
+
+    assert result.returncode == 1
+    assert "selects no test" in result.stdout
+    assert "'suite_900_B1_none'" in result.stdout
+    assert "'suite_900_B1')" not in result.stdout
+
+
+def test_111_ac22_fails_when_two_entries_would_write_one_report(fixture_root):
+    result = check(fixture_root("entries-writing-one-report"))
+
+    assert result.returncode == 1
+    assert "tools/suites.yaml: two entries of suite 900-B1 write one report" in result.stdout
 
 
 def test_malformed_entry_is_reported_with_its_file(fixture_root):
