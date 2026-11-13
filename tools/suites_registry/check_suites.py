@@ -15,7 +15,8 @@ Checks:
 
 A block is in scope when all its tasks are ticked, or when `--block` names its suite, the block
 being built, in any case (`111-b1` from the branch name selects `111-B1`); a `--block` that names no
-block of the tasks files fails. Blocks still to come are never checked (OD-23).
+block of the tasks files fails. Blocks still to come are never checked (OD-23), nor blocks whose
+tasks are all `[spec-repo]` and that name no code suite: they are built in the spec repository.
 """
 
 import argparse
@@ -140,7 +141,7 @@ def main(argv: list[str] | None = None) -> int:
         for block in read_blocks(tasks_file):
             being_built = built in {suite_id.lower() for suite_id in block.suites}
             found = found or being_built
-            if block.done or being_built:
+            if (block.done or being_built) and not block.spec_repo_only:
                 problems += block_problems(block, registry, reports)
     if built and not found:
         problems.append(f"--block {arguments.block} names no block of the tasks files")

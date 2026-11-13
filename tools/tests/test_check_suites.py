@@ -87,7 +87,8 @@ def test_111_ac22_fails_when_a_registered_suite_has_not_run(fixture_root):
 
     assert result.returncode == 1
     assert (
-        "suite 900-B1 in tools/suites.yaml: no test report at .suite-reports/900-B1/tools-pytest-suite_900_B1.xml" in result.stdout
+        "suite 900-B1 in tools/suites.yaml: no test report at .suite-reports/900-B1/tools-pytest-suite_900_B1.xml"
+        in result.stdout
     )
     assert "run tools/suite 900-B1 first" in result.stdout
 

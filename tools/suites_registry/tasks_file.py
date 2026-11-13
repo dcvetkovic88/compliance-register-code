@@ -40,6 +40,11 @@ class Block:
     def done(self) -> bool:
         return bool(self.tasks) and all(task.done for task in self.tasks)
 
+    @property
+    def spec_repo_only(self) -> bool:
+        """A block of the spec repository: all its tasks are `[spec-repo]` and it names no code suite to check."""
+        return bool(self.tasks) and all(task.path == "spec-repo" for task in self.tasks) and not self.named_suites()
+
     def named_suites(self) -> list[str]:
         """Suites the heading names, then any other suite a task names (for example a script suite)."""
         names = list(self.suites)
