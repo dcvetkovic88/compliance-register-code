@@ -20,6 +20,7 @@ JAVA_DISPLAY_NAME = re.compile(r"""@DisplayName\(\s*"([^"]+)"\s*\)""")
 JAVA_TEST_ANNOTATION = re.compile(r"@(?:[\w.]+\.)?(?:Test|ParameterizedTest|RepeatedTest|TestFactory)\b")
 JAVA_METHOD = re.compile(r"^\s*(?:public\s+|protected\s+|private\s+)?(?:static\s+)?\w[\w<>\[\]]*\s+(\w+)\s*\(")
 JAVA_TYPE = re.compile(r"\b(?:class|interface|record|enum)\b")
+JAVA_DISABLED = re.compile(r"@(?:[\w.]+\.)?Disabled\b(?![\w.])")
 JAVA_COMMENT = re.compile(r"//[^\n]*|/\*.*?\*/", re.DOTALL)
 TS_CALL = re.compile(r"""\b(?P<callee>(?:it|test|describe)(?:\.\w+)*)\(\s*(?P<quote>["'`])(?P<title>.+?)(?P=quote)""")
 
@@ -63,12 +64,24 @@ def decorated_with(node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef, 
     return any(carries_mark(decorator, selector) for decorator in node.decorator_list)
 
 
+def skipped_params(decorator: ast.expr) -> set[int]:
+    """The ids of the id keywords inside a `pytest.param(..., marks=pytest.mark.skip)`; those cases never run."""
+    skipped: set[int] = set()
+    for child in ast.walk(decorator):
+        if isinstance(child, ast.Call) and any(
+            keyword.arg == "marks" and carries_mark(keyword.value, "skip") for keyword in child.keywords
+        ):
+            skipped.update(id(keyword) for keyword in child.keywords if keyword.arg == "id")
+    return skipped
+
+
 def python_names_of(function: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:
-    """The function name and every pytest id it is parametrized with."""
+    """The function name and every pytest id it is parametrized with, but for skipped cases."""
     names = [function.name]
     for decorator in function.decorator_list:
+        skipped = skipped_params(decorator)
         for child in ast.walk(decorator):
-            if isinstance(child, ast.keyword) and child.arg in {"id", "ids"}:
+            if isinstance(child, ast.keyword) and child.arg in {"id", "ids"} and id(child) not in skipped:
                 values = child.value.elts if isinstance(child.value, ast.List | ast.Tuple) else [child.value]
                 names += [
                     value.value for value in values if isinstance(value, ast.Constant) and isinstance(value.value, str)
@@ -79,27 +92,37 @@ def python_names_of(function: ast.FunctionDef | ast.AsyncFunctionDef) -> list[st
 TestFunction = ast.FunctionDef | ast.AsyncFunctionDef
 
 
+def skipped(node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef) -> bool:
+    """True when a `pytest.mark.skip` on the function or class keeps its body from running."""
+    return decorated_with(node, "skip") or (isinstance(node, ast.ClassDef) and pytestmark_carries(node.body, "skip"))
+
+
 def marked_tests(body: list[ast.stmt], selector: str | None, marked: bool) -> list[str]:
-    """Names of the test functions in `body` that carry the mark, or all of them when `marked`."""
+    """Names of the unskipped test functions in `body` that carry the mark, or all of them when `marked`."""
     return [
         name
         for node in body
-        if isinstance(node, TestFunction) and node.name.startswith("test")
+        if isinstance(node, TestFunction) and node.name.startswith("test") and not skipped(node)
         if marked or decorated_with(node, selector or "")
         for name in python_names_of(node)
     ]
 
 
 def python_tests(source: str, selector: str | None) -> list[str]:
-    """Names of the pytest tests in `source` that carry `selector` (every test when None)."""
+    """Names of the pytest tests in `source` that carry `selector` (every test when None).
+
+    A test under `pytest.mark.skip`, on itself, its class or its module, never runs, so it is no test of the suite.
+    """
     try:
         module = ast.parse(source)
     except SyntaxError:
         return []
+    if pytestmark_carries(module.body, "skip"):
+        return []
     module_marked = selector is None or pytestmark_carries(module.body, selector)
     names = marked_tests(module.body, selector, module_marked)
     for node in module.body:
-        if isinstance(node, ast.ClassDef) and node.name.startswith("Test"):
+        if isinstance(node, ast.ClassDef) and node.name.startswith("Test") and not skipped(node):
             class_marked = (
                 module_marked or decorated_with(node, selector or "") or pytestmark_carries(node.body, selector or "")
             )
@@ -123,30 +146,46 @@ def matching_brace(source: str, opening: int) -> int:
     return len(source)
 
 
+def blank_disabled_types(source: str) -> str:
+    """The source with the body of every `@Disabled` class blanked out, keeping every index in place."""
+    for disabled in JAVA_DISABLED.finditer(source):
+        opening = source.find("{", disabled.end())
+        if opening < 0 or not JAVA_TYPE.search(source[disabled.end() : opening]):
+            continue
+        closing = matching_brace(source, opening) - 1
+        source = source[: opening + 1] + re.sub(r"[^\n]", " ", source[opening + 1 : closing]) + source[closing:]
+    return source
+
+
 def java_test_names(source: str) -> list[str]:
-    """The display name of each test method, or the method name when it has none."""
+    """The display name of each test method not under `@Disabled`, or the method name when it has none."""
     names: list[str] = []
     pending_display_name: str | None = None
-    in_test = False
+    in_test = disabled = False
     for line in source.splitlines():
         display_name = JAVA_DISPLAY_NAME.search(line)
         if display_name:
             pending_display_name = display_name.group(1)
         if JAVA_TEST_ANNOTATION.search(line):
             in_test = True
+        if JAVA_DISABLED.search(line):
+            disabled = True
         if line.lstrip().startswith("@"):
             continue
         method = JAVA_METHOD.match(line)
-        if method and in_test:
+        if method and in_test and not disabled:
             names.append(pending_display_name or method.group(1))
         if method or JAVA_TYPE.search(line):
-            pending_display_name, in_test = None, False
+            pending_display_name, in_test, disabled = None, False, False
     return names
 
 
 def java_tests(source: str, selector: str | None) -> list[str]:
-    """Names of the JUnit tests in `source` tagged `selector`, by class or by method (every test when None)."""
-    source = JAVA_COMMENT.sub("", source)
+    """Names of the JUnit tests in `source` tagged `selector`, by class or by method (every test when None).
+
+    A test under `@Disabled`, on itself or its class, never runs, so it is no test of the suite.
+    """
+    source = blank_disabled_types(JAVA_COMMENT.sub("", source))
     if selector is None:
         return java_test_names(source)
     names: list[str] = []
