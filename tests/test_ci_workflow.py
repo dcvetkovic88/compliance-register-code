@@ -47,7 +47,7 @@ def test_111_ac2_runs_on_every_pull_request_to_main(workflow):
 def test_111_ac2_one_job_gates_the_merge_on_the_required_jobs_of_block_1(workflow):
     required = workflow["jobs"]["required"]
 
-    assert set(required["needs"]) == REQUIRED_JOBS_OF_BLOCK_1
+    assert REQUIRED_JOBS_OF_BLOCK_1 <= set(required["needs"])
     assert required["if"] == "always()"
     assert any("contains" in line and "failure" in line for line in run_lines(required) + [str(required)])
 

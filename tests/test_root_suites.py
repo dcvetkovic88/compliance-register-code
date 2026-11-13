@@ -51,7 +51,21 @@ def test_111_ac22_suite_111_b1_runs_the_root_and_the_tools_tests(repo_root):
 NOT_NESTED = "not block_1_passes and not ci_workflow and not clean_local_repository"
 
 
+def registry_of_block_1(repo_root, registry_root):
+    """A copy of the registry with only the entries of suite 111-B1; later blocks' suites have no report here."""
+    for suites_file in repo_root.glob("**/suites.yaml"):
+        relative = suites_file.relative_to(repo_root)
+        if {"fixtures", "node_modules", "target", ".venv"}.intersection(relative.parts):
+            continue
+        entries = yaml.safe_load(suites_file.read_text(encoding="utf-8"))["suites"]
+        copy = registry_root / relative
+        copy.parent.mkdir(parents=True, exist_ok=True)
+        copy.write_text(yaml.safe_dump({"suites": [e for e in entries if e["id"] == "111-B1"]}), encoding="utf-8")
+
+
 def test_111_ac22_block_1_passes_the_registry_check(repo_root, tmp_path):
+    registry_root = tmp_path / "registry"
+    registry_of_block_1(repo_root, registry_root)
     tasks = tmp_path / "tasks.md"
     tasks.write_text(BLOCK_1, encoding="utf-8")
     reports = tmp_path / "reports"
@@ -65,7 +79,15 @@ def test_111_ac22_block_1_passes_the_registry_check(repo_root, tmp_path):
         env=env,
     )
     result = subprocess.run(
-        [str(repo_root / "tools/check-suites"), "--reports", str(reports), "--tasks", str(tasks)],
+        [
+            str(repo_root / "tools/check-suites"),
+            "--root",
+            str(registry_root),
+            "--reports",
+            str(reports),
+            "--tasks",
+            str(tasks),
+        ],
         check=False,
         capture_output=True,
         text=True,

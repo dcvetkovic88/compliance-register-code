@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The module of one Java quality fixture (T1.5). tests/test_java_quality.py copies it with the sources
+  of one case folder beside it into a temporary folder, fills in the placeholders (the parent pom of
+  the repository under test, its root, the case name and the case's dependencies.xml) and runs one goal.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.wisertech.register</groupId>
+        <artifactId>register-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+        <relativePath>@PARENT_POM@</relativePath>
+    </parent>
+
+    <groupId>com.wisertech.register.fixtures</groupId>
+    <artifactId>@CASE@</artifactId>
+
+    <properties>
+        <register.root>@ROOT@</register.root>
+    </properties>
+
+    <dependencies>
+@DEPENDENCIES@
+    </dependencies>
+</project>
