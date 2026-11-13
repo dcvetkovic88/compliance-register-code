@@ -246,7 +246,9 @@ def test_111_ac23_pull_request_size_check_passes_a_larger_change_with_its_except
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-@pytest.mark.parametrize("path", ["tests/fixtures/java/big/Big.java", "package-lock.json", "apps/web/src/generated/client.ts"])
+@pytest.mark.parametrize(
+    "path", ["tests/fixtures/java/big/Big.java", "package-lock.json", "apps/web/src/generated/client.ts"]
+)
 def test_pull_request_size_check_leaves_out_fixtures_lock_files_and_generated_code(repo_root, change_repo, path):
     commit_lines(change_repo, path, LINES)
 
@@ -262,10 +264,45 @@ def test_111_ac23_size_limit_exception_in_code_must_be_listed_in_the_pull_reques
     commit_lines(change_repo, "services/register/src/main/java/demo/Mapping.java", [SUPPRESSION])
 
     unlisted = check_size(repo_root, change_repo, template_body(repo_root))
-    listed = check_size(repo_root, change_repo, template_body(repo_root, limit_exceptions="- Mapping: one table"))
+    listed = check_size(
+        repo_root, change_repo, template_body(repo_root, limit_exceptions="- Mapping.java PMD.MethodLength: one table")
+    )
 
     assert unlisted.returncode != 0
     assert "PMD.MethodLength" in unlisted.stdout + unlisted.stderr
+    assert listed.returncode == 0, listed.stdout + listed.stderr
+
+
+def test_111_ac23_every_size_limit_exception_in_code_is_listed_not_only_one(repo_root, change_repo):
+    commit_lines(change_repo, "services/register/src/main/java/demo/Mapping.java", [SUPPRESSION])
+    commit_lines(
+        change_repo,
+        "services/register/src/main/java/demo/Ledger.java",
+        ['@SuppressWarnings("PMD.ClassLength") // the ledger keeps its entries together'],
+    )
+    commit_lines(
+        change_repo, "services/ai-document/src/ai_document/parse.py", ["def parse(a, b, c, d, e, f):  # noqa: PLR0913"]
+    )
+    partly = template_body(repo_root, limit_exceptions="- Mapping.java PMD.MethodLength: one table")
+
+    result = check_size(repo_root, change_repo, partly)
+
+    output = result.stdout + result.stderr
+    assert result.returncode != 0
+    assert "Ledger.java" in output
+    assert "parse.py" in output
+    assert "Mapping.java" not in output
+
+
+def test_111_ac23_an_entry_names_the_file_and_the_rule_of_its_exception(repo_root, change_repo):
+    commit_lines(change_repo, "services/register/src/main/java/demo/Mapping.java", [SUPPRESSION, SUPPRESSION])
+    one_entry = "- Mapping.java PMD.MethodLength: one table"
+    wrong_rule = "- Mapping.java PMD.MethodLength: one table\n- Mapping.java PMD.ClassLength: one class"
+    both = "- Mapping.java PMD.MethodLength: one table\n- Mapping.java PMD.MethodLength: one mapping"
+
+    assert check_size(repo_root, change_repo, template_body(repo_root, limit_exceptions=one_entry)).returncode != 0
+    assert check_size(repo_root, change_repo, template_body(repo_root, limit_exceptions=wrong_rule)).returncode != 0
+    listed = check_size(repo_root, change_repo, template_body(repo_root, limit_exceptions=both))
     assert listed.returncode == 0, listed.stdout + listed.stderr
 
 
