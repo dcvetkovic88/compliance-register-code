@@ -218,9 +218,9 @@ jobs:
           path: "**/target/pit-reports/"
           if-no-files-found: ignore
 
-  # Secrets, security patterns and the Renovate configuration of the whole repository (T1.8).
+  # Secrets, security patterns and the Renovate configuration of the whole repository (T1.8), and Spectral (T1.11).
   repository:
-    name: secrets, Semgrep, Renovate configuration
+    name: secrets, Semgrep, Renovate configuration, Spectral
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7.0.1
@@ -239,6 +239,13 @@ jobs:
         run: tools/semgrep
       - name: Renovate configuration
         run: tools/check-renovate-config
+      # Spectral with the rule set and ratchet list synced from the spec repository (T1.11; SA-4-7).
+      - name: install from lock files
+        run: npm ci
+      - name: the synced Spectral rule set and ratchet list
+        run: tools/sync-spectral --check
+      - name: Spectral on every synced contract
+        run: tools/spectral
 
   # The branch name, the title and the size of a pull request (T1.8; SA-1.2-14, SA-1.2-15,
   # SA-2.3-6, SA-2.3-7). The pull request body is read from the event, never pasted into a command.

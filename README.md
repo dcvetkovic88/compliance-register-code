@@ -16,6 +16,7 @@ block 15c.
 | `tools/pyproject.toml`, `tools/uv.lock` | the Python project of the repository tools; `services/ai-document` gets its own uv project |
 | `Makefile` | the one entry point: `make lint`, `format-check`, `typecheck`, `test`, `suite S=<id>`, `ci`, `stack-up`, `stack-down` |
 | `config/java/` | the Checkstyle and PMD rules every Java module runs |
+| `config/spectral/` | the Spectral rule set and ratchet list, synced from the spec repository |
 | `ruff.toml`, `mypy.ini`, `.importlinter` | the Python format, lint, type and import rules every uv project runs |
 | `eslint.config.mjs`, `.prettierrc.json`, `tsconfig.base.json`, `.dependency-cruiser.cjs`, `vitest.shared.mjs`, `playwright.shared.mjs` | the TypeScript format, lint, type, dependency and test settings every npm workspace runs |
 | `.semgrep/`, `.gitleaks.toml`, `.pre-commit-config.yaml`, `renovate.json`, `commitlint.config.mjs` | the repository checks |
@@ -161,6 +162,8 @@ which matches that suffix only, and Vitest never runs them.
 | commitlint | `printf '%s\n' "<title>" \| npx commitlint` | a pull request title that is not a Conventional Commit of at most 100 characters, as `feat(register): add exit plan field`; blocks land by squash merge with the title as the commit, so CI checks the title (OD-27), and the commit-msg hook checks each local commit |
 | branch name | `tools/check-branch-name [branch]` | a branch that is not `<lane>/<functionality>-<block>`, as `services/104-f0-b3`; Renovate's `renovate/...` branches pass |
 | pull request size | `tools/check-pr-size --base <ref> --body-file <body>` | more than 400 changed lines, without fixtures, lock files and generated code, unless a `## Size exception` section of the body gives the reason (the runner appends one, OD-28); a size limit suppression in the code that the body's `## Size limit exceptions` does not list |
+| Spectral | `tools/spectral` | an error of the rule set `config/spectral/ruleset.yaml` in an OpenAPI or AsyncAPI file under `contracts/` that the ratchet list `config/spectral/ratchet.json` does not allow for that file; an entry above the count passes and is named, to be lowered in the spec repository |
+| Spectral sync | `tools/sync-spectral --spec-repo <spec repository>`; `--check` | the rule set and ratchet list are byte copies of the spec repository's `docs/standards/spectral/`, with their hashes in `config/spectral/SOURCE.lock`; the check fails on a copy edited by hand and, given the spec repository (or `SPEC_REPO_DIR`), on a copy behind it |
 | Renovate | `tools/check-renovate-config` | an invalid `renovate.json`; Renovate proposes a release once it is 14 days old |
 | pre-commit | `uv tool run --from pre-commit==4.7.0 pre-commit install --hook-type pre-commit --hook-type commit-msg` | the format check, lint or secrets scan before a commit; the message check on commit |
 
@@ -178,7 +181,7 @@ and runs the browser specs. The job `required` is the status check that branch p
 of block 1b, which runs the Java lint, format check, type check and tests (OD-21), the Python and
 TypeScript jobs, the quality job of all three languages and, on a pull request, the Python mutation
 gate of block 1c, the repository
-checks (gitleaks, Semgrep, the Renovate configuration) and, on a pull request, the Java mutation gate
+checks (gitleaks, Semgrep, the Renovate configuration, Spectral) and, on a pull request, the Java mutation gate
 and the branch name, commit message and size checks. When a language's tool is missing from its
 manifest, `make lint`, `format-check`, `typecheck` and `test` fail and name it, and no target passes
 without running a check (OD-21). To check every tasks.md, CI checks out the spec repository named
