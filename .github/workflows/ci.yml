@@ -1,8 +1,9 @@
 # CI of the Wiser Compliance Register (111-FR2, 111-FR22; plan D1, D18).
 # The job `required` is the one status check branch protection requires on main. In block 1 it needs
 # install and the suites (the registry, one job per suite, and the registry check, which reads the
-# JUnit XML reports the suite jobs wrote). Block 1b adds the Java quality job; the quality job of all
-# three languages joins when block 1c lands, until then its targets fail and name the missing tool (OD-21).
+# JUnit XML reports the suite jobs wrote). Block 1b adds the Java quality job, the Java mutation gate,
+# the repository checks and the pull request checks; the quality job of all three languages joins when
+# block 1c lands, until then its targets fail and name the missing tool (OD-21).
 # Suites come from the registry (every suites.yaml), so this file is not edited when a suite is added.
 name: ci
 
@@ -134,6 +135,67 @@ jobs:
           name: java-mutation
           path: "**/target/pit-reports/"
           if-no-files-found: ignore
+
+  # Secrets, security patterns and the Renovate configuration of the whole repository (T1.8).
+  repository:
+    name: secrets, Semgrep, Renovate configuration
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: read the uv pin
+        id: pins
+        run: echo "uv=$(cat .uv-version)" >> "$GITHUB_OUTPUT"
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: ${{ steps.pins.outputs.uv }}
+      - name: secrets
+        run: tools/gitleaks
+      - name: security patterns and custom rules
+        run: tools/semgrep
+      - name: Renovate configuration
+        run: tools/check-renovate-config
+
+  # The branch name, the commit messages and the size of a pull request (T1.8; SA-1.2-14, SA-1.2-15,
+  # SA-2.3-6, SA-2.3-7). The pull request body is read from the event, never pasted into a command.
+  pull-request:
+    name: branch name, commit messages, pull request size
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: read the uv pin
+        id: pins
+        run: echo "uv=$(cat .uv-version)" >> "$GITHUB_OUTPUT"
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: ${{ steps.pins.outputs.uv }}
+      - name: install from lock files
+        run: npm ci
+      - name: branch name
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: tools/check-branch-name "$HEAD_REF"
+      - name: commit messages
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: npx --no -- commitlint --from "origin/$BASE_REF" --to HEAD --verbose
+      - name: pull request size
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          printf '%s\n' "$PR_BODY" > "$RUNNER_TEMP/pull-request-body.md"
+          tools/check-pr-size --base "origin/$BASE_REF" --body-file "$RUNNER_TEMP/pull-request-body.md"
 
   registry:
     name: suites registry
@@ -278,7 +340,7 @@ jobs:
   required:
     name: required
     if: always()
-    needs: [install, java, java-mutation, registry, suites, check]
+    needs: [install, java, java-mutation, repository, pull-request, registry, suites, check]
     runs-on: ubuntu-24.04
     steps:
       - name: every job passed

@@ -1,0 +1,10 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Dependency updates as pull requests (T1.8; SA-4-11). A release is proposed once it is 14 days old, the pin rule of the root README; commits follow Conventional Commits, branches start with renovate/.",
+  "extends": ["config:recommended"],
+  "minimumReleaseAge": "14 days",
+  "rangeStrategy": "pin",
+  "semanticCommits": "enabled",
+  "branchPrefix": "renovate/",
+  "labels": ["dependencies"]
+}

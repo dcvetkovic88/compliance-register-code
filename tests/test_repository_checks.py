@@ -4,6 +4,7 @@ Each check is proven on a fixture that must fail and passes on the repository: g
 Renovate, commitlint, the branch name check and the pull request size check.
 """
 
+import json
 import os
 import random
 import shutil
@@ -66,15 +67,16 @@ def semgrep_on(repo_root: Path, tmp_path: Path, case: str) -> subprocess.Complet
     shutil.copytree(FIXTURES / "semgrep" / case, target)
     if (repo_root / ".semgrepignore").exists():
         shutil.copy2(repo_root / ".semgrepignore", target / ".semgrepignore")
-    return run([str(repo_root / "tools/semgrep"), "."], target)
+    return run([str(repo_root / "tools/semgrep"), "--json", "."], target)
 
 
 @pytest.mark.parametrize(("case", "rule"), SEMGREP_CASES, ids=[case for case, _ in SEMGREP_CASES])
 def test_111_ac23_semgrep_fails_on_its_fixture(repo_root, tmp_path, case, rule):
     result = semgrep_on(repo_root, tmp_path, case)
 
+    findings = [finding["check_id"] for finding in json.loads(result.stdout)["results"]]
     assert result.returncode != 0, result.stdout + result.stderr
-    assert rule in result.stdout, result.stdout + result.stderr
+    assert any(check_id.endswith(f".{rule}") for check_id in findings), findings
 
 
 def test_111_ac23_semgrep_passes_on_the_clean_fixture_and_the_repository(repo_root, tmp_path):
@@ -87,7 +89,7 @@ def test_111_ac23_semgrep_passes_on_the_clean_fixture_and_the_repository(repo_ro
 
 QUALITY_STUB = """#!/usr/bin/env bash
 echo "quality $*" >> "$STUB_LOG"
-[ "$1" != "$FAILING_CHECK" ]
+[ "${1:-none}" != "$FAILING_CHECK" ]
 """
 
 

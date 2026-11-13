@@ -1,0 +1,8 @@
+# Paths Semgrep skips (T1.8). Fixtures break the rules on purpose and are scanned by their own tests;
+# the Spec Kit and Claude folders are vendored tooling, not product code.
+:include .gitignore
+tests/fixtures/
+tools/tests/fixtures/
+.specify/
+.claude/
+.semgrep/
