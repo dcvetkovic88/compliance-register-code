@@ -10,14 +10,14 @@
     {
       "task": "T1.6",
       "test_command": "uv run --project tools --frozen pytest tools/tests/test_arch_rules.py -q",
-      "red_commit": "0d9aad2039e8cdae23b8198643ddac6d3f7c67ab",
-      "green_commit": "f7dd312ff7c660a6346ea56b249680b9f294f7af"
+      "red_commit": "d9ae3304b775164e9e044e0a029ad4e61342c3e0",
+      "green_commit": "796054da39f8957f1e32552c018c1e58708f62fb"
     },
     {
       "task": "T1.7",
       "test_command": "uv run --project tools --frozen pytest tests/test_java_mutation.py -q",
-      "red_commit": "508fa732dcb87103400fd4eaea1509e78a9053b4",
-      "green_commit": "99dbe80619b62d136e527921c0261cd84962d5c2"
+      "red_commit": "da0790ec1964364621a2949805110347cc11c766",
+      "green_commit": "f39471a163fef7b0ac77566db70a03e6cb80084b"
     },
     {
       "task": "T1.8",
