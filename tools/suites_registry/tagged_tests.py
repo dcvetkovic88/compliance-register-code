@@ -11,7 +11,8 @@ from pathlib import Path
 from suites_registry.registry import SuiteEntry, walk_files
 
 PYTHON_TEST_FILES = ("test_*.py", "*_test.py")
-JAVA_TEST_FILES = ("*Test.java", "*IT.java")
+# Surefire's default inclusions: `tools/suite` runs `mvn test`, which never runs a `*IT.java` class.
+JAVA_TEST_FILES = ("Test*.java", "*Test.java", "*Tests.java", "*TestCase.java")
 VITEST_FILES = ("*.test.ts", "*.test.tsx")
 BROWSER_FILES = ("*.e2e.ts",)
 
@@ -21,6 +22,8 @@ JAVA_METHOD = re.compile(r"^\s*(?:public\s+|protected\s+|private\s+)?(?:static\s
 JAVA_TYPE = re.compile(r"\b(?:class|interface|record|enum)\b")
 JAVA_COMMENT = re.compile(r"//[^\n]*|/\*.*?\*/", re.DOTALL)
 TS_CALL = re.compile(r"""\b(?P<callee>(?:it|test|describe)(?:\.\w+)*)\(\s*(?P<quote>["'`])(?P<title>.+?)(?P=quote)""")
+
+INACTIVE_MODIFIERS = {"skip", "todo", "fixme"}
 
 CRITERION_REFERENCE = re.compile(r"(?<![A-Za-z0-9])AC\d+(?![0-9])", re.IGNORECASE)
 FULL_CRITERION_ID = re.compile(r"(?<![A-Za-z0-9])\d{3}(?:[-_]F\d+)?[-_]AC\d+(?![0-9])", re.IGNORECASE)
@@ -196,18 +199,40 @@ def call_end(source: str, opening: int) -> int:
     return len(source)
 
 
+def inert_spans(source: str) -> list[tuple[int, int]]:
+    """The (start, end) of every string and comment in `source`; a call inside one never runs."""
+    spans, index = [], 0
+    while index < len(source):
+        skipped = skip_literal(source, index)
+        if skipped != index:
+            spans.append((index, skipped))
+            index = skipped
+        else:
+            index += 1
+    return spans
+
+
 def typescript_tests(source: str, selector: str | None) -> list[str]:
-    """Titles of the `it` and `test` calls whose own or enclosing title holds `selector` (every one when None)."""
+    """Titles of the active `it` and `test` calls whose own or enclosing title holds `selector` (every one when None).
+
+    A call in a comment or string, a `.skip`, `.todo` or `.fixme` call, and every call inside a skipped
+    `describe` runs nothing, so it is no test of the suite.
+    """
+    inert = inert_spans(source)
     calls = []
     for call in TS_CALL.finditer(source):
-        opening = source.index("(", call.start())
-        is_describe = "describe" in call.group("callee").split(".")
-        calls.append((call.start(), call_end(source, opening), is_describe, call.group("title")))
-    names: list[str] = []
-    for start, _, is_describe, title in calls:
-        if is_describe:
+        if any(start <= call.start() < end for start, end in inert):
             continue
-        titles = [t for s, e, d, t in calls if d and s < start < e] + [title]
+        opening = source.index("(", call.start())
+        parts = call.group("callee").split(".")
+        active = not INACTIVE_MODIFIERS.intersection(parts)
+        calls.append((call.start(), call_end(source, opening), "describe" in parts, active, call.group("title")))
+    names: list[str] = []
+    for start, _, is_describe, active, title in calls:
+        enclosing = [(d_active, t) for s, e, d, d_active, t in calls if d and s < start < e]
+        if is_describe or not active or not all(d_active for d_active, _ in enclosing):
+            continue
+        titles = [t for _, t in enclosing] + [title]
         if selector is None or any(selector in t for t in titles):
             names += [title, " ".join(titles)]
     return names
