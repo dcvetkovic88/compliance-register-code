@@ -419,6 +419,7 @@ NOT_SUPPRESSIONS = FIXTURES / "pr-size/not-suppressions"
         ("Guide.md", "docs/size-limits.md"),
         ("Examples.java", "services/register/src/main/java/demo/Examples.java"),
         ("examples.py", "services/ai-document/src/ai_document/examples.py"),
+        ("prose.py", "services/ai-document/src/ai_document/prose.py"),
         ("examples.ts", "apps/web/src/examples.ts"),
     ],
 )
