@@ -3,8 +3,8 @@
 A pull request changes about 400 lines at most, counted without fixtures, lock files and generated code.
 A larger one passes only when the section `## Size exception` of its body gives the reason. Every exception
 to a size limit it adds to the code (a PMD, ruff or ESLint suppression of a size rule) must be listed in the
-section `## Size limit exceptions`, one list entry per exception naming its file and its rules, as
-`- Mapping.java PMD.MethodLength: the reason`. A blanket PMD suppression (`@SuppressWarnings("PMD")`,
+section `## Size limit exceptions`, one list entry per exception naming its file and its rules, then a one-line
+reason after a colon, as `- Mapping.java PMD.MethodLength: the reason`; an entry without a reason lists nothing. A blanket PMD suppression (`@SuppressWarnings("PMD")`,
 `@SuppressWarnings("all")` or a `// NOPMD` marker) hides every size rule, so it is listed with the rule `PMD`.
 Suppressions are recognized by the syntax of their language (a Java annotation or NOPMD line comment, a Python
 `noqa` comment, an ESLint directive comment), so documentation, other comments and string literals naming one
@@ -191,8 +191,15 @@ class Suppression:
         return f"{self.path}: {self.text}"
 
     def listed_by(self, entry: str) -> bool:
-        """An entry lists this exception when it names the file and every size rule of the line."""
-        return Path(self.path).name in entry and self.rules <= set(SIZE_RULES.findall(entry))
+        """An entry lists this exception when it names the file and every size rule of the line, then a reason.
+
+        The entry reads `- Mapping.java PMD.MethodLength: the reason`; the file and rules come before the colon
+        and a one-line reason after it, so an entry with no reason lists nothing (SA-2.3-7).
+        """
+        named, colon, reason = entry.partition(":")
+        if not colon or not reason.strip():
+            return False
+        return Path(self.path).name in named and self.rules <= set(SIZE_RULES.findall(named))
 
 
 def git(root: Path, *args: str) -> str:
@@ -265,7 +272,8 @@ def check(root: Path, base: str, body: str) -> list[str]:
     if missing:
         problems.append(
             "these exceptions to a size limit are not listed under '## Size limit exceptions', one entry each"
-            " naming the file and the rule (SA-2.3-7): " + "; ".join(str(suppression) for suppression in missing)
+            " naming the file and the rule, then a one-line reason after a colon (SA-2.3-7): "
+            + "; ".join(str(suppression) for suppression in missing)
         )
     return problems
 
