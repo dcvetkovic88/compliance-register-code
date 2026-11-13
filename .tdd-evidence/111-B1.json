@@ -4,8 +4,8 @@
     {
       "task": "T1.1",
       "test_command": "uv run --project tools --frozen pytest tools/tests -q",
-      "red_commit": "7f41bcb4e1a47d433735430404564b34cadc8f80",
-      "green_commit": "27e89bc99a91fabd15ab064cd14fcffa861b9675"
+      "red_commit": "a2ff760552b4a5a27bff1fb056d4b93a858ef9b7",
+      "green_commit": "a994dd7c28375fb444abf19d35e8473cda577587"
     },
     {
       "task": "T1.2",
@@ -16,14 +16,14 @@
     {
       "task": "T1.3",
       "test_command": "uv run --project tools --frozen pytest tests/test_root_suites.py -q",
-      "red_commit": "95102274e2ab5df6ffb723c1e002c0863ae2e425",
-      "green_commit": "36de2d2803e9d9d4ceabdf7065c24cbbd1ca9d1b"
+      "red_commit": "58685e131ff77b29a6831bca91884bac04ac278d",
+      "green_commit": "a7532b219a2a5609dbb581487d39529561630226"
     },
     {
       "task": "T1.4",
       "test_command": "uv run --project tools --frozen pytest tests/test_ci_workflow.py -q",
-      "red_commit": "da3c78eba9f769274492118bc62b6436e38b3606",
-      "green_commit": "ebe55deef622cf6590dce46161d5731b1cb5078d"
+      "red_commit": "9a312f1659ae95fad6b899243aeb7c73118940d0",
+      "green_commit": "56c2bbd3bac2035d80b9e350e081c906819ce7b7"
     }
   ]
 }
