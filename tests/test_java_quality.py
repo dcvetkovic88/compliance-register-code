@@ -39,6 +39,7 @@ VIOLATIONS = [
     ("class-length", LINT, "Rule:ClassLength"),
     ("parameters", LINT, "Rule:ExcessiveParameterList"),
     ("nesting", LINT, "Rule:NestingDepth"),
+    ("nesting-unbraced", LINT, "Rule:NestingDepth"),
     ("complexity", LINT, "Rule:CyclomaticComplexity"),
     ("unused-parameter", LINT, "Rule:UnusedFormalParameter"),
     ("system-out", LINT, "Rule:SystemPrintln"),
