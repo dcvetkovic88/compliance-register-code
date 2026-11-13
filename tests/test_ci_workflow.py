@@ -12,7 +12,8 @@ import yaml
 pytestmark = pytest.mark.suite_111_B1
 
 QUALITY_TARGETS = ["lint", "format-check", "typecheck", "test"]
-REQUIRED_JOBS_OF_BLOCK_1 = {"install", "registry", "suites"}
+# The suites job runs every suite and writes its reports; the check job reads them (plan D18).
+REQUIRED_JOBS_OF_BLOCK_1 = {"install", "registry", "suites", "check"}
 # The tool each target needs per language; blocks 1b (Java) and 1c (TypeScript, Python) add them (OD-21).
 JAVA_TOOLS = {
     "lint": ["maven-checkstyle-plugin", "maven-pmd-plugin"],
@@ -216,11 +217,11 @@ def run_make_ci(repo_root, tmp_path, failing_call="", **env_vars):
     return result, log.read_text(encoding="utf-8").splitlines()
 
 
-def test_111_ac2_make_ci_runs_install_the_registry_check_and_every_suite_only(repo_root, tmp_path):
+def test_111_ac2_make_ci_runs_install_every_suite_then_the_registry_check_only(repo_root, tmp_path):
     result, calls = run_make_ci(repo_root, tmp_path)
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert calls == ["install ", "check-suites ", "suite --matrix", "suite 900-B1", "suite 900-B2"]
+    assert calls == ["install ", "suite --matrix", "suite 900-B1", "suite 900-B2", "check-suites "]
 
 
 def test_111_ac22_make_ci_checks_the_spec_repository_and_the_block_being_built(repo_root, tmp_path):
@@ -233,7 +234,7 @@ def test_111_ac22_make_ci_checks_the_spec_repository_and_the_block_being_built(r
 
     assert result.returncode == 0, result.stdout + result.stderr
     specs = spec_repo / "specs"
-    assert calls[1] == (
+    assert calls[-1] == (
         f"check-suites --tasks {specs}/104-trust-centre/tasks.md --tasks {specs}/111-register-foundation/tasks.md"
         " --block 111-B1"
     )
@@ -247,8 +248,15 @@ def test_111_ac2_make_ci_fails_when_a_step_fails(repo_root, tmp_path, failing_ca
     assert failing_call in calls
 
 
+def test_111_ac22_make_ci_checks_the_reports_of_every_suite_even_when_one_fails(repo_root, tmp_path):
+    result, calls = run_make_ci(repo_root, tmp_path, "suite 900-B1")
+
+    assert result.returncode != 0
+    assert calls[-2:] == ["suite 900-B2", "check-suites "]
+
+
 def registry_check_step(workflow) -> dict:
-    steps = workflow["jobs"]["registry"]["steps"]
+    steps = workflow["jobs"]["check"]["steps"]
     return next(step for step in steps if "tools/check-suites" in str(step.get("run", "")))
 
 
@@ -269,7 +277,7 @@ def run_registry_check(workflow, workspace, runner_temp):
 
 
 def test_111_ac22_the_spec_repository_is_always_checked_out(workflow):
-    steps = workflow["jobs"]["registry"]["steps"]
+    steps = workflow["jobs"]["check"]["steps"]
     checkout = next(step for step in steps if step.get("with", {}).get("repository") == "${{ vars.SPEC_REPO }}")
 
     assert "if" not in checkout
@@ -305,12 +313,34 @@ def test_111_ac22_one_job_per_registered_suite_from_the_registry(workflow):
     registry = workflow["jobs"]["registry"]
     suites = workflow["jobs"]["suites"]
 
-    assert any(line.startswith("tools/check-suites") for line in run_lines(registry))
     assert any("tools/suite --matrix" in line for line in run_lines(registry))
     assert suites["needs"] == "registry"
     assert suites["strategy"]["matrix"] == "${{ fromJSON(needs.registry.outputs.matrix) }}"
     assert suites["strategy"]["fail-fast"] is False
     assert "make suite S=${{ matrix.suite }}" in run_lines(suites)
+
+
+def test_111_ac22_each_suite_job_keeps_its_reports_even_when_the_suite_fails(workflow):
+    steps = workflow["jobs"]["suites"]["steps"]
+    run = next(index for index, step in enumerate(steps) if step.get("run") == "make suite S=${{ matrix.suite }}")
+    upload = next(index for index, step in enumerate(steps) if "upload-artifact" in step.get("uses", ""))
+
+    assert upload > run
+    assert steps[upload]["if"] == "always()"
+    assert steps[upload]["with"]["name"] == "suite-reports-${{ matrix.suite }}"
+    assert steps[upload]["with"]["path"] == ".suite-reports/"
+    assert steps[upload]["with"]["include-hidden-files"] is True
+
+
+def test_111_ac22_the_registry_check_reads_the_reports_of_every_suite_job(workflow):
+    check = workflow["jobs"]["check"]
+    steps = check["steps"]
+    download = next(index for index, step in enumerate(steps) if "download-artifact" in step.get("uses", ""))
+
+    assert set(check["needs"]) == {"registry", "suites"}
+    assert check["if"] == "always()"
+    assert steps[download]["with"] == {"pattern": "suite-reports-*", "path": ".suite-reports", "merge-multiple": True}
+    assert download < steps.index(registry_check_step(workflow))
 
 
 def test_111_ac2_database_suites_start_the_stack_on_the_runner(workflow):
