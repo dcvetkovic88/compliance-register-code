@@ -10,6 +10,8 @@ name: ci
 on:
   pull_request:
     branches: [main]
+    # edited reruns commitlint on the title and the size check on the body when either changes (T1.8).
+    types: [opened, synchronize, reopened, edited]
   push:
     branches: [main]
 
