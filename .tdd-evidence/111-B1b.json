@@ -4,8 +4,8 @@
     {
       "task": "T1.5",
       "test_command": "uv run --project tools --frozen pytest tests/test_java_quality.py -q",
-      "red_commit": "91ede8b9cf2248195239ac42ab1eb2b58a622230",
-      "green_commit": "c1b9b12d76aff24008f308005ca8874dd65fa112"
+      "red_commit": "5238b8b46be3c3f9d051d7ff0a0ebfce7e4689e4",
+      "green_commit": "5c376ce0b256e197ce87e6db5c80881286157a92"
     },
     {
       "task": "T1.6",
