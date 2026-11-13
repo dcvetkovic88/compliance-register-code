@@ -34,6 +34,7 @@ VIOLATIONS = [
     ("definition-source-doc", LINT, "Missing a Javadoc comment for 'DefinitionSource'"),
     ("model-gateway-doc", LINT, "Missing a Javadoc comment for 'ModelGateway'"),
     ("adapter-doc", LINT, "Missing a Javadoc comment for 'ArrangementController'"),
+    ("package-private-adapter-doc", LINT, "Missing a Javadoc comment for 'ArrangementRows'"),
     ("method-length", LINT, "Rule:MethodLength"),
     ("class-length", LINT, "Rule:ClassLength"),
     ("parameters", LINT, "Rule:ExcessiveParameterList"),
