@@ -50,6 +50,12 @@ class ReadinessRulesTest {
     }
 
     @Test
+    @DisplayName("111-AC17 AR-J2 fails on an application class that calls a capability over HTTP without its port")
+    void applicationCallingACapabilityWithoutItsPort() {
+        assertViolation(ArchitectureRules.CAPABILITIES_THROUGH_PORTS, "ReadCatalog", SERVICES + "arj2client");
+    }
+
+    @Test
     @DisplayName("111-AC17 AR-J3 fails on a JDBC type outside adapters.out.persistence")
     void jdbcOutsidePersistence() {
         assertViolation(ArchitectureRules.OWN_SCHEMA_AND_CODE, "CountArrangements", SERVICES + "arj3jdbc");
