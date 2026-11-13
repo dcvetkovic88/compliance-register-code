@@ -41,8 +41,9 @@ SIZE_RULES = re.compile(
 )
 SUPPRESS_WARNINGS = re.compile(r"@(?:java\.lang\.)?SuppressWarnings\s*\(")
 STRING_LITERAL = re.compile(r'"((?:[^"\\\n]|\\.)*)"')
-# A ruff suppression: `# noqa` for a line, `# ruff: noqa` or `# flake8: noqa` for the file, each with its codes.
-NOQA = re.compile(r"#\s*(?:(?:ruff|flake8)\s*:\s*)?noqa\b(?P<codes>\s*:.*)?", re.IGNORECASE)
+# A ruff suppression, for a line or (with a ruff or flake8 prefix) for the file, each with its codes. As in ruff,
+# the directive word is followed by a space, a colon or the end of the comment, so one quoted in prose is not.
+NOQA = re.compile(r"#\s*(?:(?:ruff|flake8)\s*:\s*)?noqa(?=[\s:]|$)(?P<codes>\s*:.*)?", re.IGNORECASE)
 RULE_CODE = re.compile(r"\b[A-Z]+[0-9]+\b")
 ESLINT_DISABLE = re.compile(r"eslint-disable(?:-line|-next-line)?(?![\w-])(?P<rules>.*)", re.DOTALL)
 
