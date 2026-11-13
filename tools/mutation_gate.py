@@ -118,8 +118,8 @@ def source_file(class_file: bytes) -> str:
     for _attribute in range(attributes):
         name, length = struct.unpack_from(">HI", class_file, offset)
         if constants.get(name) == b"SourceFile":
-            (value,) = struct.unpack_from(">H", class_file, offset + 6)
-            return constants[value].decode("utf-8")
+            (source_file_index,) = struct.unpack_from(">H", class_file, offset + 6)
+            return constants[source_file_index].decode("utf-8")
         offset += 6 + length
     return ""
 
