@@ -1,0 +1,12 @@
+{
+  "name": "@register/fixture-shell",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "eslint .",
+    "format:check": "prettier --check . --ignore-path ../../.gitignore --ignore-path ../../.prettierignore",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  }
+}
