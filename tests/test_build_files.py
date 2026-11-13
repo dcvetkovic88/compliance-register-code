@@ -1,7 +1,9 @@
 """Root build files and version pins (T1.2; 111-FR2, 111-AC2; plan D1; lessons S1177 to S1179)."""
 
 import json
+import os
 import re
+import shutil
 import subprocess
 import xml.etree.ElementTree as ElementTree
 
@@ -19,6 +21,7 @@ JAVA_MODULES = [
     "services/monitoring",
     "services/bff",
 ]
+QUALITY_TARGETS = ["lint", "format-check", "typecheck", "test"]
 MAKE_TARGETS = ["lint", "format-check", "typecheck", "test", "suite", "ci", "stack-up", "stack-down"]
 PIN_FILES = {".java-version": "Java", ".nvmrc": "Node", ".python-version": "Python", ".uv-version": "uv"}
 
@@ -110,13 +113,75 @@ def test_111_ac2_make_target_calls_a_script(repo_root, target):
     assert re.search(r"(tools|deploy/scripts)/[\w.-]+", result.stdout), result.stdout
 
 
-def test_make_target_without_its_script_says_so_and_passes(repo_root, tmp_path):
+@pytest.mark.parametrize("target", QUALITY_TARGETS)
+def test_111_ac2_quality_target_without_its_script_fails(repo_root, tmp_path, target):
     (tmp_path / "Makefile").write_text((repo_root / "Makefile").read_text(encoding="utf-8"), encoding="utf-8")
 
-    result = subprocess.run(["make", "-s", "lint"], cwd=tmp_path, capture_output=True, text=True)
+    result = subprocess.run(["make", "-s", target], cwd=tmp_path, capture_output=True, text=True)
 
-    assert result.returncode == 0
-    assert "tools/lint does not exist yet" in result.stdout
+    assert result.returncode != 0
+    assert f"tools/{target} does not exist" in result.stderr
+
+
+STUB = """#!/usr/bin/env bash
+echo "$(basename "$0") $*" >> "$STUB_LOG"
+[ "$(basename "$0")" != "$FAILING_TOOL" ]
+"""
+
+
+@pytest.fixture
+def stubbed_repo(repo_root, tmp_path):
+    """A copy of the root's make entry points whose Maven wrapper, npm and uv only record their calls."""
+    repo = tmp_path / "repo"
+    (repo / "tools").mkdir(parents=True)
+    (repo / "packages/shell").mkdir(parents=True)
+    for name in ["Makefile", "package.json", "tools/pyproject.toml"]:
+        (repo / name).write_text((repo_root / name).read_text(encoding="utf-8"), encoding="utf-8")
+    (repo / "packages/shell/package.json").write_text('{"name": "shell"}', encoding="utf-8")
+    for script in QUALITY_TARGETS + ["quality"]:
+        if (repo_root / "tools" / script).exists():
+            shutil.copy2(repo_root / "tools" / script, repo / "tools" / script)
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    for stub in [repo / "mvnw", bin_dir / "npm", bin_dir / "uv"]:
+        stub.write_text(STUB, encoding="utf-8")
+        stub.chmod(0o755)
+    return repo, bin_dir
+
+
+def run_stubbed(stubbed_repo, target, failing_tool=""):
+    repo, bin_dir = stubbed_repo
+    log = repo.parent / "calls.log"
+    log.touch()
+    env = {**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}", "STUB_LOG": str(log), "FAILING_TOOL": failing_tool}
+    result = subprocess.run(["make", "-s", target], cwd=repo, capture_output=True, text=True, env=env)
+    return result, log.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    ("target", "java", "typescript", "python"),
+    [
+        ("lint", "mvnw -B -ntp -q verify -DskipTests", "npm run --workspaces --if-present lint", "ruff check"),
+        ("format-check", "mvnw -B -ntp -q validate", "npm run --workspaces --if-present format:check", "ruff format --check"),
+        ("typecheck", "mvnw -B -ntp -q test-compile", "npm run --workspaces --if-present typecheck", "mypy"),
+        ("test", "mvnw -B -ntp -q test", "npm run --workspaces --if-present test", "pytest"),
+    ],
+)
+def test_111_ac2_quality_target_checks_the_three_languages(stubbed_repo, target, java, typescript, python):
+    result, calls = run_stubbed(stubbed_repo, target)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert java in calls
+    assert typescript in calls
+    assert any(line.startswith("uv run --project tools --frozen") and python in line for line in calls.splitlines())
+
+
+@pytest.mark.parametrize("target", QUALITY_TARGETS)
+@pytest.mark.parametrize("failing_tool", ["mvnw", "npm", "uv"])
+def test_111_ac2_quality_target_fails_when_one_language_fails(stubbed_repo, target, failing_tool):
+    result, _ = run_stubbed(stubbed_repo, target, failing_tool)
+
+    assert result.returncode != 0
 
 
 def test_make_suite_runs_the_suite_runner(repo_root):
