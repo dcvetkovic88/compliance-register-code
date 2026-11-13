@@ -1,4 +1,21 @@
-# Root ruff configuration of every Python path (plan D23). Block 1c adds the rule sets and size limits.
+# Root ruff configuration of every Python path (plan D23; conventions SA-4-1, SA-4-2; T1.9).
+# ruff format is the formatter. Lint: the rule sets E, F, B, N, C90, SIM, UP, I and the three size rules
+# of backend-rules section 3: 4 parameters (PLR0913), 30 statements per function (PLR0915, OD-18),
+# nesting depth 3 (PLR1702), cyclomatic complexity 10 (C901). PLR1702 is a preview rule; only the
+# preview rules named here run.
 line-length = 120
 target-version = "py312"
 extend-exclude = ["**/fixtures/**"]
+
+[lint]
+preview = true
+explicit-preview-rules = true
+select = ["E", "F", "B", "N", "C90", "SIM", "UP", "I", "PLR0913", "PLR0915", "PLR1702"]
+
+[lint.mccabe]
+max-complexity = 10
+
+[lint.pylint]
+max-args = 4
+max-statements = 30
+max-nested-blocks = 3

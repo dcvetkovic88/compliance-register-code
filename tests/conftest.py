@@ -5,6 +5,8 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+# Fixtures hold test modules of fixture projects (T1.9), which run only inside those projects.
+collect_ignore_glob = ["fixtures/*"]
 
 
 def pytest_configure(config: pytest.Config) -> None:

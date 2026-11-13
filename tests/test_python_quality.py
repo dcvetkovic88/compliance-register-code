@@ -147,7 +147,7 @@ def test_111_ac17_import_contract_breaks_on_its_fixture(tmp_path, overlay, contr
     result = lint_imports(build_service(tmp_path / "service", overlay))
 
     assert result.returncode != 0
-    broken = [line for line in result.stdout.splitlines() if line.endswith("BROKEN")]
+    broken = [line for line in result.stdout.splitlines() if " BROKEN" in line]
     assert [line for line in broken if line.startswith(contract)], result.stdout
 
 

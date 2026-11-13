@@ -16,6 +16,7 @@ block 15c.
 | `tools/pyproject.toml`, `tools/uv.lock` | the Python project of the repository tools; `services/ai-document` gets its own uv project |
 | `Makefile` | the one entry point: `make lint`, `format-check`, `typecheck`, `test`, `suite S=<id>`, `ci`, `stack-up`, `stack-down` |
 | `config/java/` | the Checkstyle and PMD rules every Java module runs |
+| `ruff.toml`, `mypy.ini`, `.importlinter` | the Python format, lint, type and import rules every uv project runs |
 | `.semgrep/`, `.gitleaks.toml`, `.pre-commit-config.yaml`, `renovate.json`, `commitlint.config.mjs` | the repository checks |
 | `tdd-profile.yaml` | the TDD profile: coverage is reported, the mutation threshold gates a pull request (OD-25) |
 | `tests/` | root-level tests (build files, registry, CI workflow, quality tooling) and their fixtures |
@@ -111,6 +112,26 @@ An exception to a size limit is a `@SuppressWarnings("PMD.<Rule>")` with a one-l
 the reason, and is listed in the pull request body (SA-2.3-7). `tools/quality <check> java` runs one
 check for Java only.
 
+## Python quality tools
+
+Every uv project runs them through `tools/quality <check> python`, with the root configuration
+(conventions section 5, T1.9):
+
+| Check | Tool | What fails |
+|---|---|---|
+| `make format-check` | ruff format (`ruff.toml`) | a file that is not formatted; `ruff format` formats it |
+| `make lint` | ruff (`ruff.toml`) | the rule sets E, F, B, N, C90, SIM, UP and I; more than 4 parameters (PLR0913), 30 statements in a function (PLR0915), nesting deeper than 3 (PLR1702), cyclomatic complexity over 10 (C901) |
+| `make lint` | import-linter (`.importlinter`), on a project with an `app` package | AR-P2 `app.domain` imports `app.api` or `app.adapters`, or `app.api` imports `app.adapters`; AR-P3 `psycopg` outside `app.adapters`, or any other database client; AR-P4 a Keycloak library, or a token library outside `app.adapters.identity`; AR-P5 `pydantic` in `app.domain` |
+| `make typecheck` | mypy strict (`mypy.ini`) | any strict error; test folders may leave pytest fixtures and test functions unannotated |
+| suite `111-B1c` | AR-P1, `tools/python_architecture.py` | a class with `obligation_id` and no `regulation_version` in a `services/*/app` package |
+
+`make test` runs pytest with pytest-cov and writes a coverage report per project to
+`coverage/python/<project>.xml`; it is never a gate, and a project with no test yet passes.
+`tools/python-mutation-gate --base <ref>` runs mutmut on the modules of `<project>/app` changed since
+`<ref>`, with the project's `tests/`, and fails when the changed modules in `domain` and `application`
+score below the threshold of `tdd-profile.yaml`; the gate writes the mutmut configuration, so a project
+carries none. CI runs both, and the Python job and the mutation gate are required.
+
 ## Repository checks
 
 | Check | Run it | What fails |
@@ -134,7 +155,8 @@ Fixtures break these rules on purpose; `.semgrepignore` leaves them to their own
 reports, then the registry check on the reports of every suite job; one job that builds the web
 and runs the browser specs. The job `required` is the status check that branch protection on
 `main` requires. It needs install, the suites and the registry check (block 1) and the Java job
-of block 1b, which runs the Java lint, format check, type check and tests (OD-21), the repository
+of block 1b, which runs the Java lint, format check, type check and tests (OD-21), the Python job
+and, on a pull request, the Python mutation gate of block 1c, the repository
 checks (gitleaks, Semgrep, the Renovate configuration) and, on a pull request, the Java mutation gate
 and the branch name, commit message and size checks. Until block 1c
 (TypeScript, Python) adds its tools, `make lint`, `format-check`, `typecheck` and `test` fail and

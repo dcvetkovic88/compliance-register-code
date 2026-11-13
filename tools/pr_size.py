@@ -4,7 +4,8 @@ A pull request changes about 400 lines at most, counted without fixtures, lock f
 A larger one passes only when the section `## Size exception` of its body gives the reason. Every exception
 to a size limit it adds to the code (a PMD, ruff or ESLint suppression of a size rule) must be listed in the
 section `## Size limit exceptions`, one list entry per exception naming its file and its rules, then a one-line
-reason after a colon, as `- Mapping.java PMD.MethodLength: the reason`; an entry without a reason lists nothing. A blanket PMD suppression (`@SuppressWarnings("PMD")`,
+reason after a colon, as `- Mapping.java PMD.MethodLength: the reason`; an entry without a reason lists nothing.
+A blanket PMD suppression (`@SuppressWarnings("PMD")`,
 `@SuppressWarnings("all")` or a `// NOPMD` marker) hides every size rule, so it is listed with the rule `PMD`;
 a ruff one naming no rule (`# noqa`, `# ruff: noqa`) is listed with `ruff`, an ESLint directive naming no rule
 (`/* eslint-disable */`, `// eslint-disable-next-line`) with `eslint`.

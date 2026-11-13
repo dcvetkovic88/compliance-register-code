@@ -1,7 +1,7 @@
 # pre-commit (T1.8; SA-4-10): the format check, lint and secrets scan before each commit, and the
 # Conventional Commits check of the message. Install once:
 #   uv tool run --from pre-commit==4.7.0 pre-commit install --hook-type pre-commit --hook-type commit-msg
-# The hooks check Java, the language whose tools have landed (block 1b); block 1c adds TypeScript and Python.
+# The hooks check Java (block 1b) and Python (block 1c, T1.9); T1.10 adds TypeScript.
 repos:
   - repo: local
     hooks:
@@ -15,6 +15,20 @@ repos:
       - id: lint
         name: lint
         entry: tools/quality lint java
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+      - id: python-format-check
+        name: Python format check
+        entry: tools/quality format-check python
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+      - id: python-lint
+        name: Python lint
+        entry: tools/quality lint python
         language: system
         pass_filenames: false
         always_run: true
