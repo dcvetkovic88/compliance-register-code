@@ -152,8 +152,12 @@ def test_111_ac17_import_contract_breaks_on_its_fixture(tmp_path, overlay, contr
 
 
 def grain_violations(package: Path) -> list[str]:
+    """The violations the AR-P1 check reports; a check that crashes or writes an error fails the caller."""
     result = tools_run("python", str(REPO_ROOT / "tools/python_architecture.py"), str(package))
-    return [line for line in result.stdout.splitlines() if line.strip()]
+    violations = [line for line in result.stdout.splitlines() if line.strip()]
+    assert result.stderr == "", result.stderr
+    assert result.returncode == (1 if violations else 0), result.stdout + result.stderr
+    return violations
 
 
 def test_111_ac17_ar_p1_a_model_with_an_obligation_id_but_no_regulation_version_fails(tmp_path):
