@@ -3,3 +3,6 @@ suites:
   - id: 111-B1
     runner: pytest
     selector: suite_111_B1
+  - id: 111-B1b
+    runner: pytest
+    selector: suite_111_B1b

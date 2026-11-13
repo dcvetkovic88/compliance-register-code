@@ -15,7 +15,10 @@ package = false
 testpaths = ["tests"]
 pythonpath = ["."]
 norecursedirs = ["fixtures"]
-markers = ["suite_111_B1: check suite 111-B1 (repository root and suites registry)"]
+markers = [
+    "suite_111_B1: check suite 111-B1 (repository root and suites registry)",
+    "suite_111_B1b: check suite 111-B1b (quality tooling, Java and repository)",
+]
 
 [tool.mypy]
 python_version = "3.12"
