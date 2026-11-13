@@ -260,16 +260,22 @@ def registry_check_step(workflow) -> dict:
     return next(step for step in steps if "tools/check-suites" in str(step.get("run", "")))
 
 
-def run_registry_check(workflow, workspace, runner_temp):
-    """Run the registry job's check step in `workspace`, with a tools/check-suites that records its arguments."""
+def run_registry_check(workflow, workspace, runner_temp, head_ref=""):
+    """Run the registry job's check step in `workspace`, with a tools/check-suites that records its arguments.
+
+    `head_ref` is the branch of the pull request; it is empty on a push to main.
+    """
     (workspace / "tools").mkdir(parents=True, exist_ok=True)
     check_suites = workspace / "tools/check-suites"
     check_suites.write_text('#!/usr/bin/env bash\nprintf "%s\\n" "$@" > "$CALLS"\n', encoding="utf-8")
     check_suites.chmod(0o755)
     runner_temp.mkdir(exist_ok=True)
     calls = workspace / "calls"
-    env = {**os.environ, "RUNNER_TEMP": str(runner_temp), "CALLS": str(calls)}
-    script = registry_check_step(workflow)["run"]
+    step = registry_check_step(workflow)
+    assert step["env"]["HEAD_REF"] == "${{ github.head_ref }}"
+    outer = {name: value for name, value in os.environ.items() if name != "HEAD_REF"}
+    env = {**outer, "RUNNER_TEMP": str(runner_temp), "CALLS": str(calls), "HEAD_REF": head_ref}
+    script = step["run"]
     result = subprocess.run(
         ["bash", "-e", "-c", script], cwd=workspace, env=env, check=False, capture_output=True, text=True
     )
@@ -306,6 +312,22 @@ def test_111_ac22_registry_check_reads_every_tasks_file_of_the_spec_repository(w
         str(spec_repo / "104-trust-centre/tasks.md"),
         "--tasks",
         str(spec_repo / "111-register-foundation/tasks.md"),
+    ]
+
+
+def test_111_ac22_registry_check_of_a_pull_request_checks_the_block_its_branch_builds(workflow, tmp_path):
+    workspace = tmp_path / "workspace"
+    (workspace / ".spec-repo/specs/111-register-foundation").mkdir(parents=True)
+    (workspace / ".spec-repo/specs/111-register-foundation/tasks.md").write_text("# Tasks\n", encoding="utf-8")
+
+    result, calls = run_registry_check(workflow, workspace, tmp_path / "runner", head_ref="lane/platform/111-b1")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert calls == [
+        "--tasks",
+        str(tmp_path / "runner/spec-repo/specs/111-register-foundation/tasks.md"),
+        "--block",
+        "111-b1",
     ]
 
 
