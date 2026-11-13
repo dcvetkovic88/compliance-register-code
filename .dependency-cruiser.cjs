@@ -60,7 +60,8 @@ module.exports = {
     {
       name: "AR-W2-http-library-outside-the-clients",
       comment:
-        "AR-W2: a feature calls a service only through the generated client; HTTP libraries are imported nowhere else.",
+        "AR-W2: a feature calls a service only through the generated client; HTTP libraries are imported nowhere else. " +
+        "A local wrapper around the global fetch is no import; eslint.config.mjs rejects fetch outside the clients.",
       severity: "error",
       from: { path: "^(apps|packages)/", pathNot: API_CLIENTS },
       to: { path: npm(HTTP_LIBRARIES) },

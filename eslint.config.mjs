@@ -40,6 +40,19 @@ const classComponent =
   "ClassDeclaration[superClass.name=/^(Pure)?Component$/], ClassDeclaration[superClass.property.name=/^(Pure)?Component$/], " +
   "ClassExpression[superClass.name=/^(Pure)?Component$/], ClassExpression[superClass.property.name=/^(Pure)?Component$/]";
 
+// AR-W2: a feature calls a service only through the generated client. dependency-cruiser sees imports of HTTP
+// libraries but not the global fetch, so a local wrapper around fetch is caught here: the network globals are
+// used only under apps/web/src/api, where the generated clients live.
+const NETWORK_GLOBALS = ["fetch", "XMLHttpRequest", "WebSocket", "EventSource"];
+const networkMessage = "AR-W2: only the generated clients of apps/web/src/api call a service.";
+const networkGlobals = ["error", ...NETWORK_GLOBALS.map((name) => ({ name, message: networkMessage }))];
+const networkProperties = [
+  "error",
+  ...["window", "globalThis", "self"].flatMap((object) =>
+    NETWORK_GLOBALS.map((property) => ({ object, property, message: networkMessage })),
+  ),
+];
+
 export default tseslint.config(
   {
     ignores: ["**/node_modules/**", "**/dist/**", "**/build/**", "**/coverage/**", "**/fixtures/**", "**/generated/**"],
@@ -68,7 +81,13 @@ export default tseslint.config(
       "react/jsx-no-literals": ["error", { noStrings: true, ignoreProps: true }],
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "error",
+      "no-restricted-globals": networkGlobals,
+      "no-restricted-properties": networkProperties,
     },
+  },
+  {
+    files: ["**/apps/web/src/api/**"],
+    rules: { "no-restricted-globals": "off", "no-restricted-properties": "off" },
   },
   {
     files: ["**/*.{js,mjs,cjs}"],
