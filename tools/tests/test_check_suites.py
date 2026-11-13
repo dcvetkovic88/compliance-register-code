@@ -69,3 +69,9 @@ def test_malformed_entry_is_reported_with_its_file(fixture_root):
     assert "tools/suites.yaml" in result.stdout
     assert "suite-one" in result.stdout
     assert "gradle" in result.stdout
+
+
+def test_entry_whose_path_is_a_test_file_selects_the_tests_in_it(fixture_root):
+    result = check(fixture_root("file-path-entry"))
+
+    assert result.returncode == 0, result.stdout + result.stderr
