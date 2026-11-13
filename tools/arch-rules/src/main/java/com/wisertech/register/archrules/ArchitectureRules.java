@@ -14,11 +14,13 @@ import static com.wisertech.register.archrules.RegisterPackages.APPLICATION;
 import static com.wisertech.register.archrules.RegisterPackages.DOMAIN;
 import static com.wisertech.register.archrules.RegisterPackages.FRAMEWORKS;
 import static com.wisertech.register.archrules.RegisterPackages.IDENTITY;
+import static com.wisertech.register.archrules.RegisterPackages.JAVA_NET_CLIENTS;
 import static com.wisertech.register.archrules.RegisterPackages.JDBC;
 import static com.wisertech.register.archrules.RegisterPackages.LIBS;
 import static com.wisertech.register.archrules.RegisterPackages.PERSISTENCE;
 import static com.wisertech.register.archrules.RegisterPackages.PROBLEM_TYPES;
 import static com.wisertech.register.archrules.RegisterPackages.REGISTER;
+import static com.wisertech.register.archrules.RegisterPackages.REMOTE_CLIENTS;
 import static com.wisertech.register.archrules.RegisterPackages.SERVICES;
 import static com.wisertech.register.archrules.RegisterPackages.SERVICE_SLICES;
 import static com.wisertech.register.archrules.RegisterPackages.TOKEN_LIBRARIES;
@@ -79,8 +81,20 @@ public final class ArchitectureRules {
                     .dependOnClassesThat()
                     .haveSimpleNameEndingWith("StandIn")
                     .allowEmptyShould(true))
+            .and(noClasses()
+                    .that()
+                    .resideInAPackage(SERVICES)
+                    .and()
+                    .resideOutsideOfPackage(ADAPTERS_OUT)
+                    .should()
+                    .dependOnClassesThat()
+                    .resideInAnyPackage(REMOTE_CLIENTS)
+                    .orShould()
+                    .dependOnClassesThat(nameMatching(JAVA_NET_CLIENTS))
+                    .allowEmptyShould(true))
             .as("AR-J2 a suite capability is reached through its port, an interface of domain or application"
-                    + " implemented in adapters.out; only adapters.out names a stand-in (suite readiness rule 2)");
+                    + " implemented in adapters.out; only adapters.out names a stand-in or an HTTP or remote call"
+                    + " client (suite readiness rule 2)");
 
     /** Suite readiness rule 3, one PostgreSQL engine and one schema per service. */
     @ArchTest
