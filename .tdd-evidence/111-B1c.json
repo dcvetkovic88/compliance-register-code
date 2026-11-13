@@ -1,0 +1,29 @@
+{
+  "block": "111-B1c",
+  "tasks": [
+    {
+      "task": "T1.9",
+      "test_command": "uv run --project tools --frozen pytest tests/test_python_quality.py -q",
+      "red_commit": "1195d04c5e991795423bb64b1475b5afa98846f7",
+      "green_commit": "bf847d33364fe121afc23370d1df6d0911611143"
+    },
+    {
+      "task": "T1.10",
+      "test_command": "npm ci && uv run --project tools --frozen pytest tests/test_typescript_quality.py -q",
+      "red_commit": "0444581cec3182a823bc1a08a5818610e62feaad",
+      "green_commit": "46ab6c5ed4584887c92744ab923d1470824a887b"
+    },
+    {
+      "task": "T1.11",
+      "test_command": "npm ci && uv run --project tools --frozen pytest tests/test_spectral.py -q",
+      "red_commit": "b090fa254565ee2a9d05f917d0f6ce863a66fb45",
+      "green_commit": "550bb6396796c57da596d5967b95261a7d97a806"
+    },
+    {
+      "task": "T1.12",
+      "test_command": "uv run --project tools --frozen pytest tools/tests/test_structure_checks.py -q",
+      "red_commit": "0d18a5eb98d7867d404dd166f12c22b38ec9bf15",
+      "green_commit": "ce51635ab70e7cffdc4626a2eaebb71a16ea8702"
+    }
+  ]
+}
