@@ -1,0 +1,31 @@
+# Hooks trimmed 2026-11-13 to what the lane workflow needs: TDD loop before implement, TDD evidence after.
+# Architecture-guard verify and the Codex review are run by the lane runner as their own steps, so their hooks are off.
+# Spec-phase hooks (after_plan, after_tasks, after_converge) belong to the spec repository.
+installed:
+- architecture-guard
+- tdd
+- verify-tasks
+settings:
+  auto_execute_hooks: true
+hooks:
+  before_implement:
+  - extension: tdd
+    command: speckit.tdd.run
+    enabled: true
+    optional: false
+    priority: 10
+    prompt: Drive the behavioral tasks through the red-green-refactor loop first?
+    description: Run the loop over every behavior on the feature's tdd/test-list.md, one failing test
+      at a time with the red recorded, ticking the tasks each behavior completes so /speckit.implement
+      then covers only the work that is not a behavior change
+    condition: null
+  after_implement:
+  - extension: tdd
+    command: speckit.tdd.verify
+    enabled: true
+    optional: false
+    priority: 10
+    prompt: Audit TDD discipline and test strength for this feature?
+    description: 'Write specs/<feature>/tdd/verification.md: test-first evidence, test-smell rubric, mutation
+      results, and acceptance-criteria coverage'
+    condition: null

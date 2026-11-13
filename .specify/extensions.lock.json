@@ -1,0 +1,24 @@
+{
+  "_note": "Pinned Spec Kit extensions. Version and repository from each extension.yml; tree_sha256 over every file of the extension folder in path order. A change to an extension must update this file.",
+  "speckit_version": "1.4.1.dev0",
+  "extensions": [
+    {
+      "id": "architecture-guard",
+      "version": "2.3.6",
+      "repository": "https://github.com/DyanGalih/architecture-guard",
+      "tree_sha256": "ec6cb2ad9911f67e7f7c4682c56c7b16fbedcd3a2ad03fa028fc5383f891bd03"
+    },
+    {
+      "id": "tdd",
+      "version": "1.1.2",
+      "repository": "https://github.com/d0whc3r/spec-kit-tdd",
+      "tree_sha256": "3a27f1dc187dffca4b70b160113b8c75215e67bb6d72e8a838a171d5e76a84e4"
+    },
+    {
+      "id": "verify-tasks",
+      "version": "1.2.0",
+      "repository": "https://github.com/datastone-inc/spec-kit-verify-tasks",
+      "tree_sha256": "7f8c227fabf3bf081dd7e29b5f962af342654a9dbdee28bc6e1ee7ee99790098"
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "schema_version": "1.0",
+  "extensions": {
+    "tdd": {
+      "version": "1.1.2",
+      "source": "local",
+      "manifest_hash": "sha256:e07b49d00feb217a92cdbacd9471326b71bd31c636b184718cabb7904a13e6b2",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "claude": [
+          "speckit.tdd.setup",
+          "speckit.tdd.plan",
+          "speckit.tdd.run",
+          "speckit.tdd.verify"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-11-13T02:13:53.867617+00:00"
+    },
+    "architecture-guard": {
+      "version": "2.3.6",
+      "source": "local",
+      "manifest_hash": "sha256:0a8ecc1d72d850c265cf2720a03d3f15d9496f243c629363bc164e80be4b348c",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "claude": [
+          "speckit.architecture-guard.ag-governed-discover",
+          "speckit.architecture-guard.ag-governed-spec",
+          "speckit.architecture-guard.ag-governed-delivery",
+          "speckit.architecture-guard.ag-governed-delivery-team",
+          "speckit.architecture-guard.ag-governed-archive",
+          "speckit.architecture-guard.ag-governed-plan",
+          "speckit.architecture-guard.ag-governed-tasks",
+          "speckit.architecture-guard.ag-governed-implement",
+          "speckit.architecture-guard.ag-workflow",
+          "speckit.architecture-guard.ag-review-artifacts",
+          "speckit.architecture-guard.ag-review-implementation",
+          "speckit.architecture-guard.ag-violation-detection",
+          "speckit.architecture-guard.ag-refactor-generator",
+          "speckit.architecture-guard.ag-apply",
+          "speckit.architecture-guard.ag-init",
+          "speckit.architecture-guard.ag-init-brownfield",
+          "speckit.architecture-guard.ag-consolidate-specs",
+          "speckit.architecture-guard.ag-verify"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-11-13T02:14:10.913486+00:00"
+    },
+    "verify-tasks": {
+      "version": "1.2.0",
+      "source": "local",
+      "manifest_hash": "sha256:b855756ad3d065b9ca587b1059fb096d9478d01e0dcd6200e5daf8565da4c6a1",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "claude": [
+          "speckit.verify-tasks.run",
+          "speckit.verify-tasks"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-11-13T02:14:15.286152+00:00"
+    }
+  }
+}

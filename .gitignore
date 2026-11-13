@@ -1,0 +1,25 @@
+# local Claude settings, never shared
+.claude/settings.local.json
+# Spec Kit download cache
+.specify/extensions/.cache/
+# build output and tool caches
+target/
+node_modules/
+dist/
+build/
+coverage/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+# local dev stack: secrets, logs, demo snapshot
+.dev-stack/
+.env
+.env.*
+!.env.example
+# editors and OS
+.idea/
+.vscode/
+.DS_Store
