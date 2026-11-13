@@ -158,10 +158,10 @@ jobs:
       - name: Renovate configuration
         run: tools/check-renovate-config
 
-  # The branch name, the commit messages and the size of a pull request (T1.8; SA-1.2-14, SA-1.2-15,
+  # The branch name, the title and the size of a pull request (T1.8; SA-1.2-14, SA-1.2-15,
   # SA-2.3-6, SA-2.3-7). The pull request body is read from the event, never pasted into a command.
   pull-request:
-    name: branch name, commit messages, pull request size
+    name: branch name, pull request title, pull request size
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     steps:
@@ -185,10 +185,12 @@ jobs:
         env:
           HEAD_REF: ${{ github.head_ref }}
         run: tools/check-branch-name "$HEAD_REF"
-      - name: commit messages
+      # Blocks land on main by squash merge, one commit whose message is the pull request title, so
+      # commitlint checks the title, not every commit of the branch (OD-27).
+      - name: pull request title
         env:
-          BASE_REF: ${{ github.base_ref }}
-        run: npx --no -- commitlint --from "origin/$BASE_REF" --to HEAD --verbose
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s\n' "$PR_TITLE" | npx --no -- commitlint --verbose
       - name: pull request size
         env:
           BASE_REF: ${{ github.base_ref }}

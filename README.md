@@ -117,9 +117,9 @@ check for Java only.
 |---|---|---|
 | gitleaks | `tools/gitleaks [folder]` | any secret (`.gitleaks.toml`, the default rules) |
 | Semgrep | `tools/semgrep [path ...]` | any finding of severity ERROR (high): the registry pack `p/security-audit` and the rules of `.semgrep/`: generic names (`item`, `data`, `obj`, `info`, `value`, `temp`), generic class and type suffixes in Python and TypeScript, a secret passed to a logger, sleeps and fixed waits in tests, a TODO without its issue |
-| commitlint | `npx commitlint --from <ref>` | a commit message that is not a Conventional Commit, as `feat(register): add exit plan field` |
+| commitlint | `printf '%s\n' "<title>" \| npx commitlint` | a pull request title that is not a Conventional Commit of at most 100 characters, as `feat(register): add exit plan field`; blocks land by squash merge with the title as the commit, so CI checks the title (OD-27), and the commit-msg hook checks each local commit |
 | branch name | `tools/check-branch-name [branch]` | a branch that is not `<lane>/<functionality>-<block>`, as `services/104-f0-b3`; Renovate's `renovate/...` branches pass |
-| pull request size | `tools/check-pr-size --base <ref> --body-file <body>` | more than 400 changed lines, without fixtures, lock files and generated code, unless the body's `## Size exception` gives the reason; a size limit suppression in the code that the body's `## Size limit exceptions` does not list |
+| pull request size | `tools/check-pr-size --base <ref> --body-file <body>` | more than 400 changed lines, without fixtures, lock files and generated code, unless a `## Size exception` section of the body gives the reason (the runner appends one, OD-28); a size limit suppression in the code that the body's `## Size limit exceptions` does not list |
 | Renovate | `tools/check-renovate-config` | an invalid `renovate.json`; Renovate proposes a release once it is 14 days old |
 | pre-commit | `uv tool run --from pre-commit==4.7.0 pre-commit install --hook-type pre-commit --hook-type commit-msg` | the format check, lint or secrets scan before a commit; the message check on commit |
 

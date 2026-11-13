@@ -354,7 +354,9 @@ def title_step(repo_root: Path) -> dict:
 def test_111_ac23_ci_runs_commitlint_on_the_pull_request_title(repo_root, title, passes):
     # Blocks land on main by squash merge, the pull request title being the commit (OD-27).
     step = title_step(repo_root)
-    variable = next(name for name, value in step["env"].items() if value == "${{ github.event.pull_request.title }}")
+    variable = next(
+        name for name, expression in step["env"].items() if expression == "${{ github.event.pull_request.title }}"
+    )
 
     result = run(["bash", "-c", step["run"]], repo_root, env={**os.environ, variable: title})
 

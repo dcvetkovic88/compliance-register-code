@@ -254,9 +254,13 @@ def unlisted(suppressions: list[Suppression], listing: str) -> list[Suppression]
 
 
 def section(body: str, heading: str) -> str:
-    """The text of one `## ` section of the body, without HTML comments."""
-    match = re.search(rf"^## {re.escape(heading)}[ \t]*$(.*?)(?=^## |\Z)", body, re.MULTILINE | re.DOTALL)
-    return re.sub(r"<!--.*?-->", "", match.group(1), flags=re.DOTALL).strip() if match else ""
+    """The text of every `## ` section of the body with this heading, without HTML comments.
+
+    The runner appends its own `## Size exception` to a body that may hold the template's empty one (OD-28).
+    """
+    matches = re.finditer(rf"^## {re.escape(heading)}[ \t]*$(.*?)(?=^## |\Z)", body, re.MULTILINE | re.DOTALL)
+    texts = (re.sub(r"<!--.*?-->", "", match.group(1), flags=re.DOTALL).strip() for match in matches)
+    return "\n".join(text for text in texts if text)
 
 
 def check(root: Path, base: str, body: str) -> list[str]:
