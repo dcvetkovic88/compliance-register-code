@@ -1,0 +1,17 @@
+# gitleaks (T1.8; SA-4-8): the default rules, on every file of the repository but build output,
+# installed dependencies and git's own folder. No secret is ever committed; dev secrets are generated
+# at each stack start (backend rules section 8).
+title = "Wiser Compliance Register"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "build output, installed dependencies, git internals"
+paths = [
+  '''(^|/)\.git/''',
+  '''(^|/)node_modules/''',
+  '''(^|/)target/''',
+  '''(^|/)\.venv/''',
+  '''(^|/)\.suite-reports/''',
+]

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# gitleaks (T1.8; SA-4-8): scans a folder for secrets with the rules of .gitleaks.toml and fails on any.
+# Usage: tools/gitleaks [folder], default the repository. Runs the pinned gitleaks if it is installed,
+# else its pinned container image.
+set -euo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+version=8.30.1
+target="$(cd "${1:-$root}" && pwd)"
+arguments=(dir --redact --no-banner --exit-code 1)
+if command -v gitleaks > /dev/null && [ "$(gitleaks version)" = "$version" ]; then
+  exec gitleaks "${arguments[@]}" --config "$root/.gitleaks.toml" "$target"
+fi
+exec docker run --rm -v "$target:/scan:ro" -v "$root/.gitleaks.toml:/gitleaks.toml:ro" \
+  "ghcr.io/gitleaks/gitleaks:v$version" "${arguments[@]}" --config /gitleaks.toml /scan

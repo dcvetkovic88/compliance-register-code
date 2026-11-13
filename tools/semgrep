@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Semgrep (T1.8; SA-4-9): the custom rules of .semgrep/ and the registry pack p/security-audit, failing on
+# every finding of severity ERROR (high). Usage: tools/semgrep [path ...], default the repository.
+# One registry rule is left out: use-defused-xml. The only XML the repository parses is the JUnit and PIT
+# reports its own tools write, and Python's expat parser does not resolve external entities.
+set -euo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+version=1.183.0
+if [ $# -eq 0 ]; then cd "$root"; set -- .; fi
+exec uv tool run --python 3.12 --from "semgrep==$version" semgrep scan \
+  --config "$root/.semgrep" --config p/security-audit \
+  --exclude-rule python.lang.security.use-defused-xml.use-defused-xml \
+  --severity ERROR --error --metrics off --disable-version-check --quiet "$@"

@@ -19,6 +19,5 @@ class GreetingTest {
     @Test
     @Disabled("never runs")
     @DisplayName("900-AC2 a disabled acceptance check")
-    void disabledAcceptanceCheck() {
-    }
+    void disabledAcceptanceCheck() {}
 }

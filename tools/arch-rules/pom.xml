@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The shared ArchUnit rules of every Java service (plan D2, D23; conventions section 6; T1.6).
+  A service adds this module as a test dependency and runs the whole rule set in one test:
+
+      @AnalyzeClasses(packages = "com.wisertech.register.services.<service>",
+              importOptions = ImportOption.DoNotIncludeTests.class)
+      class ArchitectureTest {
+          @ArchTest
+          static final ArchTests REGISTER_RULES = ArchTests.in(ArchitectureRules.class);
+      }
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.wisertech.register</groupId>
+        <artifactId>register-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>arch-rules</artifactId>
+    <name>Shared ArchUnit rules</name>
+
+    <properties>
+        <archunit.version>1.5.1</archunit.version>
+        <asm.version>9.11.1</asm.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <version>${archunit.version}</version>
+        </dependency>
+        <!-- AR-J13 reads the float and double instructions inside domain methods, which ArchUnit does not expose. -->
+        <dependency>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm-tree</artifactId>
+            <version>${asm.version}</version>
+        </dependency>
+        <!-- The fixtures name Spring types (a problem response, field injection, a framework type). -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

@@ -1,0 +1,5 @@
+        <dependency>
+            <groupId>com.wisertech.register.services</groupId>
+            <artifactId>register</artifactId>
+            <version>0.1.0-SNAPSHOT</version>
+        </dependency>

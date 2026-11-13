@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Branch name check (T1.8; SA-1.2-14): <lane>/<functionality>-<block>, lowercase, for example
+# services/104-f0-b3 or lane/platform/111-b1b. Renovate's branches (renovate/...) pass too.
+# Usage: tools/check-branch-name [branch], default the current branch.
+set -euo pipefail
+branch="${1:-$(git rev-parse --abbrev-ref HEAD)}"
+word='[a-z0-9]+(-[a-z0-9]+)*'
+block='[0-9]{3}(-f[0-9]+)?-b[0-9]+[a-z]?'
+if [[ "$branch" =~ ^$word(/$word)*/$block$ || "$branch" =~ ^renovate/[a-z0-9._/-]+$ ]]; then
+  echo "branch name check: $branch"
+  exit 0
+fi
+echo "branch name check: '$branch' is not <lane>/<functionality>-<block>, for example services/104-f0-b3 (SA-1.2-14)" >&2
+exit 1

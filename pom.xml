@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Maven parent of the Java services and libraries (plan D1).
+  Maven parent of the Java services and libraries (plan D1) and of the shared ArchUnit rules
+  in tools/arch-rules (plan D23).
   Each module joins the build through a profile that is active when the module's pom.xml exists,
   so a block that adds a module never edits this file.
+  The quality tools of conventions section 5 run on every module (T1.5): Maven Enforcer and Spotless
+  at validate (make format-check), Error Prone with NullAway at compile (make typecheck), Checkstyle,
+  PMD and the driver check (OD-26) at verify (make lint). Their rules are in config/java/.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -27,6 +31,21 @@
         <maven.compiler.release>${java.version}</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-cloud.version>2025.1.4</spring-cloud.version>
+        <!-- The repository root, where the shared tool configuration lives; a fixture build outside the
+             repository sets it to the repository it checks. -->
+        <register.root>${maven.multiModuleProjectDirectory}</register.root>
+        <spotless.version>3.10.4</spotless.version>
+        <palantir-java-format.version>2.103.0</palantir-java-format.version>
+        <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
+        <checkstyle.version>14.3.0</checkstyle.version>
+        <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
+        <pmd.version>7.29.0</pmd.version>
+        <error-prone.version>2.51.0</error-prone.version>
+        <nullaway.version>0.14.3</nullaway.version>
+        <jspecify.version>1.0.1</jspecify.version>
+        <jacoco.version>0.8.16</jacoco.version>
+        <pitest.version>1.30.1</pitest.version>
+        <pitest-junit5-plugin.version>1.2.3</pitest-junit5-plugin.version>
     </properties>
 
     <dependencyManagement>
@@ -41,9 +60,51 @@
         </dependencies>
     </dependencyManagement>
 
+    <!-- Every module may mark a value @Nullable (JSpecify), which NullAway reads, and tests with JUnit. -->
+    <dependencies>
+        <dependency>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
+            <version>${jspecify.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- PIT runs the JUnit tests through the launcher of the module's own JUnit version. -->
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-launcher</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
     <build>
         <pluginManagement>
             <plugins>
+                <!-- PIT (SA-3-4, SA-4-6): tools/mutation-gate runs it on the classes a pull request changes and
+                     fails below the threshold of tdd-profile.yaml (OD-25). -->
+                <plugin>
+                    <groupId>org.pitest</groupId>
+                    <artifactId>pitest-maven</artifactId>
+                    <version>${pitest.version}</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.pitest</groupId>
+                            <artifactId>pitest-junit5-plugin</artifactId>
+                            <version>${pitest-junit5-plugin.version}</version>
+                        </dependency>
+                    </dependencies>
+                    <configuration>
+                        <outputFormats>
+                            <outputFormat>XML</outputFormat>
+                            <outputFormat>HTML</outputFormat>
+                        </outputFormats>
+                        <timestampedReports>false</timestampedReports>
+                        <failWhenNoMutations>false</failWhenNoMutations>
+                    </configuration>
+                </plugin>
                 <!-- Report each JUnit test under its display name, which tools/check-suites reads (SA-3-2, OD-22). -->
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -56,9 +117,264 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <!-- Maven Enforcer (SA-2.4-1, suite readiness rule 3): no Lombok, and no service depends on
+                 another service; a service module has the group id com.wisertech.register.services. The
+                 bans of known database driver groups are only an early warning; the driver check below is
+                 the rule (OD-26). -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>register-rules</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>org.projectlombok:lombok</exclude>
+                                    </excludes>
+                                    <message>Lombok is banned; use records (SA-2.4-1).</message>
+                                </bannedDependencies>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>com.mysql</exclude>
+                                        <exclude>mysql</exclude>
+                                        <exclude>org.mariadb.jdbc</exclude>
+                                        <exclude>com.h2database</exclude>
+                                        <exclude>org.hsqldb</exclude>
+                                        <exclude>org.apache.derby</exclude>
+                                        <exclude>org.xerial</exclude>
+                                        <exclude>com.oracle.database.jdbc</exclude>
+                                        <exclude>com.microsoft.sqlserver</exclude>
+                                        <exclude>com.ibm.db2</exclude>
+                                        <exclude>org.firebirdsql.jdbc</exclude>
+                                    </excludes>
+                                    <message>The only database driver is PostgreSQL's (suite readiness rule 3).</message>
+                                </bannedDependencies>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>com.wisertech.register.services</exclude>
+                                    </excludes>
+                                    <message>A service never depends on another service (suite readiness rule 3).</message>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- The driver check (OD-26, suite readiness rule 3), the rule for "no database driver but
+                 PostgreSQL's"; the group bans above are only an early warning. It reads the
+                 META-INF/services/java.sql.Driver registration of every jar on the module's runtime
+                 classpath and fails when a line names any driver other than org.postgresql.Driver.
+                 make lint runs it at verify, after the Enforcer at validate: the run resolves the runtime
+                 classpath, which would fail before the Enforcer could name a banned service dependency. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>driver-check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <restrict id="register.foreign.drivers">
+                                    <archives>
+                                        <zips>
+                                            <restrict>
+                                                <path refid="maven.runtime.classpath"/>
+                                                <and>
+                                                    <type type="file"/>
+                                                    <name name="*.jar"/>
+                                                </and>
+                                            </restrict>
+                                        </zips>
+                                    </archives>
+                                    <and>
+                                        <name name="META-INF/services/java.sql.Driver"/>
+                                        <containsregexp expression="^[ \t]*(?!#|org\.postgresql\.Driver[ \t]*(#.*)?\r?$)[^ \t\r\n]" multiline="true"/>
+                                    </and>
+                                </restrict>
+                                <pathconvert property="register.foreign.drivers.list" refid="register.foreign.drivers" pathsep="${line.separator}"/>
+                                <fail message="A runtime dependency registers a JDBC driver other than org.postgresql.Driver (OD-26):${line.separator}${register.foreign.drivers.list}">
+                                    <condition>
+                                        <resourcecount refid="register.foreign.drivers" when="greater" count="0"/>
+                                    </condition>
+                                </fail>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- JaCoCo (SA-3-5, SA-4-5): a coverage report of every module's tests, never a gate. -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <executions>
+                    <execution>
+                        <id>coverage-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>coverage-report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Spotless with palantir-java-format (SA-4-1): make format-check runs validate. -->
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless.version}</version>
+                <configuration>
+                    <java>
+                        <palantirJavaFormat>
+                            <version>${palantir-java-format.version}</version>
+                        </palantirJavaFormat>
+                        <removeUnusedImports/>
+                    </java>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>format-check</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Error Prone with NullAway (SA-4-2, SA-4-3, SA-2.4-4): make typecheck runs test-compile.
+                 javac runs in its own process, so the exports Error Prone needs are set here. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <fork>true</fork>
+                    <compilerArgs combine.children="append">
+                        <arg>-XDcompilePolicy=simple</arg>
+                        <arg>--should-stop=ifError=FLOW</arg>
+                        <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/target/generated-sources/.* -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=com.wisertech.register</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</arg>
+                        <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
+                        <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
+                    </compilerArgs>
+                    <annotationProcessorPaths combine.children="append">
+                        <path>
+                            <groupId>com.google.errorprone</groupId>
+                            <artifactId>error_prone_core</artifactId>
+                            <version>${error-prone.version}</version>
+                        </path>
+                        <path>
+                            <groupId>com.uber.nullaway</groupId>
+                            <artifactId>nullaway</artifactId>
+                            <version>${nullaway.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            <!-- Checkstyle (SA-1.1, SA-1.3-8, SA-2.7-2, SA-2.7-3): make lint runs verify. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>${maven-checkstyle-plugin.version}</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.puppycrawl.tools</groupId>
+                        <artifactId>checkstyle</artifactId>
+                        <version>${checkstyle.version}</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <configLocation>${register.root}/config/java/checkstyle.xml</configLocation>
+                    <consoleOutput>true</consoleOutput>
+                    <violationSeverity>warning</violationSeverity>
+                    <failOnViolation>true</failOnViolation>
+                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>lint</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- PMD (SA-2.3-1 to SA-2.3-5, SA-2.2-5, SA-2.4-7): make lint runs verify. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-pmd-plugin</artifactId>
+                <version>${maven-pmd-plugin.version}</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>net.sourceforge.pmd</groupId>
+                        <artifactId>pmd-core</artifactId>
+                        <version>${pmd.version}</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>net.sourceforge.pmd</groupId>
+                        <artifactId>pmd-java</artifactId>
+                        <version>${pmd.version}</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <rulesets>
+                        <ruleset>${register.root}/config/java/pmd.xml</ruleset>
+                    </rulesets>
+                    <printFailingErrors>true</printFailingErrors>
+                    <linkXRef>false</linkXRef>
+                    <includeTests>true</includeTests>
+                    <failurePriority>5</failurePriority>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>lint</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 
     <profiles>
+        <profile>
+            <id>module-arch-rules</id>
+            <activation>
+                <file>
+                    <exists>${project.basedir}/tools/arch-rules/pom.xml</exists>
+                </file>
+            </activation>
+            <modules>
+                <module>tools/arch-rules</module>
+            </modules>
+        </profile>
         <profile>
             <id>module-service-kit</id>
             <activation>

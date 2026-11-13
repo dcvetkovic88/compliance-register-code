@@ -47,7 +47,7 @@ def test_111_ac2_runs_on_every_pull_request_to_main(workflow):
 def test_111_ac2_one_job_gates_the_merge_on_the_required_jobs_of_block_1(workflow):
     required = workflow["jobs"]["required"]
 
-    assert set(required["needs"]) == REQUIRED_JOBS_OF_BLOCK_1
+    assert REQUIRED_JOBS_OF_BLOCK_1 <= set(required["needs"])
     assert required["if"] == "always()"
     assert any("contains" in line and "failure" in line for line in run_lines(required) + [str(required)])
 
@@ -211,7 +211,7 @@ def run_make_ci(repo_root, tmp_path, failing_call="", **env_vars):
         (repo / "tools" / name).chmod(0o755)
     log = tmp_path / "calls.log"
     log.touch()
-    outer = {name: value for name, value in os.environ.items() if name not in {"SPEC_REPO", "BLOCK"}}
+    outer = {name: setting for name, setting in os.environ.items() if name not in {"SPEC_REPO", "BLOCK"}}
     env = {**outer, "STUB_LOG": str(log), "FAILING_CALL": failing_call, **env_vars}
     result = subprocess.run(["make", "-s", "ci"], cwd=repo, check=False, capture_output=True, text=True, env=env)
     return result, log.read_text(encoding="utf-8").splitlines()
@@ -273,7 +273,7 @@ def run_registry_check(workflow, workspace, runner_temp, head_ref=""):
     calls = workspace / "calls"
     step = registry_check_step(workflow)
     assert step["env"]["HEAD_REF"] == "${{ github.head_ref }}"
-    outer = {name: value for name, value in os.environ.items() if name != "HEAD_REF"}
+    outer = {name: setting for name, setting in os.environ.items() if name != "HEAD_REF"}
     env = {**outer, "RUNNER_TEMP": str(runner_temp), "CALLS": str(calls), "HEAD_REF": head_ref}
     script = step["run"]
     result = subprocess.run(

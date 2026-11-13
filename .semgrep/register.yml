@@ -1,0 +1,95 @@
+# Custom Semgrep rules of the Wiser Compliance Register (conventions SA-1.3-1, SA-1.3-8, SA-2.4-7,
+# SA-2.7-2, SA-3-3; T1.8). tools/semgrep runs them with the registry pack p/security-audit and fails
+# on every finding of severity ERROR (high); every rule here is ERROR.
+rules:
+  - id: banned-identifier
+    message: "'$NAME' is a generic stand-in; name it with the glossary word (arrangement, obligation, criticality) (SA-1.3-1)"
+    severity: ERROR
+    languages: [java, python, typescript, javascript]
+    patterns:
+      - pattern: $NAME
+      - metavariable-regex:
+          metavariable: $NAME
+          regex: ^(item|data|obj|info|value|temp)$
+
+  - id: generic-class-suffix
+    message: "'$NAME' ends in a banned generic suffix: Manager, Helper, Util, Utils, Processor, Handler, Data or Info (SA-1.3-8)"
+    severity: ERROR
+    languages: [python]
+    patterns:
+      - pattern-either:
+          - pattern: |
+              class $NAME:
+                ...
+          - pattern: |
+              class $NAME(...):
+                ...
+      - metavariable-regex:
+          metavariable: $NAME
+          regex: ^\w*(Manager|Helper|Util|Utils|Processor|Handler|Data|Info)$
+
+  - id: generic-type-suffix
+    message: "A type name ends in a banned generic suffix: Manager, Helper, Util, Utils, Processor, Handler, Data or Info (SA-1.3-8)"
+    severity: ERROR
+    languages: [typescript]
+    patterns:
+      - pattern-regex: \b(?:class|interface|type|enum)\s+(?<NAME>[A-Za-z0-9_]*(?:Manager|Helper|Util|Utils|Processor|Handler|Data|Info))\b
+
+  # Every expression inside the call's arguments is checked, so a secret concatenated into the message
+  # ("token=" + token), interpolated into it (f"{token}", `${token}`) or passed to a call is found too.
+  # A string literal never matches: its text starts with a quote.
+  - id: secret-in-log
+    message: "'$ARGUMENT' may hold a secret; never log secrets or document content (SA-2.4-7)"
+    severity: ERROR
+    languages: [java, python, typescript, javascript]
+    patterns:
+      - pattern-inside: $LOGGER.$LEVEL(...)
+      - pattern: $ARGUMENT
+      - metavariable-regex:
+          metavariable: $LOGGER
+          regex: (?i)^(log|logger|logging|console|this\.log|this\.logger|self\.log|self\.logger)$
+      - metavariable-regex:
+          metavariable: $LEVEL
+          regex: ^(trace|debug|info|warn|warning|error|exception|critical|fatal|log)$
+      - metavariable-regex:
+          metavariable: $ARGUMENT
+          regex: (?i)^[\w.$]*(password|passwd|secret|token|api_?key|credential|private_?key)\w*$
+
+  - id: sleep-in-java-test
+    message: "A test never sleeps or waits a fixed time; use the test clock (SA-3-3)"
+    severity: ERROR
+    languages: [java]
+    paths:
+      include: ["**/src/test/**"]
+    pattern-either:
+      - pattern: Thread.sleep(...)
+      - pattern: TimeUnit.$UNIT.sleep(...)
+      - pattern: java.util.concurrent.TimeUnit.$UNIT.sleep(...)
+
+  - id: sleep-in-python-test
+    message: "A test never sleeps or waits a fixed time; use the test clock (SA-3-3)"
+    severity: ERROR
+    languages: [python]
+    paths:
+      include: ["**/tests/**", "**/test_*.py"]
+    pattern-either:
+      - pattern: time.sleep(...)
+      - pattern: asyncio.sleep(...)
+
+  - id: sleep-in-typescript-test
+    message: "A test never sleeps or waits a fixed time; use the test clock or wait for a condition (SA-3-3)"
+    severity: ERROR
+    languages: [typescript, javascript]
+    paths:
+      include: ["*.test.ts", "*.test.tsx", "*.e2e.ts"]
+    pattern-either:
+      - pattern: setTimeout(...)
+      - pattern: $PAGE.waitForTimeout(...)
+
+  - id: todo-without-issue
+    message: "A TODO or FIXME names its issue, as TODO(#123) (SA-2.7-2)"
+    severity: ERROR
+    languages: [generic]
+    paths:
+      include: ["*.java", "*.py", "*.ts", "*.tsx", "*.js", "*.mjs", "*.sql", "*.sh"]
+    pattern-regex: \b(TODO|FIXME)\b(?!\(#\d+\))

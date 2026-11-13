@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Validates the Renovate configuration of a folder, default the repository (T1.8; SA-4-11), with the
+# validator of the pinned Renovate release.
+set -euo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+version=44.198.3
+cd "${1:-$root}"
+exec npx --yes --package "renovate@$version" -- renovate-config-validator --strict

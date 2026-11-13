@@ -1,0 +1,14 @@
+# The TDD profile of the code repository (PQ-23, decided by Dusan as OD-25; conventions SA-3-4, SA-3-5).
+# Coverage is reported and is never a gate; the mutation score is the gate. Mutation testing runs on
+# the files a pull request changes: below the threshold on the changed files of the gated layers, the
+# pull request fails; the reported layers are scored and never fail it. To be reviewed after the first
+# two functionalities.
+coverage:
+  gate: false
+mutation:
+  threshold_percent: 70
+  gated_layers: [domain, application]
+  reported_layers: [adapters]
+  tools:
+    java: pit
+    python: mutmut

@@ -1,0 +1,71 @@
+<?xml version="1.0"?>
+<!--
+  PMD rules of the Java code (conventions SA-2.3-1 to SA-2.3-5, SA-2.2-5, SA-2.4-7; T1.5).
+  Size limits: method 30 lines, class 300 lines, 4 parameters, nesting depth 3, cyclomatic complexity 10.
+  An exception to a size limit is a @SuppressWarnings("PMD.<Rule>") with a one-line comment giving the
+  reason, and is listed in the pull request body (SA-2.3-7).
+-->
+<ruleset name="register"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+    <description>Size limits, unused parameters and System.out (conventions section 11).</description>
+
+    <rule name="MethodLength" language="java" class="net.sourceforge.pmd.lang.rule.xpath.XPathRule"
+          message="A method or constructor is at most 30 lines (SA-2.3-1).">
+        <description>A method or constructor is at most 30 lines, from its signature to its closing brace.</description>
+        <priority>3</priority>
+        <properties>
+            <property name="xpath">
+                <value>//(MethodDeclaration|ConstructorDeclaration)[Block/@EndLine - @BeginLine + 1 &gt; 30]</value>
+            </property>
+        </properties>
+    </rule>
+
+    <rule name="ClassLength" language="java" class="net.sourceforge.pmd.lang.rule.xpath.XPathRule"
+          message="A class is at most 300 lines (SA-2.3-2).">
+        <description>A top-level type is at most 300 lines.</description>
+        <priority>3</priority>
+        <properties>
+            <property name="xpath">
+                <value>/CompilationUnit/*[self::ClassDeclaration or self::RecordDeclaration or self::EnumDeclaration or self::InterfaceDeclaration][*[last()]/@EndLine - @BeginLine + 1 &gt; 300]</value>
+            </property>
+        </properties>
+    </rule>
+
+    <rule name="NestingDepth" language="java" class="net.sourceforge.pmd.lang.rule.xpath.XPathRule"
+          message="Control statements nest at most 3 deep (SA-2.3-4).">
+        <description>A control statement inside three others is too deep; an else-if (an if that is the else branch of its parent if) continues its if, it does not nest. An if in the then branch, braced or not, nests.</description>
+        <priority>3</priority>
+        <properties>
+            <property name="xpath">
+                <value><![CDATA[
+//(IfStatement|ForStatement|ForeachStatement|WhileStatement|DoStatement|SwitchStatement|TryStatement|SynchronizedStatement)
+  [not(self::IfStatement and parent::IfStatement and count(preceding-sibling::*) = 2)]
+  [count(ancestor::*[self::IfStatement or self::ForStatement or self::ForeachStatement or self::WhileStatement or self::DoStatement or self::SwitchStatement or self::TryStatement or self::SynchronizedStatement][not(self::IfStatement and parent::IfStatement and count(preceding-sibling::*) = 2)]) >= 3]
+]]></value>
+            </property>
+        </properties>
+    </rule>
+
+    <rule ref="category/java/design.xml/ExcessiveParameterList" message="A method takes at most 4 parameters; more become a record or a parameter object (SA-2.3-3).">
+        <properties>
+            <property name="minimum" value="5"/>
+        </properties>
+    </rule>
+
+    <rule ref="category/java/design.xml/CyclomaticComplexity" message="The cyclomatic complexity of a method is at most 10 (SA-2.3-5).">
+        <properties>
+            <property name="methodReportLevel" value="11"/>
+            <property name="classReportLevel" value="1000"/>
+        </properties>
+    </rule>
+
+    <rule ref="category/java/bestpractices.xml/UnusedFormalParameter" message="No unused parameters (SA-2.2-5).">
+        <properties>
+            <property name="checkAll" value="true"/>
+        </properties>
+    </rule>
+
+    <rule ref="category/java/bestpractices.xml/SystemPrintln" message="No System.out or System.err; log through the logger (SA-2.4-7)."/>
+</ruleset>

@@ -18,6 +18,7 @@ JAVA_MODULES = [
     "services/ict-risk",
     "services/monitoring",
     "services/bff",
+    "tools/arch-rules",
 ]
 QUALITY_TARGETS = ["lint", "format-check", "typecheck", "test"]
 MAKE_TARGETS = ["lint", "format-check", "typecheck", "test", "suite", "ci", "stack-up", "stack-down"]
