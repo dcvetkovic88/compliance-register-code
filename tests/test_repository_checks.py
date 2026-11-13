@@ -332,9 +332,44 @@ def test_111_ac23_ci_runs_the_repository_and_pull_request_checks_as_required_job
 
     assert {"tools/gitleaks", "tools/semgrep", "tools/check-renovate-config"} <= set(runs("repository").split())
     assert jobs["pull-request"]["if"] == "github.event_name == 'pull_request'"
-    for check in ["tools/check-branch-name", "commitlint --from", "tools/check-pr-size"]:
+    for check in ["tools/check-branch-name", "commitlint", "tools/check-pr-size"]:
         assert check in runs("pull-request"), check
     assert {"repository", "pull-request"} <= set(jobs["required"]["needs"])
+
+
+def title_step(repo_root: Path) -> dict:
+    workflow = yaml.safe_load((repo_root / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
+    steps = workflow["jobs"]["pull-request"]["steps"]
+    return next(step for step in steps if "commitlint" in str(step.get("run", "")))
+
+
+@pytest.mark.parametrize(
+    ("title", "passes"),
+    [
+        ("feat(111-B1b): quality tooling, Java and repository", True),
+        ("Block 111-B1b: quality tooling", False),
+        ("feat(111-B1b): " + "quality tooling, Java and repository " * 3, False),
+    ],
+)
+def test_111_ac23_ci_runs_commitlint_on_the_pull_request_title(repo_root, title, passes):
+    # Blocks land on main by squash merge, the pull request title being the commit (OD-27).
+    step = title_step(repo_root)
+    variable = next(name for name, value in step["env"].items() if value == "${{ github.event.pull_request.title }}")
+
+    result = run(["bash", "-c", step["run"]], repo_root, env={**os.environ, variable: title})
+
+    assert "--from" not in step["run"]
+    assert (result.returncode == 0) is passes, result.stdout + result.stderr
+
+
+def test_111_ac23_the_size_exception_the_runner_appends_to_a_template_body_is_accepted(repo_root, change_repo):
+    # The runner adds its own section when a block is over the limit (OD-28), after any empty template one.
+    commit_lines(change_repo, "services/register/src/main/java/demo/Big.java", LINES)
+    body = template_body(repo_root) + "\n\n## Size exception\n\nBlock 111-B1b changes 401 lines. Added by the runner.\n"
+
+    result = check_size(repo_root, change_repo, body)
+
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 @pytest.mark.parametrize(

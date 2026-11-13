@@ -100,7 +100,9 @@ def test_111_ac23_driver_check_passes_the_postgresql_driver(repo_root, tmp_path)
     assert result.returncode == 0, (result.stdout + result.stderr)[-4000:]
 
 
-@pytest.mark.parametrize("goals", [FORMAT_CHECK, TYPECHECK, LINT, ["test"]], ids=["format-check", "typecheck", "lint", "test"])
+@pytest.mark.parametrize(
+    "goals", [FORMAT_CHECK, TYPECHECK, LINT, ["test"]], ids=["format-check", "typecheck", "lint", "test"]
+)
 def test_111_ac23_clean_fixture_at_the_size_limits_passes_every_java_tool(repo_root, tmp_path, goals):
     result = build_fixture(repo_root, tmp_path, "clean", goals)
 

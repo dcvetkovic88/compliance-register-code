@@ -92,7 +92,9 @@ def test_111_ac23_mutation_gate_passes_a_domain_change_whose_mutants_are_killed(
 
 
 def test_111_ac23_mutation_gate_reports_an_adapter_change_without_failing(repo_root, service_repo):
-    commit_change(service_repo, {"adapter/NoticeStore.java": ADAPTER, "adapter-test/NoticeStoreTest.java": ADAPTER_TESTS})
+    commit_change(
+        service_repo, {"adapter/NoticeStore.java": ADAPTER, "adapter-test/NoticeStoreTest.java": ADAPTER_TESTS}
+    )
 
     result = mutation_gate(repo_root, service_repo)
 
