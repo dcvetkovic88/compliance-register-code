@@ -9,6 +9,7 @@ TASK_LINE = re.compile(r"^- \[(?P<done>[ xX])\]\s+(?P<task_id>T[\d.]+)\s+(?P<res
 TAG = re.compile(r"^\[([^\]]+)\]\s*")
 SUITE_REFERENCE = re.compile(r"`(\d{3}(?:-F\d+)?-B\d+[a-z]?(?:-[a-z0-9]+)*)`")
 CRITERION_ID = re.compile(r"\b\d{3}(?:-F\d+)?-AC\d+\b")
+SUITE_DECLARATION = re.compile(r"\bsuites?:([^;)]*)")
 PROVES = re.compile(r"\bproves\b([^)]*)")
 ADDS_TESTS = re.compile(r"\btests?\b|\bfixtures?\b|\badds suites?\b", re.IGNORECASE)
 NOT_A_PATH = {"P", "HUMAN", "DEMO"}
@@ -52,7 +53,8 @@ def read_blocks(tasks_file: Path) -> list[Block]:
     for line in tasks_file.read_text(encoding="utf-8").splitlines():
         heading = BLOCK_HEADING.match(line)
         if heading:
-            suites = SUITE_REFERENCE.findall(heading.group(2).split(";")[0])
+            declaration = SUITE_DECLARATION.search(heading.group(2))
+            suites = SUITE_REFERENCE.findall(declaration.group(1)) if declaration else []
             proves = PROVES.search(heading.group(2))
             criteria = CRITERION_ID.findall(proves.group(1)) if proves else []
             blocks.append(Block(heading.group(1), line, str(tasks_file), suites, proves=criteria))
