@@ -64,8 +64,8 @@ jobs:
       - uses: astral-sh/setup-uv@v10.3.3
         with:
           version: ${{ steps.pins.outputs.uv }}
+      # The tasks.md checks are required: without vars.SPEC_REPO this job fails (111-FR22, 111-AC22).
       - name: check out the spec repository
-        if: vars.SPEC_REPO != ''
         uses: actions/checkout@v7.0.1
         with:
           repository: ${{ vars.SPEC_REPO }}
@@ -73,13 +73,12 @@ jobs:
           path: .spec-repo
       - name: check the registry against every tasks.md
         run: |
-          if [ -d .spec-repo/specs ]; then
-            mv .spec-repo "$RUNNER_TEMP/spec-repo"
-            tools/check-suites $(printf -- '--tasks %s ' "$RUNNER_TEMP"/spec-repo/specs/*/tasks.md)
-          else
-            echo "::warning::vars.SPEC_REPO is not set, so the tasks.md checks of tools/check-suites did not run"
-            tools/check-suites
+          if [ ! -d .spec-repo/specs ]; then
+            echo "::error::.spec-repo has no specs folder; set vars.SPEC_REPO to the spec repository"
+            exit 1
           fi
+          mv .spec-repo "$RUNNER_TEMP/spec-repo"
+          tools/check-suites $(printf -- '--tasks %s ' "$RUNNER_TEMP"/spec-repo/specs/*/tasks.md)
       - name: list the registered suites
         id: matrix
         run: echo "matrix=$(tools/suite --matrix)" >> "$GITHUB_OUTPUT"

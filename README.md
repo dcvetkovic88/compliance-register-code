@@ -63,4 +63,4 @@ suite (a suite marked `stack: true` starts the dev stack on the runner first); o
 builds the web and runs the browser specs. The job `required` passes only when all of them pass,
 and is the status check that branch protection on `main` requires. To check every tasks.md, CI
 checks out the spec repository named by the repository variable `SPEC_REPO`, read with the
-secret `SPEC_REPO_TOKEN`; without them it warns and checks the registry alone.
+secret `SPEC_REPO_TOKEN`; without them the registry job fails, so the tasks.md checks never skip.
