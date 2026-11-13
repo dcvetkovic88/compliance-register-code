@@ -8,4 +8,5 @@
 
 ## Size limit exceptions
 <!-- Every exception to a size limit this pull request adds to the code (a method, class, parameter,
-     nesting or complexity suppression), each with its one-line reason (SA-2.3-7); otherwise leave this empty. -->
+     nesting or complexity suppression), one list entry each naming its file and rule with a one-line reason,
+     as "- Mapping.java PMD.MethodLength: the reason" (SA-2.3-7); otherwise leave this empty. -->
