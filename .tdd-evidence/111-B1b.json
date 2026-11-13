@@ -22,8 +22,8 @@
     {
       "task": "T1.8",
       "test_command": "uv run --project tools --frozen pytest tests/test_repository_checks.py -q",
-      "red_commit": "ba7aeca0272b6c1e3db0377eeba19e7a1a3922fd",
-      "green_commit": "b6a187db8743b65071044b07afa9ee5576cd4f28"
+      "red_commit": "2ef6f54b6589e88b921963b7a0b2aebf96283dcc",
+      "green_commit": "3abfaca8a955efe8055061eeb200e55f20afbea6"
     }
   ]
 }
