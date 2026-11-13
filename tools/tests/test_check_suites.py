@@ -62,6 +62,8 @@ def test_111_ac22_fails_when_a_task_adds_tests_in_a_path_without_the_suite(fixtu
         ("empty-tagged-vitest", "apps/web/suites.yaml"),
         ("inactive-vitest-tests", "apps/web/suites.yaml"),
         ("junit-integration-test-only", "services/platform/suites.yaml"),
+        ("inactive-pytest-tests", "tools/suites.yaml"),
+        ("inactive-junit-tests", "services/platform/suites.yaml"),
     ],
 )
 def test_111_ac22_fails_when_the_tagged_file_or_class_holds_no_test(fixture_root, case, file):
@@ -87,8 +89,11 @@ def test_111_ac22_fails_when_a_proved_criterion_has_no_acceptance_test(fixture_r
     assert "900-AC1" not in result.stdout
 
 
-def test_111_ac22_a_commented_skipped_or_todo_test_is_no_acceptance_test(fixture_root):
-    result = check(fixture_root("inactive-vitest-acceptance-test"))
+@pytest.mark.parametrize(
+    "case", ["inactive-vitest-acceptance-test", "inactive-pytest-acceptance-test", "inactive-junit-acceptance-test"]
+)
+def test_111_ac22_a_commented_skipped_or_todo_test_is_no_acceptance_test(fixture_root, case):
+    result = check(fixture_root(case))
 
     assert result.returncode == 1
     assert "900-AC1" in result.stdout
