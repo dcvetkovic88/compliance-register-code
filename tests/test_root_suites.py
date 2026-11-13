@@ -39,8 +39,10 @@ def test_111_ac22_suite_111_b1_runs_the_root_and_the_tools_tests(repo_root):
     reports = repo_root / ".suite-reports/111-B1"
     assert result.returncode == 0, result.stderr
     assert result.stdout.splitlines() == [
-        f"uv run --project tools --frozen pytest -m suite_111_B1 tests --junitxml={reports}/root-pytest.xml",
-        f"uv run --project tools --frozen pytest -m suite_111_B1 tools --junitxml={reports}/tools-pytest.xml",
+        "uv run --project tools --frozen pytest -m suite_111_B1 tests"
+        f" --junitxml={reports}/root-pytest-suite_111_B1.xml",
+        "uv run --project tools --frozen pytest -m suite_111_B1 tools"
+        f" --junitxml={reports}/tools-pytest-suite_111_B1.xml",
     ]
 
 
@@ -79,3 +81,4 @@ def test_readme_states_the_registry_rule(repo_root):
     assert "every block's last task adds its suite to the `suites.yaml` of its own path" in readme
     assert "tools/check-suites" in readme
     assert "reads the JUnit XML reports `tools/suite` writes" in readme
+    assert "`.suite-reports/<id>/<path>-<runner>-<selector>.xml`" in readme
