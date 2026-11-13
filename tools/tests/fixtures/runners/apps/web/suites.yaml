@@ -1,0 +1,8 @@
+suites:
+  - id: 900-B1
+    runner: vitest
+    selector: 900-B1
+  - id: 900-B2
+    runner: playwright
+    selector: 900-B2
+    stack: true

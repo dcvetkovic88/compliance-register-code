@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites name="vitest tests" tests="3" failures="0" errors="0" time="0.00134">
+  <testsuite name="src/screen.test.ts" tests="3" failures="0" errors="0" skipped="2" time="0.00134">
+    <testcase classname="src/screen.test.ts" name="900-B1 the screen &gt; the screen renders" time="0.000667458">
+        </testcase>
+    <testcase classname="src/screen.test.ts" name="900-B1 the screen &gt; 900-AC1 an acceptance check still to write" time="0">
+      <skipped />
+    </testcase>
+    <testcase classname="src/screen.test.ts" name="900-B1 the screen &gt; 900-AC1 a skipped acceptance check" time="0">
+      <skipped />
+    </testcase>
+  </testsuite>
+</testsuites>

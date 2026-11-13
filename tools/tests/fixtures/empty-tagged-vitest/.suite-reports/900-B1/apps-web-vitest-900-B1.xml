@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites name="vitest tests" tests="2" failures="1" errors="0" time="0.001462583">
+  <testsuite name="src/empty.test.ts" tests="2" failures="1" errors="0" skipped="1" time="0.001462583">
+    <testcase classname="src/empty.test.ts" name="another suite's check" time="0">
+      <skipped />
+    </testcase>
+    <testcase classname="src/empty.test.ts" name="900-B1 the screen" time="0.000804583">
+      <failure message="No test found in suite 900-B1 the screen" type="Error">
+Error: No test found in suite 900-B1 the screen
+            </failure>
+    </testcase>
+  </testsuite>
+</testsuites>

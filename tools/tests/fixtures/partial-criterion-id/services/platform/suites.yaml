@@ -1,0 +1,4 @@
+suites:
+  - id: 900-B1
+    runner: maven
+    selector: 900-B1

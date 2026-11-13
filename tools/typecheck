@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# make typecheck (plan D1): the typecheck check of Java, TypeScript and Python, see tools/quality.
+exec "$(dirname "${BASH_SOURCE[0]}")/quality" typecheck "$@"

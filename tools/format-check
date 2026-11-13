@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# make format-check (plan D1): the format-check check of Java, TypeScript and Python, see tools/quality.
+exec "$(dirname "${BASH_SOURCE[0]}")/quality" format-check "$@"

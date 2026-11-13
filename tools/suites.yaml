@@ -1,0 +1,5 @@
+# Suites of the tools path (plan D18). Each entry: id, runner, selector (the test tag).
+suites:
+  - id: 111-B1
+    runner: pytest
+    selector: suite_111_B1

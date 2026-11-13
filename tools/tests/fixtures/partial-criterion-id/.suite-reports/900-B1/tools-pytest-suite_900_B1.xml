@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites name="pytest tests">
+  <testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="0.012">
+    <testcase classname="tools.tests.test_names" name="test_ac22_registry_is_checked" time="0.000" />
+  </testsuite>
+</testsuites>

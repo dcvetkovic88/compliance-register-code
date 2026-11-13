@@ -1,0 +1,6 @@
+suites:
+  - id: 900-B1
+    runner: pytest
+    selector: suite_900_B1
+    project: tools
+    paths: [tests]

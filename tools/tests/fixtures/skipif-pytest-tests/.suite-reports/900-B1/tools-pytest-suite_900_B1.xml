@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites name="pytest tests">
+  <testsuite name="pytest" errors="0" failures="0" skipped="1" tests="1" time="0.011">
+    <testcase classname="tools.tests.test_skipif" name="test_a_check_skipped_by_condition" time="0.000">
+      <skipped type="pytest.skip" message="never runs">tools/tests/test_skipif.py:6: never runs</skipped>
+    </testcase>
+  </testsuite>
+</testsuites>

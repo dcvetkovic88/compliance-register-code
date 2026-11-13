@@ -1,0 +1,29 @@
+{
+  "block": "111-B1",
+  "tasks": [
+    {
+      "task": "T1.1",
+      "test_command": "uv run --project tools --frozen pytest tools/tests -q",
+      "red_commit": "3c5400b98a9b7c9851bfca3dd4d303536dc43fa7",
+      "green_commit": "166072c8c6346e11d389bca289d4de9c184c98fb"
+    },
+    {
+      "task": "T1.2",
+      "test_command": "uv run --project tools --frozen pytest tests/test_build_files.py -q",
+      "red_commit": "012f7b3d3aac2cac216465983fb52cd531f05d0a",
+      "green_commit": "7031d28a3531644782d79149e29e7b66fc00bcdc"
+    },
+    {
+      "task": "T1.3",
+      "test_command": "uv run --project tools --frozen pytest tests/test_root_suites.py -q",
+      "red_commit": "58685e131ff77b29a6831bca91884bac04ac278d",
+      "green_commit": "a7532b219a2a5609dbb581487d39529561630226"
+    },
+    {
+      "task": "T1.4",
+      "test_command": "uv run --project tools --frozen pytest tests/test_ci_workflow.py -q",
+      "red_commit": "9a312f1659ae95fad6b899243aeb7c73118940d0",
+      "green_commit": "56c2bbd3bac2035d80b9e350e081c906819ce7b7"
+    }
+  ]
+}

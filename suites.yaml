@@ -1,0 +1,10 @@
+# Root-level suites (plan D18). The registry is every suites.yaml of the repository together;
+# each path lists the suites of its own tests here, never in another path's file.
+# Entry keys: id, runner (maven, pytest, vitest, playwright, script), selector (the test tag),
+# optional paths (test folders below this file), project (the uv project for pytest), stack (needs the dev stack).
+suites:
+  - id: 111-B1
+    runner: pytest
+    selector: suite_111_B1
+    project: tools
+    paths: [tests]

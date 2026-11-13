@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites name="vitest tests" tests="6" failures="0" errors="0" time="0">
+  <testsuite name="src/inactive.test.ts" tests="6" failures="0" errors="0" skipped="6" time="0">
+    <testcase classname="src/inactive.test.ts" name="900-B1 a check still to write" time="0">
+      <skipped />
+    </testcase>
+    <testcase classname="src/inactive.test.ts" name="900-B1 a skipped check" time="0">
+      <skipped />
+    </testcase>
+    <testcase classname="src/inactive.test.ts" name="900-B1 another skipped check" time="0">
+      <skipped />
+    </testcase>
+    <testcase classname="src/inactive.test.ts" name="900-B1 another check still to write" time="0">
+      <skipped />
+    </testcase>
+    <testcase classname="src/inactive.test.ts" name="900-B1 a skipped group &gt; a check in the skipped group" time="0">
+      <skipped />
+    </testcase>
+    <testcase classname="src/inactive.test.ts" name="900-B1 the screen &gt; a skipped inner group &gt; a check in the skipped inner group" time="0">
+      <skipped />
+    </testcase>
+  </testsuite>
+</testsuites>

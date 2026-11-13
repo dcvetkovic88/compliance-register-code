@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Install from the lock files (111-AC2): the npm workspace, the tools uv project and the Maven parent.
+# The CI install job and make ci both call this script, so the two install the same way.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+npm ci
+uv sync --project tools --frozen
+./mvnw -B -ntp -q verify -DskipTests

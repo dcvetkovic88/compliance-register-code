@@ -23,3 +23,8 @@ __pycache__/
 .idea/
 .vscode/
 .DS_Store
+# browser test output
+test-results/
+playwright-report/
+# JUnit XML reports of tools/suite, read by tools/check-suites
+/.suite-reports/

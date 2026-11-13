@@ -1,0 +1,7 @@
+suites:
+  - id: 900-B3
+    runner: script
+    selector: scripts/passes.sh
+  - id: 900-B4
+    runner: script
+    selector: scripts/fails.sh

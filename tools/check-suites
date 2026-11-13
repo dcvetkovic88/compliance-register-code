@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Entry point of suites_registry.check_suites (plan D18). Runs on the pinned Python of tools/pyproject.toml.
+set -euo pipefail
+tools_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PYTHONPATH="$tools_dir" exec uv run --quiet --project "$tools_dir" --frozen python -m suites_registry.check_suites "$@"
