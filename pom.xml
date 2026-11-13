@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Maven parent of the Java services and libraries (plan D1).
+  Each module joins the build through a profile that is active when the module's pom.xml exists,
+  so a block that adds a module never edits this file.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.1.2</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.wisertech.register</groupId>
+    <artifactId>register-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>Wiser Compliance Register</name>
+
+    <properties>
+        <java.version>25</java.version>
+        <maven.compiler.release>${java.version}</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <spring-cloud.version>2025.1.4</spring-cloud.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <profiles>
+        <profile>
+            <id>module-service-kit</id>
+            <activation>
+                <file>
+                    <exists>${project.basedir}/libs/service-kit/pom.xml</exists>
+                </file>
+            </activation>
+            <modules>
+                <module>libs/service-kit</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>module-eventbus</id>
+            <activation>
+                <file>
+                    <exists>${project.basedir}/libs/eventbus/pom.xml</exists>
+                </file>
+            </activation>
+            <modules>
+                <module>libs/eventbus</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>module-platform</id>
+            <activation>
+                <file>
+                    <exists>${project.basedir}/services/platform/pom.xml</exists>
+                </file>
+            </activation>
+            <modules>
+                <module>services/platform</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>module-register</id>
+            <activation>
+                <file>
+                    <exists>${project.basedir}/services/register/pom.xml</exists>
+                </file>
+            </activation>
+            <modules>
+                <module>services/register</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>module-ict-risk</id>
+            <activation>
+                <file>
+                    <exists>${project.basedir}/services/ict-risk/pom.xml</exists>
+                </file>
+            </activation>
+            <modules>
+                <module>services/ict-risk</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>module-monitoring</id>
+            <activation>
+                <file>
+                    <exists>${project.basedir}/services/monitoring/pom.xml</exists>
+                </file>
+            </activation>
+            <modules>
+                <module>services/monitoring</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>module-bff</id>
+            <activation>
+                <file>
+                    <exists>${project.basedir}/services/bff/pom.xml</exists>
+                </file>
+            </activation>
+            <modules>
+                <module>services/bff</module>
+            </modules>
+        </profile>
+    </profiles>
+</project>
