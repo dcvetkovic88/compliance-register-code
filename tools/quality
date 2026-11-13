@@ -4,9 +4,21 @@
 # Until its tooling block lands (1b for Java, 1c for TypeScript and Python), a check fails and names
 # the missing tool, and runs nothing: no target passes without running a check. A block adds its
 # tool to pom.xml, the root package.json or tools/pyproject.toml; this script stays as it is.
+# Usage: tools/quality <check> [java] [typescript] [python]; with no language it checks all three,
+# as make does. A CI job of one language names it, so it is required as soon as its block lands.
 set -euo pipefail
 
 check="${1:-}"
+shift || true
+languages=("$@")
+if [ ${#languages[@]} -eq 0 ]; then languages=(java typescript python); fi
+for language in "${languages[@]}"; do
+  case "$language" in
+    java | typescript | python) ;;
+    *) echo "tools/quality: unknown language $language (java, typescript or python)" >&2; exit 2 ;;
+  esac
+done
+selected() { [[ " ${languages[*]} " == *" $1 "* ]]; }
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 
@@ -19,23 +31,23 @@ case "$check" in
   typecheck) maven=(test-compile) npm_script=typecheck java_tools=(error_prone_core) \
     typescript_tool=typescript python_tool=mypy ;;
   test) maven=(test) npm_script=test java_tools=(junit-jupiter) typescript_tool=vitest python_tool=pytest ;;
-  *) echo "usage: tools/quality lint|format-check|typecheck|test" >&2; exit 2 ;;
+  *) echo "usage: tools/quality lint|format-check|typecheck|test [java] [typescript] [python]" >&2; exit 2 ;;
 esac
 
 missing=()
 
 for tool in "${java_tools[@]}"; do
-  if ! grep -q "<artifactId>$tool</artifactId>" pom.xml 2>/dev/null; then
+  if selected java && ! grep -q "<artifactId>$tool</artifactId>" pom.xml 2>/dev/null; then
     missing+=("Java: $tool is not in pom.xml (block 1b adds it)")
   fi
 done
 
-if ! node -e 'const m = require("./package.json"); process.exit(process.argv[1] in {...m.dependencies, ...m.devDependencies} ? 0 : 1)' \
+if selected typescript && ! node -e 'const m = require("./package.json"); process.exit(process.argv[1] in {...m.dependencies, ...m.devDependencies} ? 0 : 1)' \
   "$typescript_tool" 2>/dev/null; then
   missing+=("TypeScript: $typescript_tool is not in package.json (block 1c adds it)")
 fi
 
-if ! grep -Eq "\"$python_tool[=<>~!]" tools/pyproject.toml 2>/dev/null; then
+if selected python && ! grep -Eq "\"$python_tool[=<>~!]" tools/pyproject.toml 2>/dev/null; then
   missing+=("Python: $python_tool is not in tools/pyproject.toml (block 1c adds it)")
 fi
 
@@ -96,6 +108,6 @@ python_check() {
   done
 }
 
-java_check
-typescript_check
-python_check
+if selected java; then java_check; fi
+if selected typescript; then typescript_check; fi
+if selected python; then python_check; fi

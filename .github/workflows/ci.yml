@@ -1,8 +1,8 @@
 # CI of the Wiser Compliance Register (111-FR2, 111-FR22; plan D1, D18).
 # The job `required` is the one status check branch protection requires on main. In block 1 it needs
 # install and the suites (the registry, one job per suite, and the registry check, which reads the
-# JUnit XML reports the suite jobs wrote); the quality job joins it when blocks 1b and 1c land, until
-# then its targets fail and name the missing tool (OD-21).
+# JUnit XML reports the suite jobs wrote). Block 1b adds the Java quality job; the quality job of all
+# three languages joins when block 1c lands, until then its targets fail and name the missing tool (OD-21).
 # Suites come from the registry (every suites.yaml), so this file is not edited when a suite is added.
 name: ci
 
@@ -73,6 +73,26 @@ jobs:
         run: make typecheck
       - name: unit tests
         run: make test
+
+  # The Java format, lint, null and type checks and tests of block 1b (T1.5; OD-21).
+  java:
+    name: Java format check, lint, type check, unit tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-java@v6.1.0
+        with:
+          distribution: temurin
+          java-version-file: .java-version
+          cache: maven
+      - name: lint
+        run: tools/quality lint java
+      - name: format check
+        run: tools/quality format-check java
+      - name: type check
+        run: tools/quality typecheck java
+      - name: unit tests
+        run: tools/quality test java
 
   registry:
     name: suites registry
@@ -217,7 +237,7 @@ jobs:
   required:
     name: required
     if: always()
-    needs: [install, registry, suites, check]
+    needs: [install, java, registry, suites, check]
     runs-on: ubuntu-24.04
     steps:
       - name: every job passed

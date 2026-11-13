@@ -3,8 +3,9 @@
 The code repository of the Wiser Compliance Register, a standalone product built from the
 specifications in the spec repository (`specs/111-register-foundation` is the foundation).
 
-Status: block 1 of feature 111 (repository root and suites registry). The full README (install,
-stack, seed, reset, suites) is written in block 15c.
+Status: blocks 1 (repository root and suites registry) and 1b (quality tooling, Java and
+repository) of feature 111. The full README (install, stack, seed, reset, suites) is written in
+block 15c.
 
 ## Layout
 
@@ -14,7 +15,8 @@ stack, seed, reset, suites) is written in block 15c.
 | `package.json`, `package-lock.json` | npm workspace for `apps/*` and `packages/*` |
 | `tools/pyproject.toml`, `tools/uv.lock` | the Python project of the repository tools; `services/ai-document` gets its own uv project |
 | `Makefile` | the one entry point: `make lint`, `format-check`, `typecheck`, `test`, `suite S=<id>`, `ci`, `stack-up`, `stack-down` |
-| `tests/` | root-level tests (build files, registry, CI workflow) |
+| `config/java/` | the Checkstyle and PMD rules every Java module runs |
+| `tests/` | root-level tests (build files, registry, CI workflow, quality tooling) and their fixtures |
 
 ## Pinned versions
 
@@ -34,7 +36,17 @@ repeats them and a root test keeps the two equal.
 | uv | `0.13.6` | `.uv-version` | 2026-10-27 | github.com/astral-sh/uv releases |
 | PyYAML | `6.0.3` | `tools/pyproject.toml` | 2025-09-25 | pypi.org |
 | pytest | `9.2.0` | `tools/pyproject.toml` | 2026-10-27 | pypi.org |
+| Spotless Maven plugin | `3.10.4` | `pom.xml` property | 2026-10-08 | repo1.maven.org |
+| palantir-java-format | `2.103.0` | `pom.xml` property | 2026-10-27 | repo1.maven.org |
+| Checkstyle Maven plugin | `3.6.0` | `pom.xml` property | 2024-10-22 | repo1.maven.org |
+| Checkstyle | `14.3.0` | `pom.xml` property | 2026-09-27 | repo1.maven.org |
+| PMD Maven plugin | `3.28.0` | `pom.xml` property | 2025-10-07 | repo1.maven.org |
+| PMD | `7.29.0` | `pom.xml` property | 2026-10-30 | repo1.maven.org |
+| Error Prone | `2.51.0` | `pom.xml` property | 2026-10-22 | repo1.maven.org |
+| NullAway | `0.14.3` | `pom.xml` property | 2026-10-22 | repo1.maven.org |
+| JSpecify | `1.0.1` | `pom.xml` property | 2026-07-29 | repo1.maven.org |
 
+Maven Enforcer, the compiler and Surefire plugins and JUnit come with the Spring Boot parent.
 Keycloak, PostgreSQL, React, Vite, TypeScript, Vitest and Playwright are pinned by the blocks
 that add them, under the same rule, and are added to this table then.
 
@@ -67,6 +79,22 @@ tests that carry its tag (JUnit `@Tag`, a pytest marker, the id in a Vitest or P
   being built, named in any case, and fails when no block of the tasks files has that suite;
   blocks still to come are never checked (OD-22, OD-23).
 
+## Java quality tools
+
+Every Java module runs them through the parent `pom.xml` (conventions section 5, T1.5):
+
+| Goal | Tool | What fails the build |
+|---|---|---|
+| `validate` (`make format-check`) | Maven Enforcer | Lombok; a database driver other than PostgreSQL's; a dependency on a service, that is on group id `com.wisertech.register.services`, which every service module uses |
+| `validate` | Spotless with palantir-java-format | a file that is not formatted; `./mvnw spotless:apply` formats it |
+| `compile` (`make typecheck`) | Error Prone with NullAway | an Error Prone error; a possible `null` across a method boundary in `com.wisertech.register` (mark an allowed one `@Nullable`, JSpecify) |
+| `verify` (`make lint`) | Checkstyle (`config/java/checkstyle.xml`) | naming; class names ending in Manager, Helper, Util, Utils, Processor, Handler, Data or Info; a TODO without its issue, written `TODO(#123)`; a port (`...Port`) or adapter type without a doc comment |
+| `verify` | PMD (`config/java/pmd.xml`) | a method over 30 lines, a class over 300 lines, more than 4 parameters, control statements nested more than 3 deep, cyclomatic complexity over 10, an unused parameter, `System.out` |
+
+An exception to a size limit is a `@SuppressWarnings("PMD.<Rule>")` with a one-line comment giving
+the reason, and is listed in the pull request body (SA-2.3-7). `tools/quality <check> java` runs one
+check for Java only.
+
 ## CI
 
 `.github/workflows/ci.yml` runs on every pull request to `main`: install from the lock files
@@ -74,9 +102,10 @@ tests that carry its tag (JUnit `@Tag`, a pytest marker, the id in a Vitest or P
 (a suite marked `stack: true` starts the dev stack on the runner first), each keeping its JUnit XML
 reports, then the registry check on the reports of every suite job; one job that builds the web
 and runs the browser specs. The job `required` is the status check that branch protection on
-`main` requires. In block 1 it needs install, the suites and the registry check (OD-21): until blocks 1b (Java) and 1c (TypeScript, Python) add their tools,
-`make lint`, `format-check`, `typecheck` and `test` fail and name the missing tool, and no target
-passes without running a check. To check every tasks.md, CI checks out the spec repository named
+`main` requires. It needs install, the suites and the registry check (block 1) and the Java job
+of block 1b, which runs the Java lint, format check, type check and tests (OD-21). Until block 1c
+(TypeScript, Python) adds its tools, `make lint`, `format-check`, `typecheck` and `test` fail and
+name the missing tool, and no target passes without running a check. To check every tasks.md, CI checks out the spec repository named
 by the repository variable `SPEC_REPO`, read with the secret `SPEC_REPO_TOKEN`; without them the
 registry check fails, so the tasks.md checks never skip. On a pull request the registry check
 also checks the block being built, named by the last part of the branch

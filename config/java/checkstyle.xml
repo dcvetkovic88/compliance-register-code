@@ -1,0 +1,60 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN" "https://checkstyle.org/dtds/configuration_1_3.dtd">
+<!--
+  Checkstyle rules of the Java code (conventions SA-1.1, SA-1.3-8, SA-2.7-2, SA-2.7-3; T1.5).
+  Format is Spotless's job and size limits are PMD's (config/java/pmd.xml); this file holds the
+  naming rules, the banned class suffixes, TODO comments and the doc comment of port and adapter types.
+-->
+<module name="Checker">
+    <property name="charset" value="UTF-8"/>
+    <property name="severity" value="error"/>
+
+    <!-- SA-2.7-3: a doc comment on every port type (name ends in Port) and every adapter type. -->
+    <module name="SuppressionSingleFilter">
+        <property name="id" value="portAndAdapterDocComment"/>
+        <property name="files" value="^(?!.*([/\\]adapters[/\\].*|Port\.java)$).*$"/>
+    </module>
+
+    <module name="TreeWalker">
+        <!-- SA-1.1: naming per language, Java column. -->
+        <module name="PackageName">
+            <property name="format" value="^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)*$"/>
+            <message key="name.invalidPattern" value="Package ''{0}'' must be lowercase without underscores (SA-1.1-4)."/>
+        </module>
+        <module name="TypeName"/>
+        <module name="MethodName"/>
+        <module name="MemberName"/>
+        <module name="ParameterName"/>
+        <module name="LambdaParameterName"/>
+        <module name="LocalVariableName"/>
+        <module name="LocalFinalVariableName"/>
+        <module name="StaticVariableName"/>
+        <module name="ConstantName"/>
+        <module name="RecordComponentName"/>
+        <module name="ClassTypeParameterName"/>
+        <module name="MethodTypeParameterName"/>
+
+        <!-- SA-1.3-8: no generic class suffixes. A framework handler takes a suppression with its reason. -->
+        <module name="TypeName">
+            <property name="id" value="bannedClassSuffix"/>
+            <property name="format" value="^(?!.*(Manager|Helper|Util|Utils|Processor|Handler|Data|Info)$).*$"/>
+            <message key="name.invalidPattern"
+                     value="Type name ''{0}'' ends in a banned generic suffix: Manager, Helper, Util, Utils, Processor, Handler, Data or Info (SA-1.3-8)."/>
+        </module>
+
+        <!-- SA-2.7-2: a TODO names its issue, as TODO(#123). -->
+        <module name="TodoComment">
+            <property name="format" value="\b(TODO|FIXME)\b(?!\(#\d+\))"/>
+            <message key="todo.match" value="A TODO or FIXME names its issue, as TODO(#123) (SA-2.7-2)."/>
+        </module>
+
+        <module name="MissingJavadocType">
+            <property name="id" value="portAndAdapterDocComment"/>
+            <property name="scope" value="public"/>
+            <message key="missing.javadoc.type" value="A port or adapter type carries a short doc comment (SA-2.7-3)."/>
+        </module>
+
+        <module name="SuppressWarningsHolder"/>
+    </module>
+    <module name="SuppressWarningsFilter"/>
+</module>
