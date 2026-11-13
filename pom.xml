@@ -5,8 +5,8 @@
   Each module joins the build through a profile that is active when the module's pom.xml exists,
   so a block that adds a module never edits this file.
   The quality tools of conventions section 5 run on every module (T1.5): Maven Enforcer and Spotless
-  at validate (make format-check), Error Prone with NullAway at compile (make typecheck), Checkstyle
-  and PMD at verify (make lint). Their rules are in config/java/.
+  at validate (make format-check), Error Prone with NullAway at compile (make typecheck), Checkstyle,
+  PMD and the driver check (OD-26) at verify (make lint). Their rules are in config/java/.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -118,9 +118,10 @@
             </plugins>
         </pluginManagement>
         <plugins>
-            <!-- Maven Enforcer (SA-2.4-1, suite readiness rule 3): no Lombok, no database driver but
-                 PostgreSQL's, and no service depends on another service. A service module has the group id
-                 com.wisertech.register.services. -->
+            <!-- Maven Enforcer (SA-2.4-1, suite readiness rule 3): no Lombok, and no service depends on
+                 another service; a service module has the group id com.wisertech.register.services. The
+                 bans of known database driver groups are only an early warning; the driver check below is
+                 the rule (OD-26). -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
@@ -162,6 +163,52 @@
                                     <message>A service never depends on another service (suite readiness rule 3).</message>
                                 </bannedDependencies>
                             </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- The driver check (OD-26, suite readiness rule 3), the rule for "no database driver but
+                 PostgreSQL's"; the group bans above are only an early warning. It reads the
+                 META-INF/services/java.sql.Driver registration of every jar on the module's runtime
+                 classpath and fails when a line names any driver other than org.postgresql.Driver.
+                 make lint runs it at verify, after the Enforcer at validate: the run resolves the runtime
+                 classpath, which would fail before the Enforcer could name a banned service dependency. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>driver-check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <restrict id="register.foreign.drivers">
+                                    <archives>
+                                        <zips>
+                                            <restrict>
+                                                <path refid="maven.runtime.classpath"/>
+                                                <and>
+                                                    <type type="file"/>
+                                                    <name name="*.jar"/>
+                                                </and>
+                                            </restrict>
+                                        </zips>
+                                    </archives>
+                                    <and>
+                                        <name name="META-INF/services/java.sql.Driver"/>
+                                        <containsregexp expression="^[ \t]*(?!#|org\.postgresql\.Driver[ \t]*(#.*)?\r?$)[^ \t\r\n]" multiline="true"/>
+                                    </and>
+                                </restrict>
+                                <pathconvert property="register.foreign.drivers.list" refid="register.foreign.drivers" pathsep="${line.separator}"/>
+                                <fail message="A runtime dependency registers a JDBC driver other than org.postgresql.Driver (OD-26):${line.separator}${register.foreign.drivers.list}">
+                                    <condition>
+                                        <resourcecount refid="register.foreign.drivers" when="greater" count="0"/>
+                                    </condition>
+                                </fail>
+                            </target>
                         </configuration>
                     </execution>
                 </executions>
