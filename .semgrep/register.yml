@@ -35,13 +35,16 @@ rules:
     patterns:
       - pattern-regex: \b(?:class|interface|type|enum)\s+(?<NAME>[A-Za-z0-9_]*(?:Manager|Helper|Util|Utils|Processor|Handler|Data|Info))\b
 
+  # Every expression inside the call's arguments is checked, so a secret concatenated into the message
+  # ("token=" + token), interpolated into it (f"{token}", `${token}`) or passed to a call is found too.
+  # A string literal never matches: its text starts with a quote.
   - id: secret-in-log
     message: "'$ARGUMENT' may hold a secret; never log secrets or document content (SA-2.4-7)"
     severity: ERROR
     languages: [java, python, typescript, javascript]
     patterns:
-      - pattern-either:
-          - pattern: $LOGGER.$LEVEL(..., $ARGUMENT, ...)
+      - pattern-inside: $LOGGER.$LEVEL(...)
+      - pattern: $ARGUMENT
       - metavariable-regex:
           metavariable: $LOGGER
           regex: (?i)^(log|logger|logging|console|this\.log|this\.logger|self\.log|self\.logger)$
