@@ -9,10 +9,11 @@
     <property name="charset" value="UTF-8"/>
     <property name="severity" value="error"/>
 
-    <!-- SA-2.7-3: a doc comment on every port type (name ends in Port) and every adapter type. -->
+    <!-- SA-2.7-3: a doc comment on every port type (name ends in Port, or one of the ports without the suffix,
+         DefinitionSource and ModelGateway; tools/arch-rules RuleConditions) and every adapter type. -->
     <module name="SuppressionSingleFilter">
         <property name="id" value="portAndAdapterDocComment"/>
-        <property name="files" value="^(?!.*([/\\]adapters[/\\].*|Port\.java)$).*$"/>
+        <property name="files" value="^(?!.*([/\\]adapters[/\\].*|Port\.java|[/\\]DefinitionSource\.java|[/\\]ModelGateway\.java)$).*$"/>
     </module>
 
     <module name="TreeWalker">
