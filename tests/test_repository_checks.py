@@ -316,3 +316,29 @@ def test_111_ac23_ci_runs_the_repository_and_pull_request_checks_as_required_job
     for check in ["tools/check-branch-name", "commitlint --from", "tools/check-pr-size"]:
         assert check in runs("pull-request"), check
     assert {"repository", "pull-request"} <= set(jobs["required"]["needs"])
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        '@SuppressWarnings("PMD") // the mapping table reads best as one method',
+        '@SuppressWarnings({"unchecked", "PMD"})',
+        '@SuppressWarnings("all")',
+        "    void map() { // NOPMD the mapping table reads best as one method",
+    ],
+)
+def test_111_ac23_a_blanket_pmd_suppression_is_a_size_limit_exception_to_list(repo_root, change_repo, line):
+    commit_lines(change_repo, "services/register/src/main/java/demo/Mapping.java", [line])
+
+    unlisted = check_size(repo_root, change_repo, template_body(repo_root))
+    size_rule_only = check_size(
+        repo_root, change_repo, template_body(repo_root, limit_exceptions="- Mapping.java PMD.MethodLength: one table")
+    )
+    listed = check_size(
+        repo_root, change_repo, template_body(repo_root, limit_exceptions="- Mapping.java PMD: one table")
+    )
+
+    assert unlisted.returncode != 0
+    assert "Mapping.java" in unlisted.stdout + unlisted.stderr
+    assert size_rule_only.returncode != 0
+    assert listed.returncode == 0, listed.stdout + listed.stderr
