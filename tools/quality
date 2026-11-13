@@ -67,12 +67,17 @@ java_check() {
   run ./mvnw -B -ntp -q "${maven[@]}"
 }
 
-# TypeScript: the script of the same name in every npm workspace that has one.
+# TypeScript: the script of the same name in every npm workspace that has one; each workspace runs the root
+# configuration (T1.10): eslint.config.mjs, .prettierrc.json, tsconfig.base.json, vitest.shared.mjs. Lint first
+# runs the dependency rules of .dependency-cruiser.cjs (AR-W2 to AR-W7) on apps/ and packages/.
 typescript_check() {
   local pattern directory
   for pattern in $(node -e 'for (const w of require("./package.json").workspaces ?? []) console.log(w)'); do
     for directory in $pattern; do
       if [ -f "$directory/package.json" ]; then
+        if [ "$check" = lint ]; then
+          run npm exec --no -- depcruise --config .dependency-cruiser.cjs $(ls -d apps packages 2>/dev/null)
+        fi
         run npm run --workspaces --if-present "$npm_script"
         return
       fi

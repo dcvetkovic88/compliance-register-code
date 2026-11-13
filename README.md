@@ -17,6 +17,7 @@ block 15c.
 | `Makefile` | the one entry point: `make lint`, `format-check`, `typecheck`, `test`, `suite S=<id>`, `ci`, `stack-up`, `stack-down` |
 | `config/java/` | the Checkstyle and PMD rules every Java module runs |
 | `ruff.toml`, `mypy.ini`, `.importlinter` | the Python format, lint, type and import rules every uv project runs |
+| `eslint.config.mjs`, `.prettierrc.json`, `tsconfig.base.json`, `.dependency-cruiser.cjs`, `vitest.shared.mjs`, `playwright.shared.mjs` | the TypeScript format, lint, type, dependency and test settings every npm workspace runs |
 | `.semgrep/`, `.gitleaks.toml`, `.pre-commit-config.yaml`, `renovate.json`, `commitlint.config.mjs` | the repository checks |
 | `tdd-profile.yaml` | the TDD profile: coverage is reported, the mutation threshold gates a pull request (OD-25) |
 | `tests/` | root-level tests (build files, registry, CI workflow, quality tooling) and their fixtures |
@@ -132,6 +133,25 @@ Every uv project runs them through `tools/quality <check> python`, with the root
 score below the threshold of `tdd-profile.yaml`; the gate writes the mutmut configuration, so a project
 carries none. CI runs both, and the Python job and the mutation gate are required.
 
+## TypeScript quality tools
+
+Every npm workspace runs them through `tools/quality <check> typescript`, which runs the workspace
+scripts `lint`, `format:check`, `typecheck` and `test`, with the root configuration (conventions
+section 5, T1.10). A workspace's scripts are `eslint .`, `prettier --check . --ignore-path ../../.gitignore
+--ignore-path ../../.prettierignore`, `tsc -p tsconfig.json` (its `tsconfig.json` extends
+`tsconfig.base.json`) and `vitest run` (its `vitest.config` merges `vitest.shared.mjs`).
+
+| Check | Tool | What fails |
+|---|---|---|
+| `make format-check` | Prettier (`.prettierrc.json`) | a file that is not formatted |
+| `make lint` | ESLint with typescript-eslint, react-hooks, jsx-a11y and react (`eslint.config.mjs`) | names that are not camelCase, PascalCase or UPPER_CASE; a boolean that does not read as a question (`is`, `has`, `can`, `should`, `was`, `will`); the rules of hooks; any jsx-a11y rule; a class component; literal text in JSX; an unused parameter; a function over 30 lines, a file over 300 lines, more than 4 parameters, nesting deeper than 3, complexity over 10 |
+| `make lint` | dependency-cruiser (`.dependency-cruiser.cjs`), on `apps/` and `packages/` | AR-W2 an HTTP library outside the generated clients in `apps/web/src/api/`; AR-W3 and AR-W6 a database client, or an import from `services/` or `libs/`; AR-W4 an OIDC, token or Keycloak library; AR-W5 Radix or lucide outside `packages/shell`, `packages/shell` importing `apps/web`, a feature importing another feature, a header, navigation, theme or locale switch module in `apps/`; AR-W7 a component (`.tsx`) importing a client |
+| `make typecheck` | TypeScript strict (`tsconfig.base.json`) | any strict error |
+| `make test` | Vitest (`vitest.shared.mjs`) | a failing `*.test.ts(x)`; coverage is written to the workspace's `coverage/` and is never a gate; a workspace with no test yet passes |
+
+Browser specs end in `.e2e.ts`; the web's Playwright configuration merges `playwright.shared.mjs`,
+which matches that suffix only, and Vitest never runs them.
+
 ## Repository checks
 
 | Check | Run it | What fails |
@@ -155,12 +175,13 @@ Fixtures break these rules on purpose; `.semgrepignore` leaves them to their own
 reports, then the registry check on the reports of every suite job; one job that builds the web
 and runs the browser specs. The job `required` is the status check that branch protection on
 `main` requires. It needs install, the suites and the registry check (block 1) and the Java job
-of block 1b, which runs the Java lint, format check, type check and tests (OD-21), the Python job
-and, on a pull request, the Python mutation gate of block 1c, the repository
+of block 1b, which runs the Java lint, format check, type check and tests (OD-21), the Python and
+TypeScript jobs, the quality job of all three languages and, on a pull request, the Python mutation
+gate of block 1c, the repository
 checks (gitleaks, Semgrep, the Renovate configuration) and, on a pull request, the Java mutation gate
-and the branch name, commit message and size checks. Until block 1c
-(TypeScript, Python) adds its tools, `make lint`, `format-check`, `typecheck` and `test` fail and
-name the missing tool, and no target passes without running a check. To check every tasks.md, CI checks out the spec repository named
+and the branch name, commit message and size checks. When a language's tool is missing from its
+manifest, `make lint`, `format-check`, `typecheck` and `test` fail and name it, and no target passes
+without running a check (OD-21). To check every tasks.md, CI checks out the spec repository named
 by the repository variable `SPEC_REPO`, read with the secret `SPEC_REPO_TOKEN`; without them the
 registry check fails, so the tasks.md checks never skip. On a pull request the registry check
 also checks the block being built, named by the last part of the branch

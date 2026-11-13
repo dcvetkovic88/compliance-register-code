@@ -3,8 +3,8 @@
 # install and the suites (the registry, one job per suite, and the registry check, which reads the
 # JUnit XML reports the suite jobs wrote). Block 1b adds the Java quality job, the Java mutation gate,
 # the repository checks and the pull request checks; block 1c adds the Python quality job and the Python
-# mutation gate. The quality job of all three languages joins when block 1c lands, until then its
-# targets fail and name the missing tool (OD-21).
+# mutation gate, the TypeScript quality job, and the quality job of all three languages (make lint,
+# format-check, typecheck, test), which until then failed naming the missing tool (OD-21).
 # Suites come from the registry (every suites.yaml), so this file is not edited when a suite is added.
 name: ci
 
@@ -104,6 +104,35 @@ jobs:
         with:
           name: java-coverage
           path: "**/target/site/jacoco/"
+          if-no-files-found: ignore
+
+  # The TypeScript format, lint, dependency rules, strict type check and tests of block 1c (T1.10; OD-21).
+  typescript:
+    name: TypeScript format check, lint, type check, unit tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: install from lock files
+        run: npm ci
+      - name: lint
+        run: tools/quality lint typescript
+      - name: format check
+        run: tools/quality format-check typescript
+      - name: type check
+        run: tools/quality typecheck typescript
+      - name: unit tests
+        run: tools/quality test typescript
+      # Coverage is reported, never a gate (SA-3-5, T1.10).
+      - name: keep the Vitest coverage reports
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: typescript-coverage
+          path: "**/coverage/cobertura-coverage.xml"
           if-no-files-found: ignore
 
   # The Python format, lint, import contracts, strict type check and tests of block 1c (T1.9; OD-21).
@@ -395,7 +424,19 @@ jobs:
   required:
     name: required
     if: always()
-    needs: [install, java, java-mutation, python, python-mutation, repository, pull-request, registry, suites, check]
+    needs:
+      - install
+      - quality
+      - java
+      - java-mutation
+      - python
+      - python-mutation
+      - typescript
+      - repository
+      - pull-request
+      - registry
+      - suites
+      - check
     runs-on: ubuntu-24.04
     steps:
       - name: every job passed
