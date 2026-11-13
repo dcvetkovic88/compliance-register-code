@@ -4,14 +4,14 @@
     {
       "task": "T1.5",
       "test_command": "uv run --project tools --frozen pytest tests/test_java_quality.py -q",
-      "red_commit": "592a92e3ce7dfec9ec1dface02916b74b7a0c69b",
-      "green_commit": "502010c88cb5e76d7715e0ae872700dc5c6a3652"
+      "red_commit": "91ede8b9cf2248195239ac42ab1eb2b58a622230",
+      "green_commit": "c1b9b12d76aff24008f308005ca8874dd65fa112"
     },
     {
       "task": "T1.6",
       "test_command": "uv run --project tools --frozen pytest tools/tests/test_arch_rules.py -q",
-      "red_commit": "af0c3b055de1bcd58750d292263c79554d4aa08e",
-      "green_commit": "53a6b88bdc5693e03cf23a0eedbc4760f31818d8"
+      "red_commit": "66b5cd73392c6206256139719bdaee539d28eec2",
+      "green_commit": "d42558c42cd1adec4388aa45a52397ed0084ac80"
     },
     {
       "task": "T1.7",
