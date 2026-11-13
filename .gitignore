@@ -26,3 +26,5 @@ __pycache__/
 # browser test output
 test-results/
 playwright-report/
+# JUnit XML reports of tools/suite, read by tools/check-suites
+/.suite-reports/
