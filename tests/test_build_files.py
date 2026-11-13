@@ -5,7 +5,7 @@ import os
 import re
 import shutil
 import subprocess
-import xml.etree.ElementTree as ElementTree
+from xml.etree import ElementTree
 
 import pytest
 
@@ -32,7 +32,9 @@ def pinned(repo_root, pin_file: str) -> str:
 
 def readme_pins(repo_root) -> dict[str, str]:
     """The `| Tool | Pin | ... |` table of the root README."""
-    rows = re.findall(r"^\|\s*([^|]+?)\s*\|\s*`([^`]+)`\s*\|", (repo_root / "README.md").read_text(encoding="utf-8"), re.M)
+    rows = re.findall(
+        r"^\|\s*([^|]+?)\s*\|\s*`([^`]+)`\s*\|", (repo_root / "README.md").read_text(encoding="utf-8"), re.MULTILINE
+    )
     return dict(rows)
 
 
@@ -55,7 +57,9 @@ def test_111_ac2_maven_parent_pins_spring_boot_and_java(repo_root):
 def test_each_java_module_joins_the_build_when_its_folder_has_a_pom(repo_root):
     pom = ElementTree.parse(repo_root / "pom.xml").getroot()
     activations = {
-        profile.findtext(f"{MAVEN}activation/{MAVEN}file/{MAVEN}exists"): profile.findtext(f"{MAVEN}modules/{MAVEN}module")
+        profile.findtext(f"{MAVEN}activation/{MAVEN}file/{MAVEN}exists"): profile.findtext(
+            f"{MAVEN}modules/{MAVEN}module"
+        )
         for profile in pom.iter(f"{MAVEN}profile")
     }
 
@@ -71,7 +75,9 @@ def test_111_ac2_maven_wrapper_pins_maven(repo_root):
 
 
 def test_111_ac2_empty_java_build_succeeds(repo_root):
-    result = subprocess.run(["./mvnw", "-B", "-q", "-ntp", "verify"], cwd=repo_root, capture_output=True, text=True)
+    result = subprocess.run(
+        ["./mvnw", "-B", "-q", "-ntp", "verify"], cwd=repo_root, check=False, capture_output=True, text=True
+    )
 
     assert result.returncode == 0, result.stdout + result.stderr
 
@@ -107,7 +113,9 @@ def test_editor_and_ignore_files(repo_root):
 
 @pytest.mark.parametrize("target", MAKE_TARGETS)
 def test_111_ac2_make_target_calls_a_script(repo_root, target):
-    result = subprocess.run(["make", "-n", target, "S=111-B1"], cwd=repo_root, capture_output=True, text=True)
+    result = subprocess.run(
+        ["make", "-n", target, "S=111-B1"], cwd=repo_root, check=False, capture_output=True, text=True
+    )
 
     assert result.returncode == 0, result.stderr
     assert re.search(r"(tools|deploy/scripts)/[\w.-]+", result.stdout), result.stdout
@@ -117,7 +125,7 @@ def test_111_ac2_make_target_calls_a_script(repo_root, target):
 def test_111_ac2_quality_target_without_its_script_fails(repo_root, tmp_path, target):
     (tmp_path / "Makefile").write_text((repo_root / "Makefile").read_text(encoding="utf-8"), encoding="utf-8")
 
-    result = subprocess.run(["make", "-s", target], cwd=tmp_path, capture_output=True, text=True)
+    result = subprocess.run(["make", "-s", target], cwd=tmp_path, check=False, capture_output=True, text=True)
 
     assert result.returncode != 0
     assert f"tools/{target} does not exist" in result.stderr
@@ -154,7 +162,7 @@ def run_stubbed(stubbed_repo, target, failing_tool=""):
     log = repo.parent / "calls.log"
     log.touch()
     env = {**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}", "STUB_LOG": str(log), "FAILING_TOOL": failing_tool}
-    result = subprocess.run(["make", "-s", target], cwd=repo, capture_output=True, text=True, env=env)
+    result = subprocess.run(["make", "-s", target], cwd=repo, check=False, capture_output=True, text=True, env=env)
     return result, log.read_text(encoding="utf-8")
 
 
@@ -162,7 +170,12 @@ def run_stubbed(stubbed_repo, target, failing_tool=""):
     ("target", "java", "typescript", "python"),
     [
         ("lint", "mvnw -B -ntp -q verify -DskipTests", "npm run --workspaces --if-present lint", "ruff check"),
-        ("format-check", "mvnw -B -ntp -q validate", "npm run --workspaces --if-present format:check", "ruff format --check"),
+        (
+            "format-check",
+            "mvnw -B -ntp -q validate",
+            "npm run --workspaces --if-present format:check",
+            "ruff format --check",
+        ),
         ("typecheck", "mvnw -B -ntp -q test-compile", "npm run --workspaces --if-present typecheck", "mypy"),
         ("test", "mvnw -B -ntp -q test", "npm run --workspaces --if-present test", "pytest"),
     ],
@@ -185,6 +198,8 @@ def test_111_ac2_quality_target_fails_when_one_language_fails(stubbed_repo, targ
 
 
 def test_make_suite_runs_the_suite_runner(repo_root):
-    result = subprocess.run(["make", "-n", "suite", "S=111-B1"], cwd=repo_root, capture_output=True, text=True)
+    result = subprocess.run(
+        ["make", "-n", "suite", "S=111-B1"], cwd=repo_root, check=False, capture_output=True, text=True
+    )
 
     assert "tools/suite 111-B1" in result.stdout

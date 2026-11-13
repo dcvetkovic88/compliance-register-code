@@ -22,7 +22,16 @@ def command_of(entry: SuiteEntry) -> list[str]:
         project = entry.project or entry.directory
         return ["uv", "run", "--project", project, "--frozen", "pytest", "-m", entry.selector, *entry.test_paths]
     if entry.runner == "vitest":
-        return ["npm", "exec", f"--workspace={entry.directory}", "--", "vitest", "run", "--testNamePattern", entry.selector]
+        return [
+            "npm",
+            "exec",
+            f"--workspace={entry.directory}",
+            "--",
+            "vitest",
+            "run",
+            "--testNamePattern",
+            entry.selector,
+        ]
     if entry.runner == "playwright":
         return ["npm", "exec", f"--workspace={entry.directory}", "--", "playwright", "test", "--grep", entry.selector]
     script = entry.selector if entry.directory == "." else f"{entry.directory}/{entry.selector}"

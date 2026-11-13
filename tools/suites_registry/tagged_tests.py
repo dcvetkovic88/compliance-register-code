@@ -79,6 +79,7 @@ def lacks_full_criterion_id(name: str) -> bool:
 def selects_a_test(root: Path, entry: SuiteEntry) -> bool:
     """True when at least one test in the entry's paths carries the entry's tag."""
     starts = [root / path for path in entry.test_paths]
+    patterns: tuple[str, ...]
     if entry.runner == "script":
         return (root / entry.directory / entry.selector).is_file()
     if entry.runner == "pytest":
@@ -91,7 +92,5 @@ def selects_a_test(root: Path, entry: SuiteEntry) -> bool:
         tag = re.compile(rf"""\b(?:it|test|describe)(?:\.\w+)*\(\s*["'`][^"'`]*{re.escape(entry.selector)}""")
         patterns = VITEST_FILES if entry.runner == "vitest" else BROWSER_FILES
     return any(
-        tag.search(path.read_text(encoding="utf-8"))
-        for start in starts
-        for path in files_of(root, start, patterns)
+        tag.search(path.read_text(encoding="utf-8")) for start in starts for path in files_of(root, start, patterns)
     )

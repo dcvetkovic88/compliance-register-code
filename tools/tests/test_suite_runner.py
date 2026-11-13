@@ -3,7 +3,6 @@
 import json
 
 import pytest
-
 from conftest import run_tool
 
 pytestmark = pytest.mark.suite_111_B1

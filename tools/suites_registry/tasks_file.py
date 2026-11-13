@@ -65,5 +65,5 @@ def read_task(task: re.Match[str]) -> Task:
         name = tag.group(1)
         if path is None and name not in NOT_A_PATH and not re.fullmatch(r"S\d+", name):
             path = name
-        rest = rest[tag.end():]
+        rest = rest[tag.end() :]
     return Task(task.group("task_id"), path, task.group("done") != " ", rest)

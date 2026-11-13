@@ -1,6 +1,7 @@
 # One entry point for the three languages (plan D1). Each target only calls a script under
 # tools/ or deploy/scripts/, so a later block adds the script and never edits this file.
-# A quality target whose script does not exist yet says so and passes.
+# lint, format-check, typecheck and test run tools/quality for Java, TypeScript and Python;
+# a missing script fails the target, so no target can pass without running its checks.
 
 S ?=
 
@@ -15,16 +16,16 @@ define run_required
 endef
 
 lint:
-	$(call run_if_present,tools/lint)
+	$(call run_required,tools/lint)
 
 format-check:
-	$(call run_if_present,tools/format-check)
+	$(call run_required,tools/format-check)
 
 typecheck:
-	$(call run_if_present,tools/typecheck)
+	$(call run_required,tools/typecheck)
 
 test:
-	$(call run_if_present,tools/test)
+	$(call run_required,tools/test)
 
 suite:
 	@test -n "$(S)" || { echo "usage: make suite S=<suite id>" >&2; exit 2; }

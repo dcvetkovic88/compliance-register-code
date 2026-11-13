@@ -21,11 +21,19 @@ BLOCK_1 = """# Feature 111: Tasks
 def test_111_ac22_root_suites_file_registers_the_root_tests(repo_root):
     entries = yaml.safe_load((repo_root / "suites.yaml").read_text(encoding="utf-8"))["suites"]
 
-    assert {"id": "111-B1", "runner": "pytest", "selector": "suite_111_B1", "project": "tools", "paths": ["tests"]} in entries
+    assert {
+        "id": "111-B1",
+        "runner": "pytest",
+        "selector": "suite_111_B1",
+        "project": "tools",
+        "paths": ["tests"],
+    } in entries
 
 
 def test_111_ac22_suite_111_b1_runs_the_root_and_the_tools_tests(repo_root):
-    result = subprocess.run([str(repo_root / "tools/suite"), "--dry-run", "111-B1"], capture_output=True, text=True)
+    result = subprocess.run(
+        [str(repo_root / "tools/suite"), "--dry-run", "111-B1"], check=False, capture_output=True, text=True
+    )
 
     assert result.returncode == 0, result.stderr
     assert result.stdout.splitlines() == [
@@ -39,7 +47,7 @@ def test_111_ac22_block_1_passes_the_registry_check(repo_root, tmp_path):
     tasks.write_text(BLOCK_1, encoding="utf-8")
 
     result = subprocess.run(
-        [str(repo_root / "tools/check-suites"), "--tasks", str(tasks)], capture_output=True, text=True
+        [str(repo_root / "tools/check-suites"), "--tasks", str(tasks)], check=False, capture_output=True, text=True
     )
 
     assert result.returncode == 0, result.stdout

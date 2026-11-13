@@ -1,7 +1,6 @@
 """Tests of tools/check-suites (plan D18; 111-FR22, 111-AC22; conventions SA-3-2)."""
 
 import pytest
-
 from conftest import run_tool
 
 pytestmark = pytest.mark.suite_111_B1

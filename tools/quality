@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# The checks behind make lint, format-check, typecheck and test (plan D1; 111-FR2, 111-AC2).
+# Each check runs for the three languages: the Maven build, every npm workspace and every uv project.
+# A later block adds its tools to that build, workspace or project; this script stays as it is.
+set -euo pipefail
+
+check="${1:-}"
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$root"
+
+case "$check" in
+  lint) maven=(verify -DskipTests) npm_script=lint ;;
+  format-check) maven=(validate) npm_script=format:check ;;
+  typecheck) maven=(test-compile) npm_script=typecheck ;;
+  test) maven=(test) npm_script=test ;;
+  *) echo "usage: tools/quality lint|format-check|typecheck|test" >&2; exit 2 ;;
+esac
+
+run() {
+  echo "$check: $*"
+  "$@"
+}
+
+# Java: the parent build, with the plugins it binds to the lifecycle phase.
+java_check() {
+  run ./mvnw -B -ntp -q "${maven[@]}"
+}
+
+# TypeScript: the script of the same name in every npm workspace that has one.
+typescript_check() {
+  local pattern directory
+  for pattern in $(node -e 'for (const w of require("./package.json").workspaces ?? []) console.log(w)'); do
+    for directory in $pattern; do
+      if [ -f "$directory/package.json" ]; then
+        run npm run --workspaces --if-present "$npm_script"
+        return
+      fi
+    done
+  done
+  echo "$check: no npm workspace has a package.json yet"
+}
+
+# Python: every uv project with its own ruff, mypy and pytest. The tools project also lints and type-checks
+# the root tests/, which run in their suite (make suite), not here.
+python_projects() {
+  echo tools
+  find . -name pyproject.toml -not -path './tools/*' \
+    -not -path '*/node_modules/*' -not -path '*/.venv/*' -not -path '*/fixtures/*' -not -path './.specify/*' \
+    | sed -e 's|^\./||' -e 's|/pyproject.toml$||' | sort
+}
+
+python_check() {
+  local project folders folder
+  for project in $(python_projects); do
+    folders=("$project")
+    if [ "$project" = tools ] && [ -d tests ]; then folders+=(tests); fi
+    case "$check" in
+      lint) run uv run --project "$project" --frozen ruff check "${folders[@]}" ;;
+      format-check) run uv run --project "$project" --frozen ruff format --check "${folders[@]}" ;;
+      typecheck)
+        for folder in "${folders[@]}"; do
+          run uv run --project "$project" --frozen mypy --config-file "$project/pyproject.toml" "$folder"
+        done
+        ;;
+      test) run uv run --project "$project" --frozen pytest -q --rootdir "$project" -c "$project/pyproject.toml" "$project" ;;
+    esac
+  done
+}
+
+java_check
+typescript_check
+python_check

@@ -16,8 +16,8 @@ import sys
 from pathlib import Path
 
 from suites_registry.registry import Registry, load_registry
-from suites_registry.tasks_file import Block, read_blocks
 from suites_registry.tagged_tests import collect_test_names, lacks_full_criterion_id, selects_a_test
+from suites_registry.tasks_file import Block, read_blocks
 
 NO_SUITE_FILE_PATHS = {"spec-repo"}
 
