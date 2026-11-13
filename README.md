@@ -50,9 +50,11 @@ tests that carry its tag (JUnit `@Tag`, a pytest marker, the id in a Vitest or P
   in the `suites.yaml` of its own path, and every block's last task adds its suite to the
   `suites.yaml` of its own path.
 - `make suite S=<id>` (or `tools/suite <id>`) runs one suite in any language and writes one
-  JUnit XML report per entry under `.suite-reports/<id>/`: pytest `--junitxml`, the Vitest and
-  Playwright JUnit reporters, the Surefire reports of the module, one case per script. A Maven
-  suite builds its module with `-pl <module> -am`, so the libraries it depends on are built first.
+  JUnit XML report per entry, at `.suite-reports/<id>/<path>-<runner>-<selector>.xml`: pytest
+  `--junitxml`, the Vitest and Playwright JUnit reporters, the Surefire reports of the module, one
+  case per script. Two entries of one suite in one path with one runner need different selectors,
+  or the registry refuses them. A Maven suite builds its module with `-pl <module> -am`, so the
+  libraries it depends on are built first.
 - `tools/check-suites --tasks <tasks.md>` reads the JUnit XML reports `tools/suite` writes
   (`--reports <folder>`, default `.suite-reports`), never the test sources, so run the suites
   first. Only a test that ran counts: a skipped, disabled or deselected test, or a parametrized
@@ -62,7 +64,8 @@ tests that carry its tag (JUnit `@Tag`, a pytest marker, the id in a Vitest or P
   adds tests in a path with no entry for the block's suite, or when a criterion the block proves
   has no acceptance test: a test of its suite that ran and whose reported name (for JUnit, its
   display name) starts with the full criterion id. `--block <suite id>` also checks the block
-  being built; blocks still to come are never checked (OD-22, OD-23).
+  being built, named in any case, and fails when no block of the tasks files has that suite;
+  blocks still to come are never checked (OD-22, OD-23).
 
 ## CI
 
