@@ -16,7 +16,8 @@ final class RegisterPackages {
     static final String ADAPTERS_IN = "..adapters.in..";
     static final String ADAPTERS_OUT = "..adapters.out..";
     static final String PERSISTENCE = "..adapters.out.persistence..";
-    static final String IDENTITY = "..identity..";
+    /** The identity adapter, inbound or outbound; an {@code identity} package outside the adapters is not it. */
+    static final String IDENTITY = "..adapters.*.identity..";
 
     /** Spring, JDBC, servlet, HTTP client, JSON, JPA and Keycloak types, which the domain never names (AR-J0). */
     static final String[] FRAMEWORKS = {
