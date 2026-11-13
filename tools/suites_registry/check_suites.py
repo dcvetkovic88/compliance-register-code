@@ -14,7 +14,8 @@ Checks:
    a test whose reported name starts with the full criterion id (SA-3-2, OD-22).
 
 A block is in scope when all its tasks are ticked, or when `--block` names its suite, the block
-being built. Blocks still to come are never checked (OD-23).
+being built, in any case (`111-b1` from the branch name selects `111-B1`); a `--block` that names no
+block of the tasks files fails. Blocks still to come are never checked (OD-23).
 """
 
 import argparse
@@ -133,10 +134,16 @@ def main(argv: list[str] | None = None) -> int:
     registry = load_registry(root)
     reports, problems = read_reports(root, (arguments.reports or root / REPORTS_DIR).resolve(), registry)
     problems = list(registry.errors) + problems + registry_problems(reports) + name_problems(reports)
+    built = arguments.block.lower() if arguments.block else None
+    found = False
     for tasks_file in arguments.tasks:
         for block in read_blocks(tasks_file):
-            if block.done or arguments.block in block.suites:
+            being_built = built in {suite_id.lower() for suite_id in block.suites}
+            found = found or being_built
+            if block.done or being_built:
                 problems += block_problems(block, registry, reports)
+    if built and not found:
+        problems.append(f"--block {arguments.block} names no block of the tasks files")
     for problem in problems:
         print(problem)
     if problems:

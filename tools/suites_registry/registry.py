@@ -9,6 +9,7 @@ import yaml
 RUNNERS = ("maven", "pytest", "vitest", "playwright", "script")
 SUITE_ID = re.compile(r"^\d{3}(?:-F\d+)?-B\d+[a-z]?(?:-[a-z0-9]+)*$")
 SKIPPED_DIRS = {".git", "node_modules", "target", "dist", "build", ".venv", "fixtures"}
+UNSAFE_IN_FILE_NAME = re.compile(r"[^A-Za-z0-9_.-]+")
 
 
 @dataclass(frozen=True)
@@ -22,6 +23,13 @@ class SuiteEntry:
     paths: tuple[str, ...] = ()
     project: str | None = None
     stack: bool = False
+
+    @property
+    def report_name(self) -> str:
+        """The file name of its report, `<path>-<runner>-<selector>.xml`, unique among the entries of its suite."""
+        path = "root" if self.directory == "." else self.directory.replace("/", "-")
+        selector = UNSAFE_IN_FILE_NAME.sub("-", self.selector).strip("-")
+        return f"{path}-{self.runner}-{selector}.xml"
 
     @property
     def test_paths(self) -> tuple[str, ...]:
@@ -67,7 +75,24 @@ def load_registry(root: Path) -> Registry:
     for suites_file in files:
         directory = suites_file.parent.relative_to(root).as_posix()
         read_suites_file(suites_file, directory, root, registry)
+    registry.errors += shared_report_errors(registry.entries)
     return registry
+
+
+def shared_report_errors(entries: list[SuiteEntry]) -> list[str]:
+    """Two entries of one suite whose reports would overwrite each other cannot be told apart."""
+    seen: dict[tuple[str, str], SuiteEntry] = {}
+    errors = []
+    for entry in entries:
+        key = (entry.suite_id, entry.report_name)
+        if key in seen:
+            label = "suites.yaml" if entry.directory == "." else f"{entry.directory}/suites.yaml"
+            errors.append(
+                f"{label}: two entries of suite {entry.suite_id} write one report, {entry.report_name}; "
+                "give them different selectors or join them into one entry"
+            )
+        seen.setdefault(key, entry)
+    return errors
 
 
 def read_suites_file(suites_file: Path, directory: str, root: Path, registry: Registry) -> None:

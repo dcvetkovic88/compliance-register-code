@@ -33,9 +33,8 @@ class ReportedTest:
 
 
 def report_path(reports: Path, entry: SuiteEntry) -> Path:
-    """Where `tools/suite` writes the report of one entry: `<reports>/<suite id>/<path>-<runner>.xml`."""
-    path = "root" if entry.directory == "." else entry.directory.replace("/", "-")
-    return reports / entry.suite_id / f"{path}-{entry.runner}.xml"
+    """Where `tools/suite` writes the report of one entry: `<reports>/<suite id>/<path>-<runner>-<selector>.xml`."""
+    return reports / entry.suite_id / entry.report_name
 
 
 def read_report(path: Path) -> list[ReportedTest]:
