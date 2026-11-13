@@ -164,6 +164,13 @@ def test_111_ac22_fails_when_the_block_being_built_is_in_no_tasks_file(fixture_r
     assert "--block 900-B9 names no block of the tasks files" in result.stdout
 
 
+def test_111_ac22_a_ticked_block_of_spec_repo_tasks_only_is_not_checked(fixture_root):
+    result = check(fixture_root("spec-repo-block"))
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "900-AC9" not in result.stdout
+
+
 def test_111_ac22_the_suite_is_read_after_other_heading_text(fixture_root):
     result = check(fixture_root("suite-after-other-heading-text"), "--block", "900-B3")
 
