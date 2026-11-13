@@ -377,7 +377,11 @@ def test_111_ac23_suppressions_named_in_documentation_comments_or_strings_are_no
             ["class Mapping {", "    @SuppressWarnings({", '        "unchecked",', '        "PMD.MethodLength"})', "}"],
             "PMD.MethodLength",
         ),
-        ("apps/web/src/mapping.ts", ["// eslint-disable-next-line max-params", "export function map() {}"], "max-params"),
+        (
+            "apps/web/src/mapping.ts",
+            ["// eslint-disable-next-line max-params", "export function map() {}"],
+            "max-params",
+        ),
         ("apps/web/src/mapping.ts", ["/* eslint-disable max-lines */"], "max-lines"),
     ],
 )
