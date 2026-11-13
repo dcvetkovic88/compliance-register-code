@@ -4,8 +4,8 @@
     {
       "task": "T1.1",
       "test_command": "uv run --project tools --frozen pytest tools/tests -q",
-      "red_commit": "458338ba5dde40de8dea0a1c4c48c20b0039edde",
-      "green_commit": "6b35802c703c5a62f5756ee1d2111155a113c4b0"
+      "red_commit": "293374c198cb234c0b5d445e37480740638724b1",
+      "green_commit": "0219fd00cf02b9aca5687429e31942e3e14704ef"
     },
     {
       "task": "T1.2",
