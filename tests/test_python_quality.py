@@ -170,6 +170,15 @@ def test_111_ac17_ar_p1_the_clean_service_keeps_the_grain(tmp_path):
     assert grain_violations(service / "app") == []
 
 
+def test_111_ac17_ar_p1_a_crashing_grain_check_fails_rather_than_reporting_no_violation(tmp_path):
+    package = tmp_path / "app"
+    package.mkdir()
+    (package / "broken.py").write_text("class ObligationGap(:\n", encoding="utf-8")
+
+    with pytest.raises(AssertionError, match="SyntaxError"):
+        grain_violations(package)
+
+
 def test_111_ac17_ar_p1_every_python_model_of_the_repository_keeps_the_grain():
     packages = sorted(path for path in (REPO_ROOT / "services").glob("*/app") if path.is_dir())
 
