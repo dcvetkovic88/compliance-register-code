@@ -1,5 +1,6 @@
 """The root suites.yaml and the registry rule in the README (T1.3; 111-FR22, 111-AC22; plan D18)."""
 
+import os
 import subprocess
 
 import pytest
@@ -35,21 +36,40 @@ def test_111_ac22_suite_111_b1_runs_the_root_and_the_tools_tests(repo_root):
         [str(repo_root / "tools/suite"), "--dry-run", "111-B1"], check=False, capture_output=True, text=True
     )
 
+    reports = repo_root / ".suite-reports/111-B1"
     assert result.returncode == 0, result.stderr
     assert result.stdout.splitlines() == [
-        "uv run --project tools --frozen pytest -m suite_111_B1 tests",
-        "uv run --project tools --frozen pytest -m suite_111_B1 tools",
+        f"uv run --project tools --frozen pytest -m suite_111_B1 tests --junitxml={reports}/root-pytest.xml",
+        f"uv run --project tools --frozen pytest -m suite_111_B1 tools --junitxml={reports}/tools-pytest.xml",
     ]
+
+
+# The suite runs here without this test, which would run itself again, and without the slow CI and
+# clean Maven repository tests; what is left still holds an acceptance test of each criterion.
+NOT_NESTED = "not block_1_passes and not ci_workflow and not clean_local_repository"
 
 
 def test_111_ac22_block_1_passes_the_registry_check(repo_root, tmp_path):
     tasks = tmp_path / "tasks.md"
     tasks.write_text(BLOCK_1, encoding="utf-8")
+    reports = tmp_path / "reports"
+    env = {**os.environ, "PYTEST_ADDOPTS": f"-k '{NOT_NESTED}'"}
 
+    ran = subprocess.run(
+        [str(repo_root / "tools/suite"), "--reports", str(reports), "111-B1"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
     result = subprocess.run(
-        [str(repo_root / "tools/check-suites"), "--tasks", str(tasks)], check=False, capture_output=True, text=True
+        [str(repo_root / "tools/check-suites"), "--reports", str(reports), "--tasks", str(tasks)],
+        check=False,
+        capture_output=True,
+        text=True,
     )
 
+    assert ran.returncode == 0, ran.stdout + ran.stderr
     assert result.returncode == 0, result.stdout
 
 
@@ -58,3 +78,4 @@ def test_readme_states_the_registry_rule(repo_root):
 
     assert "every block's last task adds its suite to the `suites.yaml` of its own path" in readme
     assert "tools/check-suites" in readme
+    assert "reads the JUnit XML reports `tools/suite` writes" in readme
