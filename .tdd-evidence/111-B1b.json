@@ -16,8 +16,8 @@
     {
       "task": "T1.7",
       "test_command": "uv run --project tools --frozen pytest tests/test_java_mutation.py -q",
-      "red_commit": "62e9c541f557c8b4e7927fb770d46608bcca9307",
-      "green_commit": "667127c8ced798562d61d4296d62cd00c36d99df"
+      "red_commit": "508fa732dcb87103400fd4eaea1509e78a9053b4",
+      "green_commit": "99dbe80619b62d136e527921c0261cd84962d5c2"
     },
     {
       "task": "T1.8",
