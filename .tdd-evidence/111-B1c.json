@@ -4,14 +4,14 @@
     {
       "task": "T1.9",
       "test_command": "uv run --project tools --frozen pytest tests/test_python_quality.py -q",
-      "red_commit": "1195d04c5e991795423bb64b1475b5afa98846f7",
-      "green_commit": "bf847d33364fe121afc23370d1df6d0911611143"
+      "red_commit": "b76572506b76e0b0a087ffe131c5bfb569a3f796",
+      "green_commit": "96dbabb8db3fb01a3152367fc6482bb0ac0b3aed"
     },
     {
       "task": "T1.10",
       "test_command": "npm ci && uv run --project tools --frozen pytest tests/test_typescript_quality.py -q",
-      "red_commit": "0444581cec3182a823bc1a08a5818610e62feaad",
-      "green_commit": "46ab6c5ed4584887c92744ab923d1470824a887b"
+      "red_commit": "4da178ff9ef8a3c3c96b28d2a9843b00c0490381",
+      "green_commit": "79fbb0045225a72367d56fad48436646814e34be"
     },
     {
       "task": "T1.11",
@@ -22,8 +22,8 @@
     {
       "task": "T1.12",
       "test_command": "uv run --project tools --frozen pytest tools/tests/test_structure_checks.py -q",
-      "red_commit": "0d18a5eb98d7867d404dd166f12c22b38ec9bf15",
-      "green_commit": "ce51635ab70e7cffdc4626a2eaebb71a16ea8702"
+      "red_commit": "6113ec11e057f08e8607f57c51c73fa4333a9e35",
+      "green_commit": "b406f7869945b6608634bb1fa17019a6debab780"
     }
   ]
 }
