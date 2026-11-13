@@ -54,11 +54,56 @@ def test_111_ac22_fails_when_a_task_adds_tests_in_a_path_without_the_suite(fixtu
     assert "900-B1" in result.stdout
 
 
-def test_unbuilt_block_is_checked_when_its_suite_is_named(fixture_root):
-    result = check(fixture_root("clean"), "--suite", "900-B2")
+@pytest.mark.parametrize(
+    ("case", "file"),
+    [
+        ("empty-tagged-pytest", "tools/suites.yaml"),
+        ("empty-tagged-junit", "services/platform/suites.yaml"),
+        ("empty-tagged-vitest", "apps/web/suites.yaml"),
+    ],
+)
+def test_111_ac22_fails_when_the_tagged_file_or_class_holds_no_test(fixture_root, case, file):
+    result = check(fixture_root(case))
 
     assert result.returncode == 1
-    assert "900-B2" in result.stdout
+    assert f"suite 900-B1 in {file} selects no test" in result.stdout
+    assert "selects no test" in result.stdout
+
+
+def test_111_ac22_tagged_tests_count_in_each_runner(fixture_root):
+    result = check(fixture_root("tagged-tests-in-each-runner"))
+
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_111_ac22_fails_when_a_proved_criterion_has_no_acceptance_test(fixture_root):
+    result = check(fixture_root("criterion-without-acceptance-test"))
+
+    assert result.returncode == 1
+    assert "900-AC2" in result.stdout
+    assert "no acceptance test" in result.stdout
+    assert "900-AC1" not in result.stdout
+
+
+def test_111_ac22_a_later_unticked_block_naming_a_missing_suite_passes(fixture_root):
+    result = check(fixture_root("later-block-unbuilt-suite"))
+
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_111_ac22_the_block_being_built_is_checked_but_not_later_blocks(fixture_root):
+    result = check(fixture_root("later-block-unbuilt-suite"), "--block", "900-B2")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_111_ac22_the_block_being_built_is_checked(fixture_root):
+    result = check(fixture_root("later-block-unbuilt-suite"), "--block", "900-B3")
+
+    assert result.returncode == 1
+    assert "900-B3" in result.stdout
+    assert "not in the registry" in result.stdout
+    assert "900-AC3" in result.stdout
 
 
 def test_malformed_entry_is_reported_with_its_file(fixture_root):
