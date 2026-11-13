@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# The mutation gate of a pull request (T1.7; SA-3-4, SA-4-6; OD-25): PIT on the Java classes changed since
+# --base, failing below the threshold of tdd-profile.yaml. See tools/mutation_gate.py.
+set -euo pipefail
+tools_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec uv run --quiet --project "$tools_dir" --frozen python "$tools_dir/mutation_gate.py" "$@"

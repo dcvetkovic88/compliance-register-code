@@ -93,6 +93,47 @@ jobs:
         run: tools/quality typecheck java
       - name: unit tests
         run: tools/quality test java
+      # Coverage is reported, never a gate (SA-3-5, T1.7).
+      - name: keep the JaCoCo coverage reports
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: java-coverage
+          path: "**/target/site/jacoco/"
+          if-no-files-found: ignore
+
+  # PIT on the Java classes the pull request changes; below the threshold of tdd-profile.yaml on the
+  # changed domain and application classes the pull request fails (T1.7; OD-25).
+  java-mutation:
+    name: Java mutation gate on changed classes
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v6.1.0
+        with:
+          distribution: temurin
+          java-version-file: .java-version
+          cache: maven
+      - name: read the uv pin
+        id: pins
+        run: echo "uv=$(cat .uv-version)" >> "$GITHUB_OUTPUT"
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: ${{ steps.pins.outputs.uv }}
+      - name: mutation gate
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: tools/mutation-gate --base "origin/$BASE_REF"
+      - name: keep the PIT reports
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: java-mutation
+          path: "**/target/pit-reports/"
+          if-no-files-found: ignore
 
   registry:
     name: suites registry
@@ -237,7 +278,7 @@ jobs:
   required:
     name: required
     if: always()
-    needs: [install, java, registry, suites, check]
+    needs: [install, java, java-mutation, registry, suites, check]
     runs-on: ubuntu-24.04
     steps:
       - name: every job passed

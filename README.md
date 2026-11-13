@@ -16,6 +16,7 @@ block 15c.
 | `tools/pyproject.toml`, `tools/uv.lock` | the Python project of the repository tools; `services/ai-document` gets its own uv project |
 | `Makefile` | the one entry point: `make lint`, `format-check`, `typecheck`, `test`, `suite S=<id>`, `ci`, `stack-up`, `stack-down` |
 | `config/java/` | the Checkstyle and PMD rules every Java module runs |
+| `tdd-profile.yaml` | the TDD profile: coverage is reported, the mutation threshold gates a pull request (OD-25) |
 | `tests/` | root-level tests (build files, registry, CI workflow, quality tooling) and their fixtures |
 
 ## Pinned versions
@@ -45,6 +46,9 @@ repeats them and a root test keeps the two equal.
 | Error Prone | `2.51.0` | `pom.xml` property | 2026-10-22 | repo1.maven.org |
 | NullAway | `0.14.3` | `pom.xml` property | 2026-10-22 | repo1.maven.org |
 | JSpecify | `1.0.1` | `pom.xml` property | 2026-07-29 | repo1.maven.org |
+| JaCoCo | `0.8.16` | `pom.xml` property | 2026-10-26 | repo1.maven.org |
+| PIT | `1.30.1` | `pom.xml` property | 2026-10-14 | repo1.maven.org |
+| PIT JUnit 5 plugin | `1.2.3` | `pom.xml` property | 2025-05-20 | repo1.maven.org |
 
 Maven Enforcer, the compiler and Surefire plugins and JUnit come with the Spring Boot parent.
 Keycloak, PostgreSQL, React, Vite, TypeScript, Vitest and Playwright are pinned by the blocks
@@ -91,6 +95,12 @@ Every Java module runs them through the parent `pom.xml` (conventions section 5,
 | `verify` (`make lint`) | Checkstyle (`config/java/checkstyle.xml`) | naming; class names ending in Manager, Helper, Util, Utils, Processor, Handler, Data or Info; a TODO without its issue, written `TODO(#123)`; a port (`...Port`) or adapter type without a doc comment |
 | `verify` | PMD (`config/java/pmd.xml`) | a method over 30 lines, a class over 300 lines, more than 4 parameters, control statements nested more than 3 deep, cyclomatic complexity over 10, an unused parameter, `System.out` |
 
+JaCoCo writes a coverage report of every module's tests at `target/site/jacoco/` (`make test`); it
+is never a gate. The gate is the mutation score: `tools/mutation-gate --base <ref>` runs PIT on the
+Java classes changed since `<ref>` and fails when the changed classes in `domain` and `application`
+score below the threshold of `tdd-profile.yaml` (70 percent, OD-25); adapters and classes of no
+layer are reported only. CI runs it on every pull request.
+
 An exception to a size limit is a `@SuppressWarnings("PMD.<Rule>")` with a one-line comment giving
 the reason, and is listed in the pull request body (SA-2.3-7). `tools/quality <check> java` runs one
 check for Java only.
@@ -103,7 +113,8 @@ check for Java only.
 reports, then the registry check on the reports of every suite job; one job that builds the web
 and runs the browser specs. The job `required` is the status check that branch protection on
 `main` requires. It needs install, the suites and the registry check (block 1) and the Java job
-of block 1b, which runs the Java lint, format check, type check and tests (OD-21). Until block 1c
+of block 1b, which runs the Java lint, format check, type check and tests (OD-21), and on a pull
+request the Java mutation gate. Until block 1c
 (TypeScript, Python) adds its tools, `make lint`, `format-check`, `typecheck` and `test` fail and
 name the missing tool, and no target passes without running a check. To check every tasks.md, CI checks out the spec repository named
 by the repository variable `SPEC_REPO`, read with the secret `SPEC_REPO_TOKEN`; without them the
