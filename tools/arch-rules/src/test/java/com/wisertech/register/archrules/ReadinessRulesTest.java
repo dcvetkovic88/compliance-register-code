@@ -78,6 +78,12 @@ class ReadinessRulesTest {
     }
 
     @Test
+    @DisplayName("111-AC17 AR-J4 fails on a token library type in an identity package outside the adapters")
+    void tokenLibraryInIdentityOutsideAdapters() {
+        assertViolation(ArchitectureRules.GENERIC_OIDC, "SessionTokens", SERVICES + "arj4identity");
+    }
+
+    @Test
     @DisplayName("111-AC17 AR-J6 fails on a library with a domain package")
     void libraryWithDomain() {
         assertViolation(ArchitectureRules.LIBRARIES_WITHOUT_DOMAIN, "Criticality", LIBS + "arj6domain");
