@@ -337,6 +337,16 @@ def test_111_ac23_ci_runs_the_repository_and_pull_request_checks_as_required_job
     assert {"repository", "pull-request"} <= set(jobs["required"]["needs"])
 
 
+def test_111_ac23_ci_reruns_the_pull_request_checks_when_the_title_or_body_is_edited(repo_root):
+    # An edited title or body must rerun commitlint and the size check, else the required check stays green.
+    workflow = yaml.safe_load((repo_root / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
+    triggers = workflow.get("on", workflow.get(True))
+    types = triggers["pull_request"].get("types")
+
+    assert types is not None
+    assert {"opened", "synchronize", "reopened", "edited"} <= set(types)
+
+
 def title_step(repo_root: Path) -> dict:
     workflow = yaml.safe_load((repo_root / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
     steps = workflow["jobs"]["pull-request"]["steps"]
