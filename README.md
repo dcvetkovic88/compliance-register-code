@@ -54,3 +54,13 @@ tests that carry its tag (JUnit `@Tag`, a pytest marker, the id in a Vitest or P
   registered, when a task of the block adds tests in a path with no entry for the block's suite,
   when a registered suite selects no test, or when an acceptance test name lacks the full
   criterion id (`109-F4-AC6 ...`). `--suite <id>` checks that suite's block before it is ticked.
+
+## CI
+
+`.github/workflows/ci.yml` runs on every pull request to `main`: install from the lock files,
+lint, format check, type check and unit tests; the registry check and one job per registered
+suite (a suite marked `stack: true` starts the dev stack on the runner first); one job that
+builds the web and runs the browser specs. The job `required` passes only when all of them pass,
+and is the status check that branch protection on `main` requires. To check every tasks.md, CI
+checks out the spec repository named by the repository variable `SPEC_REPO`, read with the
+secret `SPEC_REPO_TOKEN`; without them it warns and checks the registry alone.
