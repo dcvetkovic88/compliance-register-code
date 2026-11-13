@@ -27,7 +27,8 @@ class ReadinessRulesTest {
     @Test
     @DisplayName("111-AC17 AR-J1 fails on an obligation id without its regulation version")
     void obligationWithoutRegulationVersion() {
-        assertViolation(ArchitectureRules.OBLIGATION_WITH_REGULATION_VERSION, "arj1.domain.Obligation", SERVICES + "arj1");
+        assertViolation(
+                ArchitectureRules.OBLIGATION_WITH_REGULATION_VERSION, "arj1.domain.Obligation", SERVICES + "arj1");
     }
 
     @Test

@@ -19,7 +19,8 @@ class HexagonalRulesTest {
     @Test
     @DisplayName("111-AC17 AR-J7 fails on an application class that names an adapter")
     void applicationNamingAnAdapter() {
-        assertViolation(ArchitectureRules.LAYER_DIRECTION, "arj7adapter.application.ApproveRequest", SERVICES + "arj7adapter");
+        assertViolation(
+                ArchitectureRules.LAYER_DIRECTION, "arj7adapter.application.ApproveRequest", SERVICES + "arj7adapter");
     }
 
     @Test
@@ -61,7 +62,8 @@ class HexagonalRulesTest {
     @Test
     @DisplayName("111-AC17 AR-J11 fails on an Optional parameter")
     void optionalParameter() {
-        assertViolation(ArchitectureRules.OPTIONAL_ONLY_AS_RETURN_TYPE, "describeReviewer", SERVICES + "arj11parameter");
+        assertViolation(
+                ArchitectureRules.OPTIONAL_ONLY_AS_RETURN_TYPE, "describeReviewer", SERVICES + "arj11parameter");
     }
 
     @Test
