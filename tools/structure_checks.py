@@ -42,16 +42,22 @@ IDENTIFIER = r"[A-Za-z_][A-Za-z0-9_]*"
 # schema, name, a call's parenthesis, a third part
 QUALIFIED_NAME = re.compile(rf'"?\b({IDENTIFIER})\b"?\s*\.\s*"?({IDENTIFIER})"?(\s*\()?(\s*\.\s*"?[A-Za-z_])?')
 SYSTEM_SCHEMA = "pg_catalog"
-RELATION_KEYWORD = re.compile(
-    r"(?:\b(?:FROM|JOIN|INTO|UPDATE|TABLE|ONLY|REFERENCES|TRUNCATE|VIEW|SEQUENCE|FUNCTION|PROCEDURE|ROUTINE|TYPE"
-    r"|DOMAIN|CALL|COPY|USING|LOCK|EXISTS|ON)|::)\s*$",
-    re.IGNORECASE,
+RELATION_WORDS = (
+    r"(?:FROM|JOIN|INTO|UPDATE|TABLE|ONLY|REFERENCES|TRUNCATE|VIEW|SEQUENCE|FUNCTION|PROCEDURE|ROUTINE|TYPE"
+    r"|DOMAIN|CALL|COPY|USING|LOCK|EXISTS|ON)"
 )
+# the keyword of a relation; the opening parentheses of a parenthesized relation or join may follow it
+RELATION_KEYWORD = re.compile(rf"(?:\b({RELATION_WORDS})|::)[\s(]*$", re.IGNORECASE)
 UNQUALIFIED_NAME = re.compile(rf'(?<![\w$])"?({IDENTIFIER})"?(?![\w$])(?!\s*\.)')
 # FROM of IS DISTINCT FROM and of these calls takes a column, which an alias may qualify; so does ON
 FROM_CALLS = {"EXTRACT", "SUBSTRING", "TRIM", "OVERLAY"}
 LOOK_BACK = 400  # characters read before a qualified name to find its keyword, enough for any list of relations
-LIST_ITEM = re.compile(rf'"?{IDENTIFIER}"?(?:\s*\.\s*"?{IDENTIFIER}"?)*(?:\s+(?:AS\s+)?{IDENTIFIER})?\s*,\s*$')
+# a relation and its alias in a list, parenthesized or not; a keyword is neither, so FROM a, is the keyword and a
+LIST_ITEM = re.compile(
+    rf'(?<![\w$"])(?!{RELATION_WORDS}\b)"?{IDENTIFIER}"?(?:\s*\.\s*"?{IDENTIFIER}"?)*[\s)]*'
+    rf"(?:\s+(?:AS\s+)?(?!{RELATION_WORDS}\b){IDENTIFIER})?\s*,[\s(]*$",
+    re.IGNORECASE,
+)
 SET_SEARCH_PATH = re.compile(r"\bSET\s+(?:SESSION\s+|LOCAL\s+)?(?:search_path\s*(?:TO|=)|SCHEMA\b)", re.IGNORECASE)
 # the value of a search_path: a list of names and string literals, which ends where a function's next clause starts
 PATH_ITEM = r"""(?:"[^"]+"|'(?:[^']|'')*'|[A-Za-z_][A-Za-z0-9_$]*)"""
@@ -226,8 +232,9 @@ class SchemaRules:
 
 def schema_position(sql: str, match: re.Match[str]) -> str | None:
     """Where the qualified name of `match` stands: "schema" where only a schema can qualify it (a function call, a
-    three-part name, a relation after its keyword or in a list after one, a type after ::), "either" where an alias
-    can qualify it too (after ON, after the FROM of IS DISTINCT FROM or of EXTRACT and the like), None elsewhere."""
+    three-part name, a relation after its keyword or in a list after one, parenthesized or not, a type after ::),
+    "either" where an alias can qualify it too (after ON, after the FROM of IS DISTINCT FROM or of EXTRACT and the
+    like), None elsewhere."""
     before = sql[max(0, match.start() - LOOK_BACK) : match.start()]
     start = len(before)
     while (relation := LIST_ITEM.search(before, 0, start)) is not None:
@@ -237,7 +244,7 @@ def schema_position(sql: str, match: re.Match[str]) -> str | None:
     keyword = RELATION_KEYWORD.search(before, 0, start)
     if keyword is None:
         return None
-    word, ahead = keyword.group().strip().upper(), before[: keyword.start()]
+    word, ahead = (keyword.group(1) or "::").upper(), before[: keyword.start()]
     if word == "ON" or word == "FROM" and (re.search(r"\bDISTINCT\s*$", ahead, re.IGNORECASE) or open_call(ahead)):
         return "either"
     return "schema"
