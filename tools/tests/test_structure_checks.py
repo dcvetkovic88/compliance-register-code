@@ -11,6 +11,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+import yaml
 from conftest import FIXTURES_DIR, TOOLS_DIR, run_tool
 
 pytestmark = pytest.mark.suite_111_B1c
@@ -148,6 +149,26 @@ def test_111_ac17_make_lint_runs_the_structure_checks(lint_repo):
     assert "apps/web/src/Bridge.java" in broken.stdout
     assert "platform.outbox" in broken.stdout
     assert "limits.py: 301 lines" in broken.stdout
+
+
+def test_111_ac17_every_ci_job_that_lints_sets_up_the_pinned_uv():
+    """Lint runs the structure checks, which run on uv, so a CI job that lints sets up the uv of .uv-version."""
+    workflow = yaml.safe_load((REPO_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
+    linting = {
+        name: job["steps"]
+        for name, job in workflow["jobs"].items()
+        if any(
+            "tools/quality lint" in str(step.get("run", "")) or "make lint" in str(step.get("run", ""))
+            for step in job["steps"]
+        )
+    }
+
+    assert {"java", "typescript", "python", "quality"} <= set(linting)
+    for name, steps in linting.items():
+        setups = [step for step in steps if str(step.get("uses", "")).startswith("astral-sh/setup-uv@")]
+        assert setups, f"{name} lints without setting up uv"
+        assert setups[0].get("with", {}).get("version") == "${{ steps.pins.outputs.uv }}", name
+        assert any(step.get("id") == "pins" and ".uv-version" in str(step.get("run", "")) for step in steps), name
 
 
 def test_111_ac23_suite_111_b1c_is_registered_for_the_tools_tests():

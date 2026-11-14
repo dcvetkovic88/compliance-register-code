@@ -62,6 +62,7 @@ DEPENDENCY_RULES = [
     ("ar-w5-shell-module-pascal", "AR-W5-shell-module-outside-the-shell"),
     ("ar-w5-shell-module-package", "AR-W5-shell-module-outside-the-shell"),
     ("ar-w7", "AR-W7-component-imports-a-client"),
+    ("ar-w7-package", "AR-W7-component-imports-a-client"),
 ]
 
 
