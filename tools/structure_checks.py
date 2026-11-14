@@ -5,7 +5,7 @@ deploy/, contracts/scripts) and never sits in services/, libs/, apps/ or package
 (not in the Python service), libs/ and tools/arch-rules (suite readiness rule 6).
 sql-schemas: the SQL of services/<folder> names only the folder's own schema and, unless the service has no
 usage on schema platform, the platform functions of tools/sql-schemas.yaml, called (suite readiness rule 3).
-A listed schema is found wherever it qualifies a name. Any other qualifier but pg_catalog is a schema where
+A name may be quoted and then hold any character. A listed schema is found wherever it qualifies a name. Any other qualifier but pg_catalog is a schema where
 only a schema can qualify (a function call, a three-part name, a relation after FROM, JOIN, INTO, UPDATE, TABLE,
 ON and the like or in a list after one, a type after ::), unless the SQL also holds it unqualified, as an alias
 or a table does.
@@ -39,8 +39,10 @@ JAVA_PATHS = ("services/", "libs/", "tools/arch-rules/")
 MODULE_LINES = 300
 SQL_NOISE = re.compile(r"--[^\n]*|/\*.*?\*/|'(?:[^']|'')*'", re.DOTALL)
 IDENTIFIER = r"[A-Za-z_][A-Za-z0-9_]*"
+# a name, plain or quoted; a quoted name holds any character, a doubled quote standing for one
+NAME = rf'(?:"(?:[^"]|"")+"|{IDENTIFIER})'
 # schema, name, a call's parenthesis, a third part
-QUALIFIED_NAME = re.compile(rf'"?\b({IDENTIFIER})\b"?\s*\.\s*"?({IDENTIFIER})"?(\s*\()?(\s*\.\s*"?[A-Za-z_])?')
+QUALIFIED_NAME = re.compile(rf'(?<![\w$"])({NAME})\s*\.\s*({NAME})(\s*\()?(\s*\.\s*["A-Za-z_])?')
 SYSTEM_SCHEMA = "pg_catalog"
 RELATION_WORDS = (
     r"(?:FROM|JOIN|INTO|UPDATE|TABLE|ONLY|REFERENCES|TRUNCATE|VIEW|SEQUENCE|FUNCTION|PROCEDURE|ROUTINE|TYPE"
@@ -48,14 +50,14 @@ RELATION_WORDS = (
 )
 # the keyword of a relation; the opening parentheses of a parenthesized relation or join may follow it
 RELATION_KEYWORD = re.compile(rf"(?:\b({RELATION_WORDS})|::)[\s(]*$", re.IGNORECASE)
-UNQUALIFIED_NAME = re.compile(rf'(?<![\w$])"?({IDENTIFIER})"?(?![\w$])(?!\s*\.)')
+UNQUALIFIED_NAME = re.compile(rf'(?<![\w$"])({NAME})(?![\w$"])(?!\s*\.)')
 # FROM of IS DISTINCT FROM and of these calls takes a column, which an alias may qualify; so does ON
 FROM_CALLS = {"EXTRACT", "SUBSTRING", "TRIM", "OVERLAY"}
 LOOK_BACK = 400  # characters read before a qualified name to find its keyword, enough for any list of relations
 # a relation and its alias in a list, parenthesized or not; a keyword is neither, so FROM a, is the keyword and a
 LIST_ITEM = re.compile(
-    rf'(?<![\w$"])(?!{RELATION_WORDS}\b)"?{IDENTIFIER}"?(?:\s*\.\s*"?{IDENTIFIER}"?)*[\s)]*'
-    rf"(?:\s+(?:AS\s+)?(?!{RELATION_WORDS}\b){IDENTIFIER})?\s*,[\s(]*$",
+    rf'(?<![\w$"])(?!{RELATION_WORDS}\b){NAME}(?:\s*\.\s*{NAME})*[\s)]*'
+    rf"(?:\s+(?:AS\s+)?(?!{RELATION_WORDS}\b){NAME})?\s*,[\s(]*$",
     re.IGNORECASE,
 )
 # the words that may follow a relation where no alias stands
@@ -65,8 +67,8 @@ NOT_AN_ALIAS = (
 )
 # a table alias the SQL declares: the name after a relation of FROM, JOIN, INTO, UPDATE or USING, with or without AS
 DECLARED_ALIAS = re.compile(
-    rf'\b(?:FROM|JOIN|INTO|UPDATE|USING)(?:\s+ONLY)?[\s(]+"?{IDENTIFIER}"?(?:\s*\.\s*"?{IDENTIFIER}"?)*[\s)]*'
-    rf'\s+(?:AS\s+)?(?!{NOT_AN_ALIAS}\b)"?({IDENTIFIER})"?',
+    rf"\b(?:FROM|JOIN|INTO|UPDATE|USING)(?:\s+ONLY)?[\s(]+{NAME}(?:\s*\.\s*{NAME})*[\s)]*"
+    rf"\s+(?:AS\s+)?(?!{NOT_AN_ALIAS}\b)({NAME})",
     re.IGNORECASE,
 )
 SET_SEARCH_PATH = re.compile(r"\bSET\s+(?:SESSION\s+|LOCAL\s+)?(?:search_path\s*(?:TO|=)|SCHEMA\b)", re.IGNORECASE)
@@ -261,6 +263,11 @@ def schema_position(sql: str, match: re.Match[str]) -> str | None:
     return "schema"
 
 
+def unquote(name: str) -> str:
+    """The name, its quotes undone when quoted."""
+    return name[1:-1].replace('""', '"') if name.startswith('"') else name
+
+
 def open_call(text: str) -> bool:
     """Whether `text` ends inside an open parenthesis of one of FROM_CALLS."""
     depth = 0
@@ -284,10 +291,10 @@ def text_findings(
     for offset, body in bodies(original, sql):
         findings += text_findings((path, first_line + sql.count(chr(10), 0, offset)), body, service, rules)
     # names the SQL holds unqualified, as an alias or a table is; such a name may qualify a column where an alias can
-    unqualified = {name.lower() for name in UNQUALIFIED_NAME.findall(sql)}
-    aliases = {name.lower() for name in DECLARED_ALIAS.findall(sql)}
+    unqualified = {unquote(name).lower() for name in UNQUALIFIED_NAME.findall(sql)}
+    aliases = {unquote(name).lower() for name in DECLARED_ALIAS.findall(sql)}
     for match in QUALIFIED_NAME.finditer(sql):
-        schema, name, call = match.group(1).lower(), match.group(2), match.group(3)
+        schema, name, call = unquote(match.group(1)).lower(), unquote(match.group(2)), match.group(3)
         position = schema_position(sql, match)
         if schema in (own, SYSTEM_SCHEMA) or position != "schema" and schema in aliases:
             continue
