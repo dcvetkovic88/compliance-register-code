@@ -13,9 +13,10 @@ The SQL is that of the .sql files and of the string literals of the .java and .p
 (the JdbcClient and psycopg queries, plan D3), string literals joined by + read as one; Java and Python comments
 and docstrings are not read.
 The body of a function, procedure or DO block in a string literal (AS '...', DO '...') is SQL and read as such.
-A search_path, set by SET search_path, SET SCHEMA or set_config, names no schema but the folder's own and
-pg_catalog, so no unqualified name reaches another schema. SQL comments and string literals are not read, but
-the value of a search_path is.
+A search_path, set by SET search_path (also a function's SET clause, read up to its next clause), SET SCHEMA or
+set_config, names no schema but the folder's own and pg_catalog, so no unqualified name reaches another schema.
+Nor does a schema operand (CREATE, ALTER or DROP SCHEMA, ON SCHEMA, IN SCHEMA and the like) name another schema.
+SQL comments and string literals are not read, but the value of a search_path is.
 size: a Python module of services/ or libs/ is at most 300 lines (SA-2.3-2).
 Build output, dependencies, virtual environments and test fixtures are never read.
 """
@@ -51,9 +52,16 @@ UNQUALIFIED_NAME = re.compile(rf'(?<![\w$])"?({IDENTIFIER})"?(?![\w$])(?!\s*\.)'
 FROM_CALLS = {"EXTRACT", "SUBSTRING", "TRIM", "OVERLAY"}
 LOOK_BACK = 400  # characters read before a qualified name to find its keyword, enough for any list of relations
 LIST_ITEM = re.compile(rf'"?{IDENTIFIER}"?(?:\s*\.\s*"?{IDENTIFIER}"?)*(?:\s+(?:AS\s+)?{IDENTIFIER})?\s*,\s*$')
-SET_SEARCH_PATH = re.compile(
-    r"\bSET\s+(?:SESSION\s+|LOCAL\s+)?(?:search_path\s*(?:TO|=)|SCHEMA\b)([^;]*)", re.IGNORECASE
+SET_SEARCH_PATH = re.compile(r"\bSET\s+(?:SESSION\s+|LOCAL\s+)?(?:search_path\s*(?:TO|=)|SCHEMA\b)", re.IGNORECASE)
+# the value of a search_path: a list of names and string literals, which ends where a function's next clause starts
+PATH_ITEM = r"""(?:"[^"]+"|'(?:[^']|'')*'|[A-Za-z_][A-Za-z0-9_$]*)"""
+PATH_VALUE = re.compile(rf"\s*{PATH_ITEM}(?:\s*,\s*{PATH_ITEM})*")
+# the schemas a statement names as such (CREATE SCHEMA, ON SCHEMA, IN SCHEMA and the like); SET SCHEMA is a search_path
+SCHEMA_OPERAND = re.compile(
+    rf'\b(SET\s+)?SCHEMAS?\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?((?:"[^"]+"|{IDENTIFIER})(?:\s*,\s*(?:"[^"]+"|{IDENTIFIER}))*)',
+    re.IGNORECASE,
 )
+SCHEMA_NAME = re.compile(rf'"([^"]+)"|({IDENTIFIER})')
 # a string literal after these is the SQL body of a function, a procedure or a DO block
 BODY_KEYWORD = re.compile(r"\b(?:AS|DO(?:\s+LANGUAGE\s+\w+)?)\s*$", re.IGNORECASE)
 SET_CONFIG_CALL = re.compile(r"\bset_config\s*\(", re.IGNORECASE)
@@ -102,7 +110,11 @@ def bodies(sql: str, blanked: str) -> Iterator[tuple[int, str]]:
 
 def search_paths(sql: str, blanked: str) -> Iterator[tuple[int, str]]:
     """(offset, schema) for each schema a SET search_path or set_config('search_path', ...) outside comments names."""
-    settings = [(match.start(), sql[match.start(1) : match.end(1)]) for match in SET_SEARCH_PATH.finditer(blanked)]
+    settings = []
+    for match in SET_SEARCH_PATH.finditer(blanked):
+        value = PATH_VALUE.match(sql, match.end())
+        if value:
+            settings.append((match.start(), value.group()))
     for call in SET_CONFIG_CALL.finditer(blanked):
         argument = SET_CONFIG_SEARCH_PATH.match(sql, call.end())
         if argument:
@@ -122,6 +134,25 @@ def search_path_findings(location: tuple[str, int], sql: str, own: str) -> list[
         for offset, schema in search_paths(sql, blanked)
         if schema not in (own, SYSTEM_SCHEMA)
     ]
+
+
+def schema_operand_findings(location: tuple[str, int], blanked: str, own: str) -> list[str]:
+    """Findings for each schema but `own` and pg_catalog that the blanked SQL names as a schema operand."""
+    path, first_line = location
+    findings = []
+    for operand in SCHEMA_OPERAND.finditer(blanked):
+        if operand.group(1):
+            continue
+        for entry in SCHEMA_NAME.finditer(operand.group(2)):
+            schema = (entry.group(1) or entry.group(2)).lower()
+            if schema in (own, SYSTEM_SCHEMA) or entry.start() == 0 and schema == "authorization":
+                continue
+            line = first_line + blanked.count(chr(10), 0, operand.start(2) + entry.start())
+            findings.append(
+                f"{path}:{line}: schema {schema}; the SQL of a service names only its own schema {own}"
+                " (tools/sql-schemas.yaml)"
+            )
+    return findings
 
 
 def java_strings(source: str) -> Iterator[tuple[int, str]]:
@@ -231,6 +262,7 @@ def text_findings(
     own = str(service["schema"])
     findings = search_path_findings(location, original, own)
     sql = blank_noise(original)
+    findings += schema_operand_findings(location, sql, own)
     for offset, body in bodies(original, sql):
         findings += text_findings((path, first_line + sql.count(chr(10), 0, offset)), body, service, rules)
     # names the SQL holds unqualified, as an alias or a table is; such a name may qualify a column where an alias can
