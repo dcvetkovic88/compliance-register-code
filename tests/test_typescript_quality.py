@@ -48,7 +48,7 @@ ESLINT_RULES = [
     ("fetch-wrapper", "no-restricted-globals"),
 ]
 
-# (dependency-cruiser fixture, the rule that fails it) (conventions section 6)
+# (dependency-cruiser fixture, the rule that fails it) (conventions section 6; components are PascalCase.tsx, SA-1.1-5)
 DEPENDENCY_RULES = [
     ("ar-w2", "AR-W2-http-library-outside-the-clients"),
     ("ar-w3-database", "AR-W3-database-client"),
@@ -59,6 +59,7 @@ DEPENDENCY_RULES = [
     ("ar-w5-shell-imports-web", "AR-W5-shell-imports-the-web"),
     ("ar-w5-feature", "AR-W5-feature-imports-another-feature"),
     ("ar-w5-shell-module", "AR-W5-shell-module-in-the-web"),
+    ("ar-w5-shell-module-pascal", "AR-W5-shell-module-in-the-web"),
     ("ar-w7", "AR-W7-component-imports-a-client"),
 ]
 
