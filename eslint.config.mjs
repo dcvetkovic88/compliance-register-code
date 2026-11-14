@@ -70,7 +70,44 @@ const fileAndFolderNames = {
     };
   },
 };
-const register = { rules: { "file-and-folder-names": fileAndFolderNames } };
+// Every user-facing string through i18n (SA-2.6-3), the text of attributes too. react/jsx-no-literals ignores
+// attribute values, since most are technical (className, type, id, href); this local rule reports literal text in
+// the attributes a user sees or hears. Add a visible or spoken attribute here when the web starts to use it.
+const USER_FACING_PROPS = new Set([
+  "placeholder",
+  "title",
+  "alt",
+  "label",
+  "aria-label",
+  "aria-description",
+  "aria-placeholder",
+  "aria-roledescription",
+  "aria-valuetext",
+]);
+const isLiteralText = (value) =>
+  (value?.type === "Literal" && typeof value.value === "string") ||
+  (value?.type === "TemplateLiteral" && value.expressions.length === 0);
+const noLiteralUserFacingProps = {
+  meta: {
+    type: "problem",
+    schema: [],
+    messages: { literal: "Attribute {{name}} is seen or heard by a user; pass it through i18n (SA-2.6-3)." },
+  },
+  create(context) {
+    return {
+      JSXAttribute(node) {
+        const name = node.name.type === "JSXIdentifier" ? node.name.name : null;
+        const value = node.value?.type === "JSXExpressionContainer" ? node.value.expression : node.value;
+        if (USER_FACING_PROPS.has(name) && isLiteralText(value)) {
+          context.report({ node, messageId: "literal", data: { name } });
+        }
+      },
+    };
+  },
+};
+const register = {
+  rules: { "file-and-folder-names": fileAndFolderNames, "no-literal-user-facing-props": noLiteralUserFacingProps },
+};
 
 // Function components and hooks only (SA-2.6-1).
 const classComponent =
@@ -117,6 +154,7 @@ export default tseslint.config(
       ],
       // Every user-facing string through i18n (SA-2.6-3).
       "react/jsx-no-literals": ["error", { noStrings: true, ignoreProps: true }],
+      "register/no-literal-user-facing-props": "error",
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "error",
       "no-restricted-globals": networkGlobals,
