@@ -54,6 +54,7 @@ const COMPONENT_KIT = ["@radix-ui/[^/]+", "lucide-react"];
 const API_CLIENTS = "^apps/web/src/api/";
 // Components are PascalCase.tsx and other modules kebab-case (conventions SA-1.1-5), so both spellings match.
 const SHELL_MODULES = "(^|/)([Hh]eader|[Nn]avigation|[Tt]heme|[Ll]ocale-?[Ss]witch)[^/]*$";
+const SHELL = "^packages/shell/";
 const TESTS = "\\.(test|e2e)\\.tsx?$";
 
 module.exports = {
@@ -99,7 +100,7 @@ module.exports = {
       name: "AR-W5-shell-imports-the-web",
       comment: "AR-W5: packages/shell never imports apps/web.",
       severity: "error",
-      from: { path: "^packages/shell/" },
+      from: { path: SHELL },
       to: { path: "^apps/web/" },
     },
     {
@@ -110,17 +111,17 @@ module.exports = {
       to: { path: "^apps/web/src/features/", pathNot: "^apps/web/src/features/$1/" },
     },
     {
-      name: "AR-W5-shell-module-in-the-web",
+      name: "AR-W5-shell-module-outside-the-shell",
       comment: "AR-W5: header, navigation, theme and locale switch exist only under packages/shell.",
       severity: "error",
-      from: { path: "^apps/" },
-      to: { path: `^apps/.*${SHELL_MODULES}` },
+      from: { path: "^(apps|packages)/" },
+      to: { path: `^(apps|packages)/.*${SHELL_MODULES}`, pathNot: SHELL },
     },
     {
-      name: "AR-W5-shell-module-in-the-web-imports",
+      name: "AR-W5-shell-module-outside-the-shell-imports",
       comment: "AR-W5: header, navigation, theme and locale switch exist only under packages/shell.",
       severity: "error",
-      from: { path: `^apps/.*${SHELL_MODULES}` },
+      from: { path: `^(apps|packages)/.*${SHELL_MODULES}`, pathNot: SHELL },
       to: {},
     },
     {
