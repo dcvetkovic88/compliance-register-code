@@ -46,6 +46,8 @@ RELATION_KEYWORD = re.compile(
     re.IGNORECASE,
 )
 UNQUALIFIED_NAME = re.compile(rf'(?<![\w$])"?({IDENTIFIER})"?(?![\w$])(?!\s*\.)')
+# FROM of IS DISTINCT FROM and of these calls takes a column, which an alias may qualify; so does ON
+FROM_CALLS = {"EXTRACT", "SUBSTRING", "TRIM", "OVERLAY"}
 LOOK_BACK = 400  # characters read before a qualified name to find its keyword, enough for any list of relations
 LIST_ITEM = re.compile(rf'"?{IDENTIFIER}"?(?:\s*\.\s*"?{IDENTIFIER}"?)*(?:\s+(?:AS\s+)?{IDENTIFIER})?\s*,\s*$')
 SET_SEARCH_PATH = re.compile(
@@ -181,14 +183,34 @@ class SchemaRules:
     platform_functions: set[str]
 
 
-def schema_position(sql: str, match: re.Match[str]) -> bool:
-    """Whether the qualified name of `match` stands where only a schema can qualify: a function call, a three-part
-    name, a relation after its keyword or in a list after one, a type after ::."""
+def schema_position(sql: str, match: re.Match[str]) -> str | None:
+    """Where the qualified name of `match` stands: "schema" where only a schema can qualify it (a function call, a
+    three-part name, a relation after its keyword or in a list after one, a type after ::), "either" where an alias
+    can qualify it too (after ON, after the FROM of IS DISTINCT FROM or of EXTRACT and the like), None elsewhere."""
     before = sql[max(0, match.start() - LOOK_BACK) : match.start()]
     start = len(before)
     while (relation := LIST_ITEM.search(before, 0, start)) is not None:
         start = relation.start()
-    return bool(match.group(3) or match.group(4) or RELATION_KEYWORD.search(before, 0, start))
+    if match.group(3) or match.group(4):
+        return "schema"
+    keyword = RELATION_KEYWORD.search(before, 0, start)
+    if keyword is None:
+        return None
+    word, ahead = keyword.group().strip().upper(), before[: keyword.start()]
+    if word == "ON" or word == "FROM" and (re.search(r"\bDISTINCT\s*$", ahead, re.IGNORECASE) or open_call(ahead)):
+        return "either"
+    return "schema"
+
+
+def open_call(text: str) -> bool:
+    """Whether `text` ends inside an open parenthesis of one of FROM_CALLS."""
+    depth = 0
+    for index in range(len(text) - 1, -1, -1):
+        depth += {")": 1, "(": -1}.get(text[index], 0)
+        if depth < 0:
+            name = re.search(rf"({IDENTIFIER})\s*$", text[:index])
+            return name is not None and name.group(1).upper() in FROM_CALLS
+    return False
 
 
 def text_findings(
@@ -199,14 +221,17 @@ def text_findings(
     own = str(service["schema"])
     findings = search_path_findings(location, original, own)
     sql = blank_noise(original)
-    # names the SQL holds unqualified, as an alias or a table is; such a name qualifies columns, not relations
-    unqualified = {name.lower() for name in UNQUALIFIED_NAME.findall(sql)} | {own, SYSTEM_SCHEMA}
+    # names the SQL holds unqualified, as an alias or a table is; such a name may qualify a column where an alias can
+    unqualified = {name.lower() for name in UNQUALIFIED_NAME.findall(sql)}
     for match in QUALIFIED_NAME.finditer(sql):
         schema, name, call = match.group(1).lower(), match.group(2), match.group(3)
-        if schema not in rules.schemas and (schema in unqualified or not schema_position(sql, match)):
+        position = schema_position(sql, match)
+        if schema in (own, SYSTEM_SCHEMA):
+            continue
+        if schema not in rules.schemas and (position is None or position == "either" and schema in unqualified):
             continue
         listed = schema == "platform" and service["platform_functions"] and call and name in rules.platform_functions
-        if schema != own and not listed:
+        if not listed:
             findings.append(
                 f"{path}:{first_line + sql.count(chr(10), 0, match.start())}: {schema}.{name}; the SQL of a service"
                 f" names only its own schema {own} and the listed platform functions (tools/sql-schemas.yaml)"
