@@ -42,6 +42,15 @@ SQL_VIOLATIONS = [
     ("set-schema", f"services/register/{MIGRATIONS}/V0002__read_assessments.sql:1: search_path ictrisk"),
     ("java-string", f"services/register/{JAVA_OUT}/AssessmentReader.java:13: ictrisk.assessments"),
     ("python-string", "services/ai-document/app/arrangements.py:10: register.arrangements"),
+    ("java-concatenation", f"services/register/{JAVA_OUT}/AssessmentReader.java:13: ictrisk.assessments"),
+    ("python-concatenation", "services/ai-document/app/arrangements.py:7: register.arrangements"),
+    ("unlisted-schema", f"services/register/{MIGRATIONS}/V0002__read_secrets.sql:1: unlisted_schema.secrets"),
+    ("unlisted-schema-in-a-list", f"services/register/{MIGRATIONS}/V0002__read_secrets.sql:2: unlisted_schema.secrets"),
+    ("unlisted-schema-function", f"services/register/{MIGRATIONS}/V0002__leak.sql:1: unlisted_schema.leak"),
+    (
+        "search-path-unlisted-schema",
+        f"services/register/{MIGRATIONS}/V0002__read_secrets.sql:1: search_path unlisted_schema",
+    ),
 ]
 
 
