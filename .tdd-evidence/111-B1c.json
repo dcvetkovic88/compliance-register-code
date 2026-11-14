@@ -22,8 +22,8 @@
     {
       "task": "T1.12",
       "test_command": "uv run --project tools --frozen pytest tools/tests/test_structure_checks.py -q",
-      "red_commit": "8d5c5933fdc15c155494e9dad7881505ce1a2318",
-      "green_commit": "83fdf11196c277aaaff47cec64e3032a2e9afc59"
+      "red_commit": "de10b212123b8947d0001eadb4060bec2251318d",
+      "green_commit": "df2ffafe1e71ea1b360fe2e60ae306237784c6d1"
     }
   ]
 }
