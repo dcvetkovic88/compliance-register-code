@@ -7,8 +7,8 @@ sql-schemas: the SQL of services/<folder> names only the folder's own schema and
 usage on schema platform, the platform functions of tools/sql-schemas.yaml, called (suite readiness rule 3).
 A name may be quoted and then hold any character. A listed schema is found wherever it qualifies a name.
 Any other qualifier but pg_catalog is a schema where only a schema can qualify (a function call, a three-part
-name, a relation after FROM, JOIN, INTO, UPDATE, TABLE, ON and the like or in a list after one, a type after ::),
-unless the SQL also holds it unqualified, as an alias or a table does.
+name, a relation after FROM, JOIN, INTO, UPDATE, TABLE, PARTITION OF, ON and the like or in a list after one, a
+type after ::), unless the SQL also holds it unqualified, as an alias or a table does.
 The SQL is that of the .sql files and of the string literals of the .java and .py files holding an SQL keyword
 (the JdbcClient and psycopg queries, plan D3), string literals joined by + read as one; Java and Python comments
 and docstrings are not read.
@@ -16,7 +16,7 @@ The body of a function, procedure or DO block in a string literal (AS '...', DO 
 A search_path, set by SET search_path (also a function's SET clause, read up to its next clause), SET SCHEMA or
 set_config, names no schema but the folder's own and pg_catalog, so no unqualified name reaches another schema.
 Nor does a schema operand (CREATE, ALTER or DROP SCHEMA, ON SCHEMA, IN SCHEMA and the like) name another schema.
-SQL comments and string literals are not read, but the value of a search_path is.
+SQL comments and string literals are not read, but the value of a search_path is; a quoted name holds neither.
 size: a Python module of services/ or libs/ is at most 300 lines (SA-2.3-2).
 Build output, dependencies, virtual environments and test fixtures are never read.
 """
@@ -37,7 +37,8 @@ PRODUCT_PATHS = ("services/", "libs/", "apps/", "packages/")
 PYTHON_SERVICE = "services/ai-document/"
 JAVA_PATHS = ("services/", "libs/", "tools/arch-rules/")
 MODULE_LINES = 300
-SQL_NOISE = re.compile(r"--[^\n]*|/\*.*?\*/|'(?:[^']|'')*'", re.DOTALL)
+# a quoted name is matched so that a comment marker or a quote inside it starts nothing; it is kept, not blanked
+SQL_NOISE = re.compile(r"--[^\n]*|/\*.*?\*/|'(?:[^']|'')*'" r'|"(?:[^"]|"")*"', re.DOTALL)
 IDENTIFIER = r"[A-Za-z_][A-Za-z0-9_]*"
 # a name, plain or quoted; a quoted name holds any character, a doubled quote standing for one
 NAME = rf'(?:"(?:[^"]|"")+"|{IDENTIFIER})'
@@ -46,7 +47,7 @@ QUALIFIED_NAME = re.compile(rf'(?<![\w$"])({NAME})\s*\.\s*({NAME})(\s*\()?(\s*\.
 SYSTEM_SCHEMA = "pg_catalog"
 RELATION_WORDS = (
     r"(?:FROM|JOIN|INTO|UPDATE|TABLE|ONLY|REFERENCES|TRUNCATE|VIEW|SEQUENCE|FUNCTION|PROCEDURE|ROUTINE|TYPE"
-    r"|DOMAIN|CALL|COPY|USING|LOCK|EXISTS|ON)"
+    r"|DOMAIN|CALL|COPY|USING|LOCK|EXISTS|PARTITION\s+OF|ON)"
 )
 # the keyword of a relation; the opening parentheses of a parenthesized relation or join may follow it
 RELATION_KEYWORD = re.compile(rf"(?:\b({RELATION_WORDS})|::)[\s(]*$", re.IGNORECASE)
@@ -117,7 +118,9 @@ def language_findings(root: Path) -> list[str]:
 
 def blank_noise(sql: str) -> str:
     """The SQL with comments and string literals blanked, line breaks kept so line numbers hold."""
-    return SQL_NOISE.sub(lambda noise: re.sub(r"[^\n]", " ", noise.group()), sql)
+    return SQL_NOISE.sub(
+        lambda noise: noise.group() if noise.group().startswith('"') else re.sub(r"[^\n]", " ", noise.group()), sql
+    )
 
 
 def bodies(sql: str, blanked: str) -> Iterator[tuple[int, str]]:
