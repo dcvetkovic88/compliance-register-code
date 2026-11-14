@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# tools/check-language [--root <folder>] (T1.12): Python product code only in services/ai-document; Java only in services/, libs/ and tools/arch-rules.
+# See tools/structure_checks.py; make lint runs it.
+set -euo pipefail
+tools_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec uv run --quiet --project "$tools_dir" --frozen python "$tools_dir/structure_checks.py" language "$@"

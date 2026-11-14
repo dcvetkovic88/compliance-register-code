@@ -1,0 +1,19 @@
+{
+ "_note": "Spectral errors the carried contracts still have, per file and rule. The counts only go down; each functionality's regeneration removes its entries. Empty at the final analyze pass.",
+ "files": {
+  "docs/standalone/contracts/ai-document-service.openapi.yaml": {
+   "cr-no-error-code-member": 1
+  },
+  "docs/standalone/contracts/ict-risk-service.openapi.yaml": {
+   "cr-json-snake-case": 2,
+   "cr-no-error-code-member": 1
+  },
+  "docs/standalone/contracts/monitoring-service.openapi.yaml": {
+   "cr-no-error-code-member": 1,
+   "oas3-valid-media-example": 1
+  },
+  "docs/standalone/contracts/register-service.openapi.yaml": {
+   "cr-no-error-code-member": 1
+  }
+ }
+}

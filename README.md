@@ -16,6 +16,9 @@ block 15c.
 | `tools/pyproject.toml`, `tools/uv.lock` | the Python project of the repository tools; `services/ai-document` gets its own uv project |
 | `Makefile` | the one entry point: `make lint`, `format-check`, `typecheck`, `test`, `suite S=<id>`, `ci`, `stack-up`, `stack-down` |
 | `config/java/` | the Checkstyle and PMD rules every Java module runs |
+| `config/spectral/` | the Spectral rule set and ratchet list, synced from the spec repository |
+| `ruff.toml`, `mypy.ini`, `.importlinter` | the Python format, lint, type and import rules every uv project runs |
+| `eslint.config.mjs`, `.prettierrc.json`, `tsconfig.base.json`, `.dependency-cruiser.cjs`, `vitest.shared.mjs`, `playwright.shared.mjs` | the TypeScript format, lint, type, dependency and test settings every npm workspace runs |
 | `.semgrep/`, `.gitleaks.toml`, `.pre-commit-config.yaml`, `renovate.json`, `commitlint.config.mjs` | the repository checks |
 | `tdd-profile.yaml` | the TDD profile: coverage is reported, the mutation threshold gates a pull request (OD-25) |
 | `tests/` | root-level tests (build files, registry, CI workflow, quality tooling) and their fixtures |
@@ -111,6 +114,45 @@ An exception to a size limit is a `@SuppressWarnings("PMD.<Rule>")` with a one-l
 the reason, and is listed in the pull request body (SA-2.3-7). `tools/quality <check> java` runs one
 check for Java only.
 
+## Python quality tools
+
+Every uv project runs them through `tools/quality <check> python`, with the root configuration
+(conventions section 5, T1.9):
+
+| Check | Tool | What fails |
+|---|---|---|
+| `make format-check` | ruff format (`ruff.toml`) | a file that is not formatted; `ruff format` formats it |
+| `make lint` | ruff (`ruff.toml`) | the rule sets E, F, B, N, C90, SIM, UP and I; more than 4 parameters (PLR0913), 30 statements in a function (PLR0915), nesting deeper than 3 (PLR1702), cyclomatic complexity over 10 (C901) |
+| `make lint` | import-linter (`.importlinter`), on a project with an `app` package | AR-P2 `app.domain` imports `app.api` or `app.adapters`, or `app.api` imports `app.adapters`; AR-P3 `psycopg` outside `app.adapters`, or any other database client; AR-P4 a Keycloak library, or a token library outside `app.adapters.identity`; AR-P5 `pydantic` in `app.domain` |
+| `make typecheck` | mypy strict (`mypy.ini`) | any strict error; test folders may leave pytest fixtures and test functions unannotated |
+| suite `111-B1c` | AR-P1, `tools/python_architecture.py` | a class with `obligation_id` and no `regulation_version` in a `services/*/app` package |
+
+`make test` runs pytest with pytest-cov and writes a coverage report per project to
+`coverage/python/<project>.xml`; it is never a gate, and a project with no test yet passes.
+`tools/python-mutation-gate --base <ref>` runs mutmut on the modules of `<project>/app` changed since
+`<ref>`, with the project's `tests/`, and fails when the changed modules in `domain` and `application`
+score below the threshold of `tdd-profile.yaml`; the gate writes the mutmut configuration, so a project
+carries none. CI runs both, and the Python job and the mutation gate are required.
+
+## TypeScript quality tools
+
+Every npm workspace runs them through `tools/quality <check> typescript`, which runs the workspace
+scripts `lint`, `format:check`, `typecheck` and `test`, with the root configuration (conventions
+section 5, T1.10). A workspace's scripts are `eslint .`, `prettier --check . --ignore-path ../../.gitignore
+--ignore-path ../../.prettierignore`, `tsc -p tsconfig.json` (its `tsconfig.json` extends
+`tsconfig.base.json`) and `vitest run` (its `vitest.config` merges `vitest.shared.mjs`).
+
+| Check | Tool | What fails |
+|---|---|---|
+| `make format-check` | Prettier (`.prettierrc.json`) | a file that is not formatted |
+| `make lint` | ESLint with typescript-eslint, react-hooks, jsx-a11y and react (`eslint.config.mjs`) | names that are not camelCase, PascalCase or UPPER_CASE; a boolean that does not read as a question (`is`, `has`, `can`, `should`, `was`, `will`); the rules of hooks; any jsx-a11y rule; a class component; literal text in JSX; an unused parameter; a function over 30 lines, a file over 300 lines, more than 4 parameters, nesting deeper than 3, complexity over 10 |
+| `make lint` | dependency-cruiser (`.dependency-cruiser.cjs`), on `apps/` and `packages/` | AR-W2 an HTTP library outside the generated clients in `apps/web/src/api/`; AR-W3 and AR-W6 a database client, or an import from `services/` or `libs/`; AR-W4 an OIDC, token or Keycloak library; AR-W5 Radix or lucide outside `packages/shell`, `packages/shell` importing `apps/web`, a feature importing another feature, a header, navigation, theme or locale switch module in `apps/`; AR-W7 a component (`.tsx`) importing a client |
+| `make typecheck` | TypeScript strict (`tsconfig.base.json`) | any strict error |
+| `make test` | Vitest (`vitest.shared.mjs`) | a failing `*.test.ts(x)`; coverage is written to the workspace's `coverage/` and is never a gate; a workspace with no test yet passes |
+
+Browser specs end in `.e2e.ts`; the web's Playwright configuration merges `playwright.shared.mjs`,
+which matches that suffix only, and Vitest never runs them.
+
 ## Repository checks
 
 | Check | Run it | What fails |
@@ -120,9 +162,15 @@ check for Java only.
 | commitlint | `printf '%s\n' "<title>" \| npx commitlint` | a pull request title that is not a Conventional Commit of at most 100 characters, as `feat(register): add exit plan field`; blocks land by squash merge with the title as the commit, so CI checks the title (OD-27), and the commit-msg hook checks each local commit |
 | branch name | `tools/check-branch-name [branch]` | a branch that is not `<lane>/<functionality>-<block>`, as `services/104-f0-b3`; Renovate's `renovate/...` branches pass |
 | pull request size | `tools/check-pr-size --base <ref> --body-file <body>` | more than 400 changed lines, without fixtures, lock files and generated code, unless a `## Size exception` section of the body gives the reason (the runner appends one, OD-28); a size limit suppression in the code that the body's `## Size limit exceptions` does not list |
+| Spectral | `tools/spectral` | an error of the rule set `config/spectral/ruleset.yaml` in an OpenAPI or AsyncAPI file under `contracts/` that the ratchet list `config/spectral/ratchet.json` does not allow for that file; an entry above the count passes and is named, to be lowered in the spec repository |
+| Spectral sync | `tools/sync-spectral --spec-repo <spec repository>`; `--check` | the rule set and ratchet list are byte copies of the spec repository's `docs/standards/spectral/`, with their hashes in `config/spectral/SOURCE.lock`; the check fails on a copy edited by hand and, given the spec repository (or `SPEC_REPO_DIR`), on a copy behind it |
+| language rule | `tools/check-language [--root <folder>]` | a Python file in `services/`, `libs/`, `apps/` or `packages/` outside `services/ai-document`; a Java file outside `services/`, `libs/` and `tools/arch-rules`, or in `services/ai-document` (suite readiness rule 6) |
+| own schema | `tools/check-sql-schemas [--root <folder>]` | a `.sql` file of `services/<folder>` naming another service's schema, `keycloak` or `public`, or a `platform` object other than a call of a function listed in `tools/sql-schemas.yaml`; the BFF calls none (suite readiness rule 3) |
+| module length | `tools/check-size [--root <folder>]` | a Python module of `services/` or `libs/` over 300 lines (SA-2.3-2) |
 | Renovate | `tools/check-renovate-config` | an invalid `renovate.json`; Renovate proposes a release once it is 14 days old |
 | pre-commit | `uv tool run --from pre-commit==4.7.0 pre-commit install --hook-type pre-commit --hook-type commit-msg` | the format check, lint or secrets scan before a commit; the message check on commit |
 
+`make lint` runs the language rule, the own-schema rule and the module length first, for any language.
 The pull request template `.github/pull_request_template.md` holds the two exception sections.
 Fixtures break these rules on purpose; `.semgrepignore` leaves them to their own tests.
 
@@ -134,11 +182,13 @@ Fixtures break these rules on purpose; `.semgrepignore` leaves them to their own
 reports, then the registry check on the reports of every suite job; one job that builds the web
 and runs the browser specs. The job `required` is the status check that branch protection on
 `main` requires. It needs install, the suites and the registry check (block 1) and the Java job
-of block 1b, which runs the Java lint, format check, type check and tests (OD-21), the repository
-checks (gitleaks, Semgrep, the Renovate configuration) and, on a pull request, the Java mutation gate
-and the branch name, commit message and size checks. Until block 1c
-(TypeScript, Python) adds its tools, `make lint`, `format-check`, `typecheck` and `test` fail and
-name the missing tool, and no target passes without running a check. To check every tasks.md, CI checks out the spec repository named
+of block 1b, which runs the Java lint, format check, type check and tests (OD-21), the Python and
+TypeScript jobs, the quality job of all three languages and, on a pull request, the Python mutation
+gate of block 1c, the repository
+checks (gitleaks, Semgrep, the Renovate configuration, Spectral) and, on a pull request, the Java mutation gate
+and the branch name, commit message and size checks. When a language's tool is missing from its
+manifest, `make lint`, `format-check`, `typecheck` and `test` fail and name it, and no target passes
+without running a check (OD-21). To check every tasks.md, CI checks out the spec repository named
 by the repository variable `SPEC_REPO`, read with the secret `SPEC_REPO_TOKEN`; without them the
 registry check fails, so the tasks.md checks never skip. On a pull request the registry check
 also checks the block being built, named by the last part of the branch

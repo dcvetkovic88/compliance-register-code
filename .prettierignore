@@ -1,0 +1,10 @@
+# Paths Prettier leaves alone (T1.10): fixtures break the rules on purpose and are checked by their own tests;
+# generated code, lock files and build output are never formatted by hand.
+**/fixtures/**
+**/generated/**
+**/node_modules/**
+**/dist/**
+**/coverage/**
+package-lock.json
+.specify/
+.claude/

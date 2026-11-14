@@ -1,0 +1,62 @@
+# Spectral rule set for every OpenAPI and AsyncAPI file of the register (T0.6; conventions SA-1.2-6 to
+# SA-1.2-11, SA-1.2-16, SA-4-7). The code repository syncs this file and ratchet.json (T1.11).
+# Carried contracts that do not conform yet are listed in ratchet.json; the list only shrinks and must be
+# empty at the final analyze pass.
+extends:
+  - [spectral:oas, recommended]
+  - [spectral:asyncapi, recommended]
+rules:
+  cr-json-snake-case:
+    description: JSON members are snake_case (SA-1.2-6).
+    severity: error
+    given: "$..properties"
+    then:
+      field: "@key"
+      function: casing
+      functionOptions: {type: snake, disallowDigits: false}
+  cr-path-kebab-case:
+    description: Path segments are kebab-case; path parameters are snake_case in braces (SA-1.2-7).
+    severity: error
+    given: "$.paths"
+    then:
+      field: "@key"
+      function: pattern
+      functionOptions:
+        match: "^(/([a-z0-9]+(-[a-z0-9]+)*|\\{[a-z0-9]+(_[a-z0-9]+)*\\}))+/?$"
+  cr-query-snake-case:
+    description: Query parameters are snake_case (SA-1.2-8).
+    severity: error
+    given: "$..parameters[?(@ && @.in == 'query')]"
+    then:
+      field: name
+      function: casing
+      functionOptions: {type: snake, disallowDigits: false}
+  cr-event-name:
+    description: A new event is <service>.<entity>.<past_tense_verb>; the 11 events of the catalog keep their names (SA-1.2-9, 111 PQ-20).
+    severity: error
+    given: "$.channels[*].address"
+    then:
+      function: pattern
+      functionOptions:
+        match: "^((platform|register|ictrisk|monitoring|aidoc)\\.[a-z]+(_[a-z]+)*\\.[a-z]+(_[a-z]+)*ed|arrangement\\.request\\.submitted|arrangement\\.review\\.decided|arrangement\\.approved|arrangement\\.assessment\\.reopened|contract\\.analysed|contract\\.gaps\\.detected|provider\\.signal\\.received|provider\\.risk-score\\.changed|provider\\.obligation\\.expiring|ictrisk\\.residual\\.changed|remediation\\.task\\.created)$"
+  cr-error-code-kebab-case:
+    description: The Problem Details type is the error code, kebab-case (SA-1.2-10).
+    severity: error
+    given: "$.components.schemas.Problem.properties.type.enum[*]"
+    then:
+      function: casing
+      functionOptions: {type: kebab, disallowDigits: false}
+  cr-no-error-code-member:
+    description: There is no separate error_code member; the type is the code (api-standards, SA-1.2-10).
+    severity: error
+    given: "$.components.schemas.Problem.properties"
+    then:
+      field: error_code
+      function: falsy
+  cr-permission-code:
+    description: x-action names a permission code of the 109-F1 matrix, P and two digits (SA-1.2-11).
+    severity: error
+    given: "$..x-action"
+    then:
+      function: pattern
+      functionOptions: {match: "^P[0-9]{2}$"}

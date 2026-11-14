@@ -2,8 +2,9 @@
 # The job `required` is the one status check branch protection requires on main. In block 1 it needs
 # install and the suites (the registry, one job per suite, and the registry check, which reads the
 # JUnit XML reports the suite jobs wrote). Block 1b adds the Java quality job, the Java mutation gate,
-# the repository checks and the pull request checks; the quality job of all three languages joins when
-# block 1c lands, until then its targets fail and name the missing tool (OD-21).
+# the repository checks and the pull request checks; block 1c adds the Python quality job and the Python
+# mutation gate, the TypeScript quality job, and the quality job of all three languages (make lint,
+# format-check, typecheck, test), which until then failed naming the missing tool (OD-21).
 # Suites come from the registry (every suites.yaml), so this file is not edited when a suite is added.
 name: ci
 
@@ -88,6 +89,13 @@ jobs:
           distribution: temurin
           java-version-file: .java-version
           cache: maven
+      # Lint runs the structure checks of T1.12, which run on uv.
+      - name: read the uv pin
+        id: pins
+        run: echo "uv=$(cat .uv-version)" >> "$GITHUB_OUTPUT"
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: ${{ steps.pins.outputs.uv }}
       - name: lint
         run: tools/quality lint java
       - name: format check
@@ -104,6 +112,98 @@ jobs:
           name: java-coverage
           path: "**/target/site/jacoco/"
           if-no-files-found: ignore
+
+  # The TypeScript format, lint, dependency rules, strict type check and tests of block 1c (T1.10; OD-21).
+  typescript:
+    name: TypeScript format check, lint, type check, unit tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      # Lint runs the structure checks of T1.12, which run on uv.
+      - name: read the uv pin
+        id: pins
+        run: echo "uv=$(cat .uv-version)" >> "$GITHUB_OUTPUT"
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: ${{ steps.pins.outputs.uv }}
+      - name: install from lock files
+        run: npm ci
+      - name: lint
+        run: tools/quality lint typescript
+      - name: format check
+        run: tools/quality format-check typescript
+      - name: type check
+        run: tools/quality typecheck typescript
+      - name: unit tests
+        run: tools/quality test typescript
+      # Coverage is reported, never a gate (SA-3-5, T1.10).
+      - name: keep the Vitest coverage reports
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: typescript-coverage
+          path: "**/coverage/cobertura-coverage.xml"
+          if-no-files-found: ignore
+
+  # The Python format, lint, import contracts, strict type check and tests of block 1c (T1.9; OD-21).
+  python:
+    name: Python format check, lint, type check, unit tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: read the uv pin
+        id: pins
+        run: echo "uv=$(cat .uv-version)" >> "$GITHUB_OUTPUT"
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: ${{ steps.pins.outputs.uv }}
+      - name: lint
+        run: tools/quality lint python
+      - name: format check
+        run: tools/quality format-check python
+      - name: type check
+        run: tools/quality typecheck python
+      # The unit tests build tools/arch-rules with ./mvnw, so Maven needs the pinned JDK.
+      - uses: actions/setup-java@v6.1.0
+        with:
+          distribution: temurin
+          java-version-file: .java-version
+          cache: maven
+      - name: unit tests
+        run: tools/quality test python
+      # Coverage is reported, never a gate (SA-3-5, T1.9).
+      - name: keep the pytest-cov coverage reports
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: python-coverage
+          path: coverage/python/
+          if-no-files-found: ignore
+
+  # mutmut on the Python modules the pull request changes; below the threshold of tdd-profile.yaml on the
+  # changed domain and application modules the pull request fails (T1.9; OD-25).
+  python-mutation:
+    name: Python mutation gate on changed modules
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - name: read the uv pin
+        id: pins
+        run: echo "uv=$(cat .uv-version)" >> "$GITHUB_OUTPUT"
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: ${{ steps.pins.outputs.uv }}
+      - name: mutation gate
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: tools/python-mutation-gate --base "origin/$BASE_REF"
 
   # PIT on the Java classes the pull request changes; below the threshold of tdd-profile.yaml on the
   # changed domain and application classes the pull request fails (T1.7; OD-25).
@@ -138,9 +238,9 @@ jobs:
           path: "**/target/pit-reports/"
           if-no-files-found: ignore
 
-  # Secrets, security patterns and the Renovate configuration of the whole repository (T1.8).
+  # Secrets, security patterns and the Renovate configuration of the whole repository (T1.8), and Spectral (T1.11).
   repository:
-    name: secrets, Semgrep, Renovate configuration
+    name: secrets, Semgrep, Renovate configuration, Spectral
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7.0.1
@@ -159,6 +259,13 @@ jobs:
         run: tools/semgrep
       - name: Renovate configuration
         run: tools/check-renovate-config
+      # Spectral with the rule set and ratchet list synced from the spec repository (T1.11; SA-4-7).
+      - name: install from lock files
+        run: npm ci
+      - name: the synced Spectral rule set and ratchet list
+        run: tools/sync-spectral --check
+      - name: Spectral on every synced contract
+        run: tools/spectral
 
   # The branch name, the title and the size of a pull request (T1.8; SA-1.2-14, SA-1.2-15,
   # SA-2.3-6, SA-2.3-7). The pull request body is read from the event, never pasted into a command.
@@ -344,7 +451,19 @@ jobs:
   required:
     name: required
     if: always()
-    needs: [install, java, java-mutation, repository, pull-request, registry, suites, check]
+    needs:
+      - install
+      - quality
+      - java
+      - java-mutation
+      - python
+      - python-mutation
+      - typescript
+      - repository
+      - pull-request
+      - registry
+      - suites
+      - check
     runs-on: ubuntu-24.04
     steps:
       - name: every job passed

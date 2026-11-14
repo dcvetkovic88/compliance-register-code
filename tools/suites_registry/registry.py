@@ -1,6 +1,7 @@
 """Assemble the registry from the `suites.yaml` of every path (plan D18; S1124, S1136)."""
 
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -58,7 +59,7 @@ def join(directory: str, path: str) -> str:
     return path if directory == "." else f"{directory}/{path}"
 
 
-def walk_files(root: Path, start: Path, pattern: str):
+def walk_files(root: Path, start: Path, pattern: str) -> Iterator[Path]:
     """Files under `start` matching `pattern`, outside build output and test fixtures; `start` may be a file."""
     if not start.exists():
         return

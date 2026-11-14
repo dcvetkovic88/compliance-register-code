@@ -1,0 +1,41 @@
+openapi: 3.1.0
+info:
+  title: carried contract fixture
+  version: "1"
+  description: A contract every rule of the rule set accepts.
+  contact: {name: register team, email: register@example.invalid}
+servers: [{url: "http://localhost"}]
+tags: [{name: obligations, description: Obligations of a provider.}]
+paths:
+  /providers/{provider_id}/obligations:
+    get:
+      operationId: listObligations
+      description: The obligations of one provider.
+      tags: [obligations]
+      x-action: P64
+      parameters:
+        - {name: provider_id, in: path, required: true, schema: {type: string}}
+        - {name: due_before, in: query, schema: {type: string, format: date}}
+      responses:
+        "200":
+          description: The obligations.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  obligation_id: {type: string}
+                  regulation_version: {type: string}
+        default:
+          description: A problem.
+          content:
+            application/problem+json:
+              schema: {$ref: "#/components/schemas/Problem"}
+components:
+  schemas:
+    Problem:
+      type: object
+      properties:
+        type: {type: string, enum: [four-eyes-required]}
+        error_code: {type: string}
+        title: {type: string}

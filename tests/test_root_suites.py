@@ -12,10 +12,13 @@ BLOCK_1 = """# Feature 111: Tasks
 
 ### Block 1: repository root and suites registry (suite: `111-B1`; proves 111-AC2, 111-AC22). Needs: block 0
 
-- [x] T1.1 [tools] Tests first: two fixtures for `tools/check-suites`, then `tools/check-suites` and `tools/suite <id>` (111-FR22, 111-AC22)
-- [x] T1.2 [repo-root] Build files: Maven parent with the wrapper, npm workspace manifest, lock files (111-FR2, 111-AC2)
+- [x] T1.1 [tools] Tests first: two fixtures for `tools/check-suites`, \
+then `tools/check-suites` and `tools/suite <id>` (111-FR22, 111-AC22)
+- [x] T1.2 [repo-root] Build files: Maven parent with the wrapper, npm workspace manifest, \
+lock files (111-FR2, 111-AC2)
 - [x] T1.3 [repo-root] The root `suites.yaml` for root-level suites, with the entry `111-B1` (111-FR22, 111-AC22)
-- [x] T1.4 [repo-root] CI workflow: lint, format check, type check, unit tests for the three languages (111-FR2, 111-AC2)
+- [x] T1.4 [repo-root] CI workflow: lint, format check, type check, \
+unit tests for the three languages (111-FR2, 111-AC2)
 """
 
 

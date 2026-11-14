@@ -1,0 +1,30 @@
+openapi: 3.1.0
+info: {title: violations fixture, version: "1", description: Each cr- rule must fire once on this file.}
+servers: [{url: "http://localhost"}]
+tags: [{name: x, description: x}]
+paths:
+  /Providers/{providerId}:
+    get:
+      operationId: getProvider
+      description: x
+      tags: [x]
+      x-action: P1
+      parameters:
+        - {name: providerId, in: path, required: true, schema: {type: string}}
+        - {name: dueBefore, in: query, schema: {type: string}}
+      responses:
+        "200":
+          description: x
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  providerName: {type: string}
+components:
+  schemas:
+    Problem:
+      type: object
+      properties:
+        type: {type: string, enum: [FourEyesRequired]}
+        error_code: {type: string}

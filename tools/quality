@@ -62,17 +62,33 @@ run() {
   "$@"
 }
 
+# Lint first runs the repository structure checks of T1.12, whatever the language: the language rule, the
+# own-schema rule of service SQL and the Python module length. Each runs, then lint fails if one failed.
+structure_checks() {
+  local name failed=0
+  for name in check-language check-sql-schemas check-size; do
+    if [ -x "tools/$name" ]; then run "tools/$name" || failed=1; fi
+  done
+  return "$failed"
+}
+if [ "$check" = lint ]; then structure_checks; fi
+
 # Java: the parent build, with the plugins it binds to the lifecycle phase.
 java_check() {
   run ./mvnw -B -ntp -q "${maven[@]}"
 }
 
-# TypeScript: the script of the same name in every npm workspace that has one.
+# TypeScript: the script of the same name in every npm workspace that has one; each workspace runs the root
+# configuration (T1.10): eslint.config.mjs, .prettierrc.json, tsconfig.base.json, vitest.shared.mjs. Lint first
+# runs the dependency rules of .dependency-cruiser.cjs (AR-W2 to AR-W7) on apps/ and packages/.
 typescript_check() {
   local pattern directory
   for pattern in $(node -e 'for (const w of require("./package.json").workspaces ?? []) console.log(w)'); do
     for directory in $pattern; do
       if [ -f "$directory/package.json" ]; then
+        if [ "$check" = lint ]; then
+          run npm exec --no -- depcruise --config .dependency-cruiser.cjs $(ls -d apps packages 2>/dev/null)
+        fi
         run npm run --workspaces --if-present "$npm_script"
         return
       fi
@@ -81,8 +97,11 @@ typescript_check() {
   echo "$check: no npm workspace has a package.json yet"
 }
 
-# Python: every uv project with its own ruff, mypy and pytest. The tools project also lints and type-checks
-# the root tests/, which run in their suite (make suite), not here.
+# Python: every uv project, with the root ruff.toml, mypy.ini and .importlinter (T1.9). The tools project also
+# lints and type-checks the root tests/, which run in their suite (make suite), not here. A project with an
+# `app` package is a service: lint also runs its import contracts (AR-P2 to AR-P5). mypy is strict on code;
+# test folders keep pytest fixtures and test functions unannotated (mypy.ini). The test check writes a
+# coverage report per project to coverage/python/, never a gate (SA-3-5), and passes on an empty test run.
 python_projects() {
   echo tools
   find . -name pyproject.toml -not -path './tools/*' \
@@ -90,20 +109,44 @@ python_projects() {
     | sed -e 's|^\./||' -e 's|/pyproject.toml$||' | sort
 }
 
+test_folders() {
+  if [ -d "$1/tests" ]; then echo "$1/tests"; fi
+  if [ "$1" = tools ] && [ -d tests ]; then echo tests; fi
+}
+
 python_check() {
-  local project folders folder
+  local project folders folder status
   for project in $(python_projects); do
     folders=("$project")
     if [ "$project" = tools ] && [ -d tests ]; then folders+=(tests); fi
     case "$check" in
-      lint) run uv run --project "$project" --frozen ruff check "${folders[@]}" ;;
-      format-check) run uv run --project "$project" --frozen ruff format --check "${folders[@]}" ;;
+      lint)
+        run uv run --project "$project" --frozen ruff check "${folders[@]}"
+        if [ -d "$project/app" ]; then
+          (cd "$project" && run uv run --frozen lint-imports --config "$root/.importlinter" --no-cache)
+        fi
+        ;;
+      format-check)
+        run uv run --project "$project" --frozen ruff format --check "${folders[@]}"
+        ;;
       typecheck)
-        for folder in "${folders[@]}"; do
-          run uv run --project "$project" --frozen mypy --config-file "$project/pyproject.toml" "$folder"
+        run uv run --project "$project" --frozen mypy --config-file mypy.ini --exclude '(^|/)tests/' "$project"
+        for folder in $(test_folders "$project"); do
+          run uv run --project "$project" --frozen mypy --config-file mypy.ini \
+            --allow-untyped-defs --allow-incomplete-defs --allow-untyped-calls "$folder"
         done
         ;;
-      test) run uv run --project "$project" --frozen pytest -q --rootdir "$project" -c "$project/pyproject.toml" "$project" ;;
+      test)
+        status=0
+        run uv run --project "$project" --frozen pytest -q --rootdir "$project" -c "$project/pyproject.toml" \
+          --cov="$project" --cov-report=term --cov-report="xml:coverage/python/$(basename "$project").xml" \
+          "$project" || status=$?
+        if [ "$status" -eq 5 ]; then
+          echo "$check: $project has no test yet, an empty test run passes"
+        elif [ "$status" -ne 0 ]; then
+          return "$status"
+        fi
+        ;;
     esac
   done
 }

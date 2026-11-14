@@ -1,0 +1,87 @@
+# import-linter contracts of the Python service (plan D23; conventions section 6, AR-P2 to AR-P5; T1.9).
+# The root package is `app` of services/ai-document: `app.api`, `app.domain`, `app.adapters`, and the
+# composition root `app.main`, the only module that wires the API to the adapters. AR-P1, the grain
+# rule on the models, is outside import-linter's reach: tools/python_architecture.py holds it as a
+# pytest architecture test. Run from the service: lint-imports --config ../../.importlinter
+[importlinter]
+root_package = app
+include_external_packages = True
+
+[importlinter:contract:ar-p2-domain]
+name = AR-P2 app.domain imports neither app.api nor app.adapters
+type = forbidden
+source_modules =
+    app.domain
+forbidden_modules =
+    app.api
+    app.adapters
+
+[importlinter:contract:ar-p2-api]
+name = AR-P2 app.api does not import app.adapters
+type = forbidden
+source_modules =
+    app.api
+forbidden_modules =
+    app.adapters
+
+[importlinter:contract:ar-p3-driver]
+name = AR-P3 the database driver psycopg is imported only in app.adapters
+type = forbidden
+source_modules =
+    app
+forbidden_modules =
+    psycopg
+ignore_imports =
+    app.adapters.** -> psycopg
+unmatched_ignore_imports_alerting = none
+
+[importlinter:contract:ar-p3-other-clients]
+name = AR-P3 no other database client is imported anywhere
+type = forbidden
+source_modules =
+    app
+forbidden_modules =
+    aiosqlite
+    asyncpg
+    duckdb
+    MySQLdb
+    mysql
+    psycopg2
+    pymongo
+    pymysql
+    redis
+    sqlalchemy
+    sqlite3
+
+[importlinter:contract:ar-p4-keycloak]
+name = AR-P4 no Keycloak library anywhere
+type = forbidden
+source_modules =
+    app
+forbidden_modules =
+    keycloak
+
+[importlinter:contract:ar-p4-token]
+name = AR-P4 the token library is imported only in app.adapters.identity
+type = forbidden
+source_modules =
+    app
+forbidden_modules =
+    authlib
+    jose
+    joserfc
+    jwt
+ignore_imports =
+    app.adapters.identity.** -> authlib
+    app.adapters.identity.** -> jose
+    app.adapters.identity.** -> joserfc
+    app.adapters.identity.** -> jwt
+unmatched_ignore_imports_alerting = none
+
+[importlinter:contract:ar-p5]
+name = AR-P5 app.domain does not import pydantic
+type = forbidden
+source_modules =
+    app.domain
+forbidden_modules =
+    pydantic

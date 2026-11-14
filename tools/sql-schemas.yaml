@@ -1,0 +1,23 @@
+# The own-schema rule of tools/check-sql-schemas (T1.12; suite readiness rule 3; data model sections 2 and 3;
+# 111 PQ-21). The SQL of services/<folder> names only its own schema and, when it has usage on schema
+# platform, the functions of the platform SQL interface listed here. A 109 functionality that adds a published
+# platform function adds it to this list.
+services:
+  platform: {schema: platform, platform_functions: true}
+  register: {schema: register, platform_functions: true}
+  ict-risk: {schema: ictrisk, platform_functions: true}
+  monitoring: {schema: monitoring, platform_functions: true}
+  ai-document: {schema: aidoc, platform_functions: true}
+  bff: {schema: bff, platform_functions: false}
+# Schemas no service names but its own: the service schemas above, Keycloak's, and public.
+other_schemas: [keycloak, public]
+platform_functions:
+  - current_tenant_id
+  - current_user_id
+  - publish
+  - poll_events
+  - commit_offset
+  - resolve_user
+  - has_action
+  - write_audit
+  - write_evidence

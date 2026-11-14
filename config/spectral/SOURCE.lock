@@ -1,0 +1,12 @@
+{
+ "files": {
+  "config/spectral/ruleset.yaml": {
+   "source": "docs/standards/spectral/ruleset.yaml",
+   "sha256": "134a6a562c0de1ddf8a7ee2c43b0b381005a87ef649bfd59a339038221332c7d"
+  },
+  "config/spectral/ratchet.json": {
+   "source": "docs/standards/spectral/ratchet.json",
+   "sha256": "dba1edcd3249a8a91f9240e445ba1a18bf7ca8a1555a8e7dd2734b892a92004f"
+  }
+ }
+}

@@ -5,6 +5,7 @@ import os
 import re
 import shutil
 import subprocess
+from typing import Any
 
 import pytest
 import yaml
@@ -47,7 +48,7 @@ def test_111_ac2_runs_on_every_pull_request_to_main(workflow):
 def test_111_ac2_one_job_gates_the_merge_on_the_required_jobs_of_block_1(workflow):
     required = workflow["jobs"]["required"]
 
-    assert REQUIRED_JOBS_OF_BLOCK_1 <= set(required["needs"])
+    assert set(required["needs"]) >= REQUIRED_JOBS_OF_BLOCK_1
     assert required["if"] == "always()"
     assert any("contains" in line and "failure" in line for line in run_lines(required) + [str(required)])
 
@@ -156,22 +157,24 @@ def test_111_ac2_quality_target_fails_naming_a_missing_python_tool(stubbed_repo,
 
 
 @pytest.mark.parametrize(
-    ("target", "java", "typescript", "python"),
+    ("target", "commands"),
     [
-        ("lint", "mvnw -B -ntp -q verify -DskipTests", "npm run --workspaces --if-present lint", "ruff check"),
-        (
-            "format-check",
-            "mvnw -B -ntp -q validate",
-            "npm run --workspaces --if-present format:check",
-            "ruff format --check",
-        ),
-        ("typecheck", "mvnw -B -ntp -q test-compile", "npm run --workspaces --if-present typecheck", "mypy"),
-        ("test", "mvnw -B -ntp -q test", "npm run --workspaces --if-present test", "pytest"),
+        (target, (java, typescript, python))
+        for target, java, typescript, python in [
+            ("lint", "mvnw -B -ntp -q verify -DskipTests", "npm run --workspaces --if-present lint", "ruff check"),
+            (
+                "format-check",
+                "mvnw -B -ntp -q validate",
+                "npm run --workspaces --if-present format:check",
+                "ruff format --check",
+            ),
+            ("typecheck", "mvnw -B -ntp -q test-compile", "npm run --workspaces --if-present typecheck", "mypy"),
+            ("test", "mvnw -B -ntp -q test", "npm run --workspaces --if-present test", "pytest"),
+        ]
     ],
 )
-def test_111_ac2_quality_target_checks_the_three_languages_once_their_tools_land(
-    stubbed_repo, target, java, typescript, python
-):
+def test_111_ac2_quality_target_checks_the_three_languages_once_their_tools_land(stubbed_repo, target, commands):
+    java, typescript, python = commands
     install_tools(stubbed_repo[0])
 
     result, calls = run_stubbed(stubbed_repo, target)
@@ -255,7 +258,7 @@ def test_111_ac22_make_ci_checks_the_reports_of_every_suite_even_when_one_fails(
     assert calls[-2:] == ["suite 900-B2", "check-suites "]
 
 
-def registry_check_step(workflow) -> dict:
+def registry_check_step(workflow) -> dict[str, Any]:
     steps = workflow["jobs"]["check"]["steps"]
     return next(step for step in steps if "tools/check-suites" in str(step.get("run", "")))
 

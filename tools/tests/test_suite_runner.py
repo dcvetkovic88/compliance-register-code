@@ -30,13 +30,19 @@ def test_111_ac22_one_id_runs_every_entry_with_its_own_runner_and_report(fixture
 
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip().splitlines() == [
-        f"uv run --project tools --frozen pytest -m suite_900_B1 tests --junitxml={reports}/root-pytest-suite_900_B1.xml",
+        (
+            "uv run --project tools --frozen pytest -m suite_900_B1 tests"
+            f" --junitxml={reports}/root-pytest-suite_900_B1.xml"
+        ),
         (
             "npm exec --workspace=apps/web -- vitest run --testNamePattern 900-B1 --reporter=default --reporter=junit"
             f" --outputFile.junit={reports}/apps-web-vitest-900-B1.xml"
         ),
         "./mvnw -B -pl services/platform -am test -Dgroups=900-B1",
-        f"uv run --project tools --frozen pytest -m suite_900_B1 tools --junitxml={reports}/tools-pytest-suite_900_B1.xml",
+        (
+            "uv run --project tools --frozen pytest -m suite_900_B1 tools"
+            f" --junitxml={reports}/tools-pytest-suite_900_B1.xml"
+        ),
     ]
 
 
@@ -48,7 +54,10 @@ def test_111_ac22_entries_sharing_a_path_and_runner_write_one_report_each(fixtur
 
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip().splitlines() == [
-        f"uv run --project tools --frozen pytest -m suite_900_B1 tools --junitxml={reports}/tools-pytest-suite_900_B1.xml",
+        (
+            "uv run --project tools --frozen pytest -m suite_900_B1 tools"
+            f" --junitxml={reports}/tools-pytest-suite_900_B1.xml"
+        ),
         (
             "uv run --project tools --frozen pytest -m suite_900_B1_none tools"
             f" --junitxml={reports}/tools-pytest-suite_900_B1_none.xml"

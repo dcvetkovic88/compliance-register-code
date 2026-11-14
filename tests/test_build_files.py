@@ -3,6 +3,7 @@
 import json
 import re
 import subprocess
+from pathlib import Path
 from xml.etree import ElementTree
 
 import pytest
@@ -25,7 +26,7 @@ MAKE_TARGETS = ["lint", "format-check", "typecheck", "test", "suite", "ci", "sta
 PIN_FILES = {".java-version": "Java", ".nvmrc": "Node", ".python-version": "Python", ".uv-version": "uv"}
 
 
-def pinned(repo_root, pin_file: str) -> str:
+def pinned(repo_root: Path, pin_file: str) -> str:
     return (repo_root / pin_file).read_text(encoding="utf-8").strip()
 
 

@@ -1,0 +1,5 @@
+asyncapi: 3.0.0
+info: {title: violations fixture, version: "1", description: cr-event-name must fire once on this file.}
+channels:
+  bad:
+    address: register.ArrangementCreated

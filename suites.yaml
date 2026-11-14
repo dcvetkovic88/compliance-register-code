@@ -13,3 +13,8 @@ suites:
     selector: suite_111_B1b
     project: tools
     paths: [tests]
+  - id: 111-B1c
+    runner: pytest
+    selector: suite_111_B1c
+    project: tools
+    paths: [tests]

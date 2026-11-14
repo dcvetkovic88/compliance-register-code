@@ -78,8 +78,9 @@ def build_fixture(repo_root: Path, tmp_path: Path, case: str, goals: list[str]) 
     )
 
 
-@pytest.mark.parametrize(("case", "goals", "message"), VIOLATIONS, ids=[case for case, _, _ in VIOLATIONS])
-def test_111_ac23_java_tool_fails_the_build_on_its_fixture(repo_root, tmp_path, case, goals, message):
+@pytest.mark.parametrize("violation", VIOLATIONS, ids=[case for case, _, _ in VIOLATIONS])
+def test_111_ac23_java_tool_fails_the_build_on_its_fixture(repo_root, tmp_path, violation):
+    case, goals, message = violation
     result = build_fixture(repo_root, tmp_path, case, goals)
 
     assert result.returncode != 0, f"{case} passed the build"

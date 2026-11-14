@@ -1,4 +1,5 @@
-"""Repository checks (T1.8; 111-FR23, 111-AC23; conventions SA-1.2-14, SA-1.2-15, SA-2.3-6, SA-2.3-7, SA-4-8 to SA-4-12).
+"""Repository checks (T1.8; 111-FR23, 111-AC23;
+conventions SA-1.2-14, SA-1.2-15, SA-2.3-6, SA-2.3-7, SA-4-8 to SA-4-12).
 
 Each check is proven on a fixture that must fail and passes on the repository: gitleaks, Semgrep, pre-commit,
 Renovate, commitlint, the branch name check and the pull request size check.
@@ -10,6 +11,7 @@ import random
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
@@ -347,7 +349,7 @@ def test_111_ac23_ci_reruns_the_pull_request_checks_when_the_title_or_body_is_ed
     assert {"opened", "synchronize", "reopened", "edited"} <= set(types)
 
 
-def title_step(repo_root: Path) -> dict:
+def title_step(repo_root: Path) -> dict[str, Any]:
     workflow = yaml.safe_load((repo_root / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
     steps = workflow["jobs"]["pull-request"]["steps"]
     return next(step for step in steps if "commitlint" in str(step.get("run", "")))
@@ -434,7 +436,7 @@ def test_111_ac23_suppressions_named_in_documentation_comments_or_strings_are_no
 
 
 @pytest.mark.parametrize(
-    ("path", "lines", "rule"),
+    "suppression",
     [
         (
             "services/register/src/main/java/demo/Mapping.java",
@@ -449,7 +451,8 @@ def test_111_ac23_suppressions_named_in_documentation_comments_or_strings_are_no
         ("apps/web/src/mapping.ts", ["/* eslint-disable max-lines */"], "max-lines"),
     ],
 )
-def test_111_ac23_a_suppression_in_code_syntax_is_an_exception_to_list(repo_root, change_repo, path, lines, rule):
+def test_111_ac23_a_suppression_in_code_syntax_is_an_exception_to_list(repo_root, change_repo, suppression):
+    path, lines, rule = suppression
     commit_lines(change_repo, path, lines)
     name = Path(path).name
 
@@ -462,7 +465,7 @@ def test_111_ac23_a_suppression_in_code_syntax_is_an_exception_to_list(repo_root
 
 
 @pytest.mark.parametrize(
-    ("path", "line", "blanket", "size_rule"),
+    "suppression",
     [
         ("services/ai-document/src/ai_document/parse.py", "def parse(a, b, c, d, e, f):  # noqa", "ruff", "PLR0913"),
         ("services/ai-document/src/ai_document/parse.py", "# ruff: noqa", "ruff", "PLR0913"),
@@ -473,8 +476,9 @@ def test_111_ac23_a_suppression_in_code_syntax_is_an_exception_to_list(repo_root
     ],
 )
 def test_111_ac23_a_blanket_ruff_or_eslint_suppression_is_a_size_limit_exception_to_list(
-    repo_root, change_repo, path, line, blanket, size_rule
+    repo_root, change_repo, suppression
 ):
+    path, line, blanket, size_rule = suppression
     # A suppression naming no rule hides every size rule, so it is listed with the tool, as PMD is (SA-2.3-7).
     commit_lines(change_repo, path, [line])
     name = Path(path).name
