@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# contracts/scripts/generate (plan D6; 111-FR5; S1149): see contracts/scripts/lib/generate.mjs. Installs the
+# generator of contracts/package-lock.json first when it is missing.
+set -euo pipefail
+contracts="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [ ! -d "$contracts/node_modules" ]; then
+  npm ci --prefix "$contracts" --no-audit --no-fund --silent >&2
+fi
+exec node "$contracts/scripts/lib/generate.mjs" "$@"

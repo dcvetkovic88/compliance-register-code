@@ -16,10 +16,10 @@ paths = [
   '''(^|/)\.suite-reports/''',
 ]
 
-# False positive (block 111-B4, owner decision on issue 20): the example value of `source_event_key` in the frozen monitoring and ict-risk contracts.
+# False positive (block 111-B4, owner decision on issue 20): the example value of `source_event_key` in the frozen monitoring and ict-risk contracts, and in the types generated from them.
 [[allowlists]]
-description = "the fake example value nimbus-incident-4471 in the synced OpenAPI contracts"
+description = "the fake example value nimbus-incident-4471 in the synced OpenAPI contracts and their generated types"
 condition = "AND"
 targetRules = ["generic-api-key"]
-paths = ['''(^|/)contracts/[^/]+\.openapi\.yaml$''']
+paths = ['''(^|/)contracts/([^/]+\.openapi\.yaml|generated/[^/]+\.types\.ts)$''']
 regexes = ['''^nimbus-incident-4471$''']

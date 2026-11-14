@@ -1,2 +1,4 @@
 # The contracts tools' own npm packages, installed from package-lock.json.
 node_modules/
+# Generated at build by contracts/scripts/generate; never committed, never edited by hand.
+generated/
