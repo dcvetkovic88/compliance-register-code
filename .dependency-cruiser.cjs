@@ -52,7 +52,8 @@ const IDENTITY_LIBRARIES = [
 ];
 const COMPONENT_KIT = ["@radix-ui/[^/]+", "lucide-react"];
 const API_CLIENTS = "^apps/web/src/api/";
-const SHELL_MODULES = "(^|/)(header|navigation|theme|locale-switch)[^/]*$";
+// Components are PascalCase.tsx and other modules kebab-case (conventions SA-1.1-5), so both spellings match.
+const SHELL_MODULES = "(^|/)([Hh]eader|[Nn]avigation|[Tt]heme|[Ll]ocale-?[Ss]witch)[^/]*$";
 const TESTS = "\\.(test|e2e)\\.tsx?$";
 
 module.exports = {
