@@ -18,6 +18,7 @@ pytestmark = pytest.mark.suite_111_B1c
 REPO_ROOT = TOOLS_DIR.parent
 STRUCTURE = FIXTURES_DIR / "structure"
 MIGRATIONS = "src/main/resources/db/migration"
+JAVA_OUT = "src/main/java/com/wisertech/register/adapters/out"
 
 # (fixture, the file the check names) for the language rule (suite readiness rule 6)
 LANGUAGE_VIOLATIONS = [
@@ -38,6 +39,9 @@ SQL_VIOLATIONS = [
     ("bff-platform-function", f"services/bff/{MIGRATIONS}/V0001__create_sessions.sql:1: platform.current_user_id"),
     ("search-path", f"services/register/{MIGRATIONS}/V0002__read_assessments.sql:1: search_path ictrisk"),
     ("search-path-set-config", f"services/register/{MIGRATIONS}/V0002__read_assessments.sql:1: search_path ictrisk"),
+    ("set-schema", f"services/register/{MIGRATIONS}/V0002__read_assessments.sql:1: search_path ictrisk"),
+    ("java-string", f"services/register/{JAVA_OUT}/AssessmentReader.java:13: ictrisk.assessments"),
+    ("python-string", "services/ai-document/app/arrangements.py:10: register.arrangements"),
 ]
 
 
