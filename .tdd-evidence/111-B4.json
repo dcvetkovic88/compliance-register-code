@@ -1,0 +1,23 @@
+{
+  "block": "111-B4",
+  "tasks": [
+    {
+      "task": "T4.1",
+      "test_command": "uv run --project tools --frozen pytest contracts/tests/test_contracts_drift.py -q",
+      "red_commit": "e906def485ff696693eedc465df78de52d03b707",
+      "green_commit": "1be592c9b22211ec824e3cc65535c421887638e5"
+    },
+    {
+      "task": "T4.2",
+      "test_command": "uv run --project tools --frozen pytest contracts/tests/test_contracts_copies.py -q",
+      "red_commit": "ce98c444351ed4f74f8a4700f347cb1c3ca2fe2f",
+      "green_commit": "f044760759931a034fb7b1e8d0fc8f383563be36"
+    },
+    {
+      "task": "T4.3",
+      "test_command": "uv run --project tools --frozen pytest contracts/tests/test_contracts_generate.py -q",
+      "red_commit": "b927c937e81055fd16c51dc20223d90ef99238ff",
+      "green_commit": "19ef125963e62d8a82f81092537bba6ff90da03e"
+    }
+  ]
+}
