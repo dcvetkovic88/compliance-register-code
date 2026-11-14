@@ -5,11 +5,16 @@ deploy/, contracts/scripts) and never sits in services/, libs/, apps/ or package
 (not in the Python service), libs/ and tools/arch-rules (suite readiness rule 6).
 sql-schemas: the SQL of services/<folder> names only the folder's own schema and, unless the service has no
 usage on schema platform, the platform functions of tools/sql-schemas.yaml, called (suite readiness rule 3).
+A listed schema is found wherever it qualifies a name. Any other qualifier but pg_catalog is a schema where
+only a schema can qualify (a function call, a three-part name, a relation after FROM, JOIN, INTO, UPDATE, TABLE,
+ON and the like or in a list after one, a type after ::), unless the SQL also holds it unqualified, as an alias
+or a table does.
 The SQL is that of the .sql files and of the string literals of the .java and .py files holding an SQL keyword
-(the JdbcClient and psycopg queries, plan D3); Java and Python comments and docstrings are not read.
-A search_path, set by SET search_path, SET SCHEMA or set_config, names no listed schema but the folder's own, so
-no unqualified name reaches another schema. SQL comments and string literals are not read, but the value of a
-search_path is.
+(the JdbcClient and psycopg queries, plan D3), string literals joined by + read as one; Java and Python comments
+and docstrings are not read.
+A search_path, set by SET search_path, SET SCHEMA or set_config, names no schema but the folder's own and
+pg_catalog, so no unqualified name reaches another schema. SQL comments and string literals are not read, but
+the value of a search_path is.
 size: a Python module of services/ or libs/ is at most 300 lines (SA-2.3-2).
 Build output, dependencies, virtual environments and test fixtures are never read.
 """
@@ -31,7 +36,18 @@ PYTHON_SERVICE = "services/ai-document/"
 JAVA_PATHS = ("services/", "libs/", "tools/arch-rules/")
 MODULE_LINES = 300
 SQL_NOISE = re.compile(r"--[^\n]*|/\*.*?\*/|'(?:[^']|'')*'", re.DOTALL)
-QUALIFIED_NAME = r'"?\b({schemas})\b"?\s*\.\s*"?([A-Za-z_][A-Za-z0-9_]*)"?(\s*\()?'
+IDENTIFIER = r"[A-Za-z_][A-Za-z0-9_]*"
+# schema, name, a call's parenthesis, a third part
+QUALIFIED_NAME = re.compile(rf'"?\b({IDENTIFIER})\b"?\s*\.\s*"?({IDENTIFIER})"?(\s*\()?(\s*\.\s*"?[A-Za-z_])?')
+SYSTEM_SCHEMA = "pg_catalog"
+RELATION_KEYWORD = re.compile(
+    r"(?:\b(?:FROM|JOIN|INTO|UPDATE|TABLE|ONLY|REFERENCES|TRUNCATE|VIEW|SEQUENCE|FUNCTION|PROCEDURE|ROUTINE|TYPE"
+    r"|DOMAIN|CALL|COPY|USING|LOCK|EXISTS|ON)|::)\s*$",
+    re.IGNORECASE,
+)
+UNQUALIFIED_NAME = re.compile(rf'(?<![\w$])"?({IDENTIFIER})"?(?![\w$])(?!\s*\.)')
+LOOK_BACK = 400  # characters read before a qualified name to find its keyword, enough for any list of relations
+LIST_ITEM = re.compile(rf'"?{IDENTIFIER}"?(?:\s*\.\s*"?{IDENTIFIER}"?)*(?:\s+(?:AS\s+)?{IDENTIFIER})?\s*,\s*$')
 SET_SEARCH_PATH = re.compile(
     r"\bSET\s+(?:SESSION\s+|LOCAL\s+)?(?:search_path\s*(?:TO|=)|SCHEMA\b)([^;]*)", re.IGNORECASE
 )
@@ -45,6 +61,7 @@ SQL_KEYWORD = re.compile(
 )
 JAVA_TOKEN = re.compile(r'//[^\n]*|/\*.*?\*/|"""(.*?)"""|"((?:\\.|[^"\\\n])*)"|\'(?:\\.|[^\'\\])*\'', re.DOTALL)
 JAVA_ESCAPE = re.compile(r"\\(.)")
+JAVA_PLUS = re.compile(r"\s*\+\s*")
 
 
 def files(root: Path, suffix: str) -> Iterator[str]:
@@ -83,7 +100,7 @@ def search_paths(sql: str, blanked: str) -> Iterator[tuple[int, str]]:
             yield offset, next(name for name in entry.groups() if name).strip().lower()
 
 
-def search_path_findings(location: tuple[str, int], sql: str, own: str, schemas: list[str]) -> list[str]:
+def search_path_findings(location: tuple[str, int], sql: str, own: str) -> list[str]:
     """Findings for each search_path of `sql`, which starts at line location[1] of file location[0]."""
     path, first_line = location
     blanked = blank_noise(sql)
@@ -91,18 +108,32 @@ def search_path_findings(location: tuple[str, int], sql: str, own: str, schemas:
         f"{path}:{first_line + blanked.count(chr(10), 0, offset)}: search_path {schema}; the search_path of a"
         f" service names only its own schema {own} (tools/sql-schemas.yaml)"
         for offset, schema in search_paths(sql, blanked)
-        if schema in schemas and schema != own
+        if schema not in (own, SYSTEM_SCHEMA)
     ]
 
 
 def java_strings(source: str) -> Iterator[tuple[int, str]]:
-    """(line, text) of each string literal and text block of the Java source, comments skipped, escapes undone."""
+    """(line, text) of each string literal and text block of the Java source, comments skipped, escapes undone;
+    literals joined by + (comments between them skipped) are one text, at the line of the first."""
+    chain: list[str] = []
+    line, end, gap = 0, 0, ""
     for token in JAVA_TOKEN.finditer(source):
-        start = token.start(1) if token.group(1) is not None else token.start(2)
+        if token.group().startswith("/"):
+            gap, end = gap + source[end : token.start()], token.end()
+            continue
         literal = token.group(1) if token.group(1) is not None else token.group(2)
+        joined = literal is not None and JAVA_PLUS.fullmatch(gap + source[end : token.start()])
+        if chain and not joined:
+            yield line, "".join(chain)
+            chain = []
         if literal is not None:
-            text = JAVA_ESCAPE.sub(lambda escape: escape.group(1) if escape.group(1) in "\"'\\" else " ", literal)
-            yield source.count("\n", 0, start) + 1, text
+            line = line if chain else source.count("\n", 0, token.start()) + 1
+            chain.append(
+                JAVA_ESCAPE.sub(lambda escape: escape.group(1) if escape.group(1) in "\"'\\" else " ", literal)
+            )
+        gap, end = "", token.end()
+    if chain:
+        yield line, "".join(chain)
 
 
 def python_strings(source: str) -> Iterator[tuple[int, str]]:
@@ -114,8 +145,22 @@ def python_strings(source: str) -> Iterator[tuple[int, str]]:
         if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant) and isinstance(node.value.value, str)
     }
     for node in ast.walk(tree):
-        if isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in bare:
-            yield node.lineno, node.value
+        if not isinstance(node, ast.expr) or id(node) in bare:
+            continue
+        text = constant_text(node)
+        if text is not None:
+            bare |= {id(part) for part in ast.walk(node)}
+            yield node.lineno, text
+
+
+def constant_text(node: ast.AST) -> str | None:
+    """The text of a string constant or of string constants joined by +, None for any other expression."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        left, right = constant_text(node.left), constant_text(node.right)
+        return left + right if left is not None and right is not None else None
+    return None
 
 
 def sql_texts(root: Path, path: str) -> Iterator[tuple[int, str]]:
@@ -135,8 +180,15 @@ class SchemaRules:
     schemas: list[str]
     platform_functions: set[str]
 
-    def qualified(self) -> re.Pattern[str]:
-        return re.compile(QUALIFIED_NAME.format(schemas="|".join(self.schemas)), re.IGNORECASE)
+
+def schema_position(sql: str, match: re.Match[str]) -> bool:
+    """Whether the qualified name of `match` stands where only a schema can qualify: a function call, a three-part
+    name, a relation after its keyword or in a list after one, a type after ::."""
+    before = sql[max(0, match.start() - LOOK_BACK) : match.start()]
+    start = len(before)
+    while (relation := LIST_ITEM.search(before, 0, start)) is not None:
+        start = relation.start()
+    return bool(match.group(3) or match.group(4) or RELATION_KEYWORD.search(before, 0, start))
 
 
 def text_findings(
@@ -145,10 +197,14 @@ def text_findings(
     """Findings for the SQL `original` of a service, which starts at line location[1] of file location[0]."""
     path, first_line = location
     own = str(service["schema"])
-    findings = search_path_findings(location, original, own, rules.schemas)
+    findings = search_path_findings(location, original, own)
     sql = blank_noise(original)
-    for match in rules.qualified().finditer(sql):
+    # names the SQL holds unqualified, as an alias or a table is; such a name qualifies columns, not relations
+    unqualified = {name.lower() for name in UNQUALIFIED_NAME.findall(sql)} | {own, SYSTEM_SCHEMA}
+    for match in QUALIFIED_NAME.finditer(sql):
         schema, name, call = match.group(1).lower(), match.group(2), match.group(3)
+        if schema not in rules.schemas and (schema in unqualified or not schema_position(sql, match)):
+            continue
         listed = schema == "platform" and service["platform_functions"] and call and name in rules.platform_functions
         if schema != own and not listed:
             findings.append(
