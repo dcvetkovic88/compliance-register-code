@@ -18,3 +18,8 @@ INSERT INTO register.arrangements AS target (arrangement_id) VALUES (gen_random_
 ON CONFLICT (arrangement_id) DO UPDATE SET note = EXCLUDED.note;
 CREATE FUNCTION register.count_arrangements() RETURNS bigint LANGUAGE sql
 AS 'SELECT count(*) FROM register.arrangements WHERE note <> ''copied from ictrisk.assessments''';
+CREATE FUNCTION register.one() RETURNS int LANGUAGE sql SET search_path = register, pg_catalog AS $$ SELECT 1 $$;
+CREATE FUNCTION register.two() RETURNS int LANGUAGE sql SET search_path TO 'register' AS 'SELECT 2';
+CREATE SCHEMA IF NOT EXISTS register AUTHORIZATION cr_register;
+GRANT USAGE ON SCHEMA register, pg_catalog TO cr_register;
+ALTER DEFAULT PRIVILEGES IN SCHEMA register GRANT SELECT ON TABLES TO cr_register;
