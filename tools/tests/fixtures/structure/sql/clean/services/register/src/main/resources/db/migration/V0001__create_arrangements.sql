@@ -16,3 +16,5 @@ JOIN register.arrangements b ON a.arrangement_id = b.arrangement_id, register.ar
 WHERE a.note IS DISTINCT FROM b.note;
 INSERT INTO register.arrangements AS target (arrangement_id) VALUES (gen_random_uuid())
 ON CONFLICT (arrangement_id) DO UPDATE SET note = EXCLUDED.note;
+CREATE FUNCTION register.count_arrangements() RETURNS bigint LANGUAGE sql
+AS 'SELECT count(*) FROM register.arrangements WHERE note <> ''copied from ictrisk.assessments''';

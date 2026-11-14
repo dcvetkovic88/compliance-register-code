@@ -30,7 +30,8 @@ ROOT_CONFIGURATION = [
     ".dependency-cruiser.cjs",
 ]
 
-# (ESLint fixture, the rule that fails it) (SA-1.1, SA-1.3-4, SA-2.2-5, SA-2.3-1 to SA-2.3-5, SA-2.6-1 to SA-2.6-4;
+# (ESLint fixture, the rule that fails it) (SA-1.1, folders kebab-case and files PascalCase.tsx or kebab-case.ts
+# by SA-1.1-4 and SA-1.1-5, SA-1.3-4, SA-2.2-5, SA-2.3-1 to SA-2.3-5, SA-2.6-1 to SA-2.6-4;
 # AR-W2: fetch is called only by the generated clients of apps/web/src/api, so no local fetch wrapper exists)
 ESLINT_RULES = [
     ("naming", "@typescript-eslint/naming-convention"),
@@ -46,6 +47,9 @@ ESLINT_RULES = [
     ("max-lines-per-function", "max-lines-per-function"),
     ("max-lines", "max-lines"),
     ("fetch-wrapper", "no-restricted-globals"),
+    ("component-file-name", "register/file-and-folder-names"),
+    ("module-file-name", "register/file-and-folder-names"),
+    ("folder-name", "register/file-and-folder-names"),
 ]
 
 # (dependency-cruiser fixture, the rule that fails it) (conventions section 6; components are PascalCase.tsx, SA-1.1-5)
