@@ -58,6 +58,17 @@ LIST_ITEM = re.compile(
     rf"(?:\s+(?:AS\s+)?(?!{RELATION_WORDS}\b){IDENTIFIER})?\s*,[\s(]*$",
     re.IGNORECASE,
 )
+# the words that may follow a relation where no alias stands
+NOT_AN_ALIAS = (
+    r"(?:WHERE|ON|USING|JOIN|LEFT|RIGHT|INNER|OUTER|FULL|CROSS|NATURAL|LATERAL|GROUP|ORDER|HAVING|WINDOW|LIMIT"
+    r"|OFFSET|FETCH|FOR|UNION|EXCEPT|INTERSECT|RETURNING|SET|VALUES|DEFAULT|SELECT|WITH|TABLESAMPLE|DO|AS)"
+)
+# a table alias the SQL declares: the name after a relation of FROM, JOIN, INTO, UPDATE or USING, with or without AS
+DECLARED_ALIAS = re.compile(
+    rf'\b(?:FROM|JOIN|INTO|UPDATE|USING)(?:\s+ONLY)?[\s(]+"?{IDENTIFIER}"?(?:\s*\.\s*"?{IDENTIFIER}"?)*[\s)]*'
+    rf'\s+(?:AS\s+)?(?!{NOT_AN_ALIAS}\b)"?({IDENTIFIER})"?',
+    re.IGNORECASE,
+)
 SET_SEARCH_PATH = re.compile(r"\bSET\s+(?:SESSION\s+|LOCAL\s+)?(?:search_path\s*(?:TO|=)|SCHEMA\b)", re.IGNORECASE)
 # the value of a search_path: a list of names and string literals, which ends where a function's next clause starts
 PATH_ITEM = r"""(?:"[^"]+"|'(?:[^']|'')*'|[A-Za-z_][A-Za-z0-9_$]*)"""
@@ -274,10 +285,11 @@ def text_findings(
         findings += text_findings((path, first_line + sql.count(chr(10), 0, offset)), body, service, rules)
     # names the SQL holds unqualified, as an alias or a table is; such a name may qualify a column where an alias can
     unqualified = {name.lower() for name in UNQUALIFIED_NAME.findall(sql)}
+    aliases = {name.lower() for name in DECLARED_ALIAS.findall(sql)}
     for match in QUALIFIED_NAME.finditer(sql):
         schema, name, call = match.group(1).lower(), match.group(2), match.group(3)
         position = schema_position(sql, match)
-        if schema in (own, SYSTEM_SCHEMA):
+        if schema in (own, SYSTEM_SCHEMA) or position != "schema" and schema in aliases:
             continue
         if schema not in rules.schemas and (position is None or position == "either" and schema in unqualified):
             continue
