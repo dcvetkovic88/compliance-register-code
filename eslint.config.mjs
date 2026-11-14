@@ -84,9 +84,9 @@ const USER_FACING_PROPS = new Set([
   "aria-roledescription",
   "aria-valuetext",
 ]);
-const isLiteralText = (value) =>
-  (value?.type === "Literal" && typeof value.value === "string") ||
-  (value?.type === "TemplateLiteral" && value.expressions.length === 0);
+const isLiteralText = (expression) =>
+  (expression?.type === "Literal" && typeof expression.value === "string") ||
+  (expression?.type === "TemplateLiteral" && expression.expressions.length === 0);
 const noLiteralUserFacingProps = {
   meta: {
     type: "problem",
@@ -97,8 +97,8 @@ const noLiteralUserFacingProps = {
     return {
       JSXAttribute(node) {
         const name = node.name.type === "JSXIdentifier" ? node.name.name : null;
-        const value = node.value?.type === "JSXExpressionContainer" ? node.value.expression : node.value;
-        if (USER_FACING_PROPS.has(name) && isLiteralText(value)) {
+        const shown = node.value?.type === "JSXExpressionContainer" ? node.value.expression : node.value;
+        if (USER_FACING_PROPS.has(name) && isLiteralText(shown)) {
           context.report({ node, messageId: "literal", data: { name } });
         }
       },
