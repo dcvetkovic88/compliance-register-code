@@ -10,8 +10,8 @@
     {
       "task": "T1.10",
       "test_command": "npm ci && uv run --project tools --frozen pytest tests/test_typescript_quality.py -q",
-      "red_commit": "311dcc095263812f77e68f8cc9e6a794e8f8a764",
-      "green_commit": "656e1cff7bbf73c9bd14fc69eb1d8ba8aef0a96c"
+      "red_commit": "065182a2100cc44cf0557634681f2c49b6f50958",
+      "green_commit": "652ec7d88637b6de4034c1c06498c72c728cc1a3"
     },
     {
       "task": "T1.11",
@@ -22,8 +22,8 @@
     {
       "task": "T1.12",
       "test_command": "uv run --project tools --frozen pytest tools/tests/test_structure_checks.py -q",
-      "red_commit": "311dcc095263812f77e68f8cc9e6a794e8f8a764",
-      "green_commit": "656e1cff7bbf73c9bd14fc69eb1d8ba8aef0a96c"
+      "red_commit": "065182a2100cc44cf0557634681f2c49b6f50958",
+      "green_commit": "652ec7d88637b6de4034c1c06498c72c728cc1a3"
     }
   ]
 }
