@@ -93,6 +93,9 @@ SQL_VIOLATIONS = [
     ("grant-on-schema", f"services/register/{MIGRATIONS}/V0002__grant_assessments.sql:1: schema ictrisk"),
     ("create-schema", f"services/register/{MIGRATIONS}/V0002__create_schema.sql:1: schema ictrisk"),
     ("schema-list", f"services/register/{MIGRATIONS}/V0002__drop_schemas.sql:2: schema unlisted_schema"),
+    ("sequence-function-literal", f"services/register/{MIGRATIONS}/V0002__next_secret.sql:2: ictrisk.secret_seq"),
+    ("regclass-literal", f"services/register/{MIGRATIONS}/V0002__find_table.sql:1: ictrisk.t"),
+    ("regclass-cast-literal", f"services/register/{MIGRATIONS}/V0002__find_secrets.sql:1: unlisted_schema.secrets"),
     (
         "search-path-unlisted-schema",
         f"services/register/{MIGRATIONS}/V0002__read_secrets.sql:1: search_path unlisted_schema",

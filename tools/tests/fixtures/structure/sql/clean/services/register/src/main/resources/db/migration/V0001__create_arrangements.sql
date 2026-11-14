@@ -23,3 +23,6 @@ CREATE FUNCTION register.two() RETURNS int LANGUAGE sql SET search_path TO 'regi
 CREATE SCHEMA IF NOT EXISTS register AUTHORIZATION cr_register;
 GRANT USAGE ON SCHEMA register, pg_catalog TO cr_register;
 ALTER DEFAULT PRIVILEGES IN SCHEMA register GRANT SELECT ON TABLES TO cr_register;
+CREATE SEQUENCE register.arrangement_seq;
+SELECT nextval('register.arrangement_seq'), currval('arrangement_seq'), 'pg_catalog.pg_class'::regclass;
+SELECT setval('"register".arrangement_seq', 1), 'ictrisk.assessments is only a note';

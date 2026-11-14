@@ -1,0 +1,1 @@
+SELECT 'ictrisk.t'::regclass;
