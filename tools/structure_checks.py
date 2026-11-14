@@ -59,13 +59,13 @@ def blank_noise(sql: str) -> str:
 
 def search_paths(sql: str, blanked: str) -> Iterator[tuple[int, str]]:
     """(offset, schema) for each schema a SET search_path or set_config('search_path', ...) outside comments names."""
-    values = [(match.start(), sql[match.start(1) : match.end(1)]) for match in SET_SEARCH_PATH.finditer(blanked)]
+    settings = [(match.start(), sql[match.start(1) : match.end(1)]) for match in SET_SEARCH_PATH.finditer(blanked)]
     for call in SET_CONFIG_CALL.finditer(blanked):
         argument = SET_CONFIG_SEARCH_PATH.match(sql, call.end())
         if argument:
-            values.append((call.start(), argument.group(1).replace("''", "'")))
-    for offset, value in values:
-        for entry in PATH_ENTRY.finditer(value):
+            settings.append((call.start(), argument.group(1).replace("''", "'")))
+    for offset, setting in settings:
+        for entry in PATH_ENTRY.finditer(setting):
             yield offset, next(name for name in entry.groups() if name).strip().lower()
 
 
