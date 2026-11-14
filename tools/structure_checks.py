@@ -112,9 +112,9 @@ def search_paths(sql: str, blanked: str) -> Iterator[tuple[int, str]]:
     """(offset, schema) for each schema a SET search_path or set_config('search_path', ...) outside comments names."""
     settings = []
     for match in SET_SEARCH_PATH.finditer(blanked):
-        value = PATH_VALUE.match(sql, match.end())
-        if value:
-            settings.append((match.start(), value.group()))
+        path_setting = PATH_VALUE.match(sql, match.end())
+        if path_setting:
+            settings.append((match.start(), path_setting.group()))
     for call in SET_CONFIG_CALL.finditer(blanked):
         argument = SET_CONFIG_SEARCH_PATH.match(sql, call.end())
         if argument:
