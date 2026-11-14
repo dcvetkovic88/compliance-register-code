@@ -58,8 +58,9 @@ DEPENDENCY_RULES = [
     ("ar-w5-kit", "AR-W5-component-kit-outside-the-shell"),
     ("ar-w5-shell-imports-web", "AR-W5-shell-imports-the-web"),
     ("ar-w5-feature", "AR-W5-feature-imports-another-feature"),
-    ("ar-w5-shell-module", "AR-W5-shell-module-in-the-web"),
-    ("ar-w5-shell-module-pascal", "AR-W5-shell-module-in-the-web"),
+    ("ar-w5-shell-module", "AR-W5-shell-module-outside-the-shell"),
+    ("ar-w5-shell-module-pascal", "AR-W5-shell-module-outside-the-shell"),
+    ("ar-w5-shell-module-package", "AR-W5-shell-module-outside-the-shell"),
     ("ar-w7", "AR-W7-component-imports-a-client"),
 ]
 
