@@ -1,0 +1,1838 @@
+openapi: 3.1.0
+info:
+  title: ict-risk-service API (standalone register build, draft)
+  version: 0.1.0-draft
+  description: >
+    Draft for the standalone ict-risk-service: the 107 S1 operations the demo needs (assets,
+    methodology, risks with effective residual, heat map, treatments, campaigns, management summary),
+    derived from specs/107-ict-risk-register/contracts/covenant-console.openapi.yaml at draft level,
+    plus 107-F1 (asset links, graph inputs) and 107-F2 (proposals, impairments, bindings, residual
+    observations) and the 104-F7 dashboard summary. Standalone build, constitution Article IX; frozen
+    at planning-done (IX.2). Ids are uuid strings. Effective residual is computed at read time (107 FR4).
+    Status: DRAFT | Added 2026-11-04 by decision of Dusan (Raiffeisen Demo Decisions and Build Brief).
+    AMENDED 2026-11-04 (independent review H5): applyApproval added, the synchronous delivery of 109-F4 decisions (109-F4-FR10).
+    AMENDED 2026-11-04: getAssetInventoryCompleteness added for 107-F0 (107 FR1 inventory completeness had no read operation).
+    x-roles lists L1 section 2 role ids; the authoritative binding of 107 FR0 rights is 109-F1.
+    AMENDED 2026-11-05: x-roles aligned with the 109-F1 matrix (P39 reads without legal; P42, P48, P50
+    compliance only; P43 and P44 security and it-governance; P40 import adds security); getAssetGraphInputs
+    keeps legal because it feeds the 104-F4 graph (P29). Reason: cross-file reconciliation, 109-F1 wins.
+    AMENDED 2026-11-05 (Dusan decisions Q-026, Q-027): createMethodologyVersion refuses a second draft
+    (ICT_METHODOLOGY_DRAFT_PENDING 409); applyApproval refuses a risk acceptance whose breach state changed
+    since the request (ICT_RISK_CHANGED_SINCE_REQUEST 409, approval recorded stale; the maker re-submits).
+    AMENDED 2026-11-05 (Dusan decision Q-104): the bank's management body approves the ICT risk methodology;
+    compliance records it under four-eyes. attachMethodologyBodyDecision added (body name, decision date,
+    decision document stored as evidence); MethodologyVersion gains body_decision; applyApproval refuses an
+    approve on methodology_approval without it in production mode (ICT_METHODOLOGY_BODY_DECISION_MISSING 409).
+    AMENDED 2026-11-05 (foundation T0.2, dcvetkovic88/compliance-register#1): servers entry for the local Docker Compose stack, port 8082 after register-service 8081 in the service order of L1 section 3.
+    AMENDED 2026-11-06 (Dusan decision X2, 109-F4-FR10; docs/analyze-2026-11-06.md 107-F0 H1, H2, M): one approval path.
+    approveMethodologyVersion is replaced by the maker submit call submitMethodologyVersion (path /submit, it-governance,
+    the author, P41) and signOffCampaign by submitCampaignSignOff (it-governance, the campaign creator, P46); both
+    create the pending 109-F4 approval and return 202; the checker decides only through platform decideApproval,
+    applied by applyApproval; decideTreatment returns 202 for accept (pending risk_acceptance) and its x-roles drop
+    compliance (the P45 checker decides through decideApproval). The one-pending rule
+    reads "at most one methodology version with a pending methodology_approval per tenant" (Q-026). The body decision
+    is written as evidence of type ict-risk-methodology anchored to every active obligation that lists that type
+    (Confirmed by Dusan 2026-11-06). Production mode means demo_mode false in the tenant configuration (109-F2).
+    AMENDED 2026-11-06 (107-F0 speckit-analyze I1, U1): ICT_METHODOLOGY_BODY_DECISION_MISSING added to the problem code
+    enum (it was named by applyApproval but missing); rateCampaignItem refuses with 409 ICT_CAMPAIGN_SIGNOFF_PENDING
+    while a sign-off approval is pending (new code) and documents its 409 responses.
+    AMENDED 2026-11-06 (107-F1 speckit-clarify, docs/analyze-2026-11-06.md 107-F1 M): getAssetGraphInputs names the
+    caller identity service:register (was bare service), x-surface user | service and x-action P29 (109-F1, the graph
+    read that keeps legal), and states that ids unknown in the caller's tenant are omitted; Asset and AssetGraphInput
+    gain register_verified (false when register-service could not be reached, 107-F1-FR8, AC8); ICT_TARGET_RETIRED
+    also refuses a new link on a retired asset (107-F1-FR5, AC9).
+    AMENDED 2026-11-06 (107-F2 speckit-clarify, docs/analyze-2026-11-06.md 107-F2 H2, Confirmed by Dusan 2026-11-06,
+    Q-160): every 107-F2 operation names its 109-F1 action: x-action P39 on listResidualObservations, listProposals,
+    getProposal, listImpairments, listControlBindings and getIctRiskSummary; x-action P51 on confirmProposal,
+    dismissProposal, closeImpairment, createControlBinding and deleteControlBinding; listControlBindings x-roles
+    aligned with the P39 roles (outsourcing-manager and compliance added).
+    AMENDED 2026-11-06 (107-F0 speckit-plan, independent analyze final-107-F0-p1 U1): applyApproval states the
+    109-F4 D10 commit-on-refusal rule and the result-to-code mapping per kind and documents its 403; the problem
+    code enum gains the relayed platform codes PLATFORM_NOT_IN_MATRIX, PLATFORM_APPROVAL_STALE and
+    PLATFORM_APPROVAL_NOT_PENDING.
+    AMENDED 2026-11-06 (107-F1 speckit-plan, independent analyze final-107-F1-p1 G1, U1, I2, L2): listAssets and
+    getAsset carry x-action P39, createAsset, updateAsset and importAssets P40; updateAsset validates only the links
+    added relative to the stored set; importAssets resolves link columns through register-service
+    lookupRegisterRecords by identification code and function identifier and is refused as a whole with 503
+    ICT_REGISTER_UNAVAILABLE when the file carries link values and the register cannot be reached.
+    AMENDED 2026-11-06 (107-F1 speckit-plan, independent analyze final-107-F1-p2 F1, decision of Dusan 2026-11-06,
+    gate close-out): AssetGraphInput any_in_breach is nullable; highest_effective_band and any_in_breach are null
+    (unknown) when ControlStatusPort cannot answer, including while register-service is unreachable, consistent with
+    107-F0-FR4 (ICT_CONTROL_UNAVAILABLE); open_risk_count is still returned and getAssetGraphInputs does not fail.
+    AMENDED 2026-11-06 (107-F1 speckit-plan, independent analyze closeout-107-F1-t1 U1, I1, decision of Dusan
+    2026-11-06, gate close-out): AssetGraphInput states one outage rule for every asset (highest_effective_band and
+    any_in_breach null even when open_risk_count is 0; with control statuses readable, no open risk gives band null
+    and any_in_breach false); getAssetGraphInputs names its user callers as the P29 roles other than requester.
+servers:
+  - url: http://localhost:8082
+    description: ict-risk-service in the local Docker Compose stack
+security:
+  - bearerAuth: []
+tags:
+  - name: assets
+  - name: methodology
+  - name: risks
+  - name: campaigns
+  - name: proposals
+  - name: summary
+paths:
+  /api/v1/ict-risk/assets:
+    get:
+      operationId: listAssets
+      tags: [assets]
+      summary: Assets ordered name asc, id asc (107 FR1, 107-F1)
+      x-roles: [outsourcing-manager, security, it-governance, compliance, auditor]
+      x-action: P39
+      x-surface: user
+      x-audit-object: ict-risk:assets
+      x-scope: DEMO
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - {name: lifecycle, in: query, required: false, schema: {type: string, enum: [planned, active, retired]}}
+        - {name: provider_id, in: query, required: false, schema: {type: string, format: uuid}}
+        - {name: function_id, in: query, required: false, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Page of assets
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/Asset'}}
+                  next_cursor: {type: [string, 'null']}
+        default: {$ref: '#/components/responses/Problem'}
+    post:
+      operationId: createAsset
+      tags: [assets]
+      x-roles: [it-governance, security]
+      x-action: P40
+      x-surface: user
+      x-audit-object: ict-risk:asset
+      x-scope: DEMO
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AssetWrite'}
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Asset'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/assets/{asset_id}:
+    get:
+      operationId: getAsset
+      tags: [assets]
+      x-roles: [outsourcing-manager, security, it-governance, compliance, auditor]
+      x-action: P39
+      x-surface: user
+      x-audit-object: ict-risk:asset:{asset_id}
+      x-scope: DEMO
+      parameters: [{$ref: '#/components/parameters/AssetId'}]
+      responses:
+        '200':
+          description: Asset
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Asset'}
+        default: {$ref: '#/components/responses/Problem'}
+    patch:
+      operationId: updateAsset
+      tags: [assets]
+      summary: Partial update; link arrays replace the stored direct links when present (107-F1 FR2)
+      description: >
+        Only links added relative to the stored set are validated against register-service and refused when unknown
+        or retired; links already stored are kept as sent even when their target has since been retired, and links
+        left out are removed. A PATCH that adds no link succeeds while register-service is unreachable (107-F1-FR5,
+        FR8).
+      x-roles: [it-governance, security]
+      x-action: P40
+      x-surface: user
+      x-audit-object: ict-risk:asset:{asset_id}
+      x-scope: DEMO
+      parameters: [{$ref: '#/components/parameters/AssetId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AssetWrite'}
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Asset'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/assets/imports:
+    post:
+      operationId: importAssets
+      tags: [assets]
+      summary: CSV import, optional link columns (107 FR1, 107-F1 FR6); maximum 5 MB
+      description: >
+        Link column values (provider identification code, function identifier; several separated by semicolons) are
+        resolved in one register-service lookupRegisterRecords call by provider_identification_codes and
+        function_identifiers; a row with an unresolved, unknown or retired value is rejected with its row number and
+        the value. When the file carries at least one link value and register-service cannot be reached, the whole
+        import is refused with 503 ICT_REGISTER_UNAVAILABLE and nothing is stored (107-F1-FR6, FR8).
+      x-roles: [it-governance, security]
+      x-action: P40
+      x-surface: user
+      x-audit-object: ict-risk:asset-import
+      x-scope: DEMO
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: {type: string, contentMediaType: text/csv}
+      responses:
+        '201':
+          description: Import result
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AssetImport'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/assets/exports:
+    post:
+      operationId: exportAssets
+      tags: [assets]
+      summary: Inventory or classification export with evidence (107 FR7)
+      x-roles: [it-governance, compliance]
+      x-surface: user
+      x-audit-object: ict-risk:asset-export
+      x-scope: DEMO
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [view]
+              properties:
+                view: {type: string, enum: [inventory, classification]}
+            example: {view: inventory}
+      responses:
+        '201':
+          description: Export with artifacts and evidence outcomes
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/IctExport'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/assets/graph-inputs:
+    get:
+      operationId: getAssetGraphInputs
+      tags: [assets]
+      summary: Batch asset read and impact propagation inputs for the 104-F4 dependency map (107-F1 FR4); at most one of asset_ids or provider_id, none for all
+      description: >
+        Read-only. Caller is the 104-F4 InventoryClient as service:register, or a user of a 109-F1 P29 (graph read)
+        role other than requester, which reaches the graph only through register-service (107-F1 plan D-8). Ids that do not exist in the caller's tenant, including ids of another tenant, are omitted from items,
+        exactly as unknown ids (107-F1 edge cases, AC9). When register-service cannot be reached the asset facts are
+        still returned with register_verified false and retired_targets empty (107-F1-FR8, AC8). When control statuses
+        cannot be read, open_risk_count is still returned and highest_effective_band and any_in_breach are null
+        (unknown, 107-F0-FR4) for every asset read, including one with no open risk; the read does not fail.
+      x-roles: [outsourcing-manager, security, it-governance, compliance, legal, auditor, service:register]
+      x-action: P29
+      x-surface: user | service
+      x-audit-object: ict-risk:asset-graph-inputs
+      x-scope: DEMO
+      parameters:
+        - name: asset_ids
+          in: query
+          required: false
+          style: form
+          explode: false
+          schema: {type: array, maxItems: 500, items: {type: string, format: uuid}}
+        - {name: provider_id, in: query, required: false, schema: {type: string, format: uuid}, description: assets directly linked to this provider}
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Page of asset graph inputs, ordered asset id asc
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor, methodology_version_id]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/AssetGraphInput'}}
+                  next_cursor: {type: [string, 'null']}
+                  methodology_version_id: {type: string, format: uuid}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/assets/completeness:
+    get:
+      operationId: getAssetInventoryCompleteness
+      tags: [assets]
+      summary: >
+        Inventory completeness of 107 FR1 computed at read time: share of active assets with a responsible person
+        and a classification. Added 2026-11-04 for 107-F0 (base ICT risk register, standalone build).
+      x-roles: [outsourcing-manager, security, it-governance, compliance, auditor]
+      x-surface: user
+      x-audit-object: ict-risk:asset-completeness
+      x-scope: DEMO
+      responses:
+        '200':
+          description: Completeness figures; incomplete_asset_ids ordered by asset id asc
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [as_of, active_assets, complete_assets, ratio, incomplete_asset_ids]
+                properties:
+                  as_of: {type: string, format: date-time}
+                  active_assets: {type: integer, minimum: 0}
+                  complete_assets: {type: integer, minimum: 0}
+                  ratio: {type: [number, 'null'], minimum: 0, maximum: 1, description: null when there is no active asset}
+                  incomplete_asset_ids: {type: array, items: {type: string, format: uuid}}
+              example: {as_of: '2026-11-04T09:00:00Z', active_assets: 18, complete_assets: 17, ratio: 0.9444, incomplete_asset_ids: [3f1c9a52-7b2e-4d81-a6c0-9e5d2b8f4a17]}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/artifacts/{payload_sha256}:
+    get:
+      operationId: downloadIctArtifact
+      tags: [assets]
+      summary: Download an export, report or snapshot artifact by its hash
+      x-roles: [outsourcing-manager, security, it-governance, compliance, auditor]
+      x-surface: user
+      x-audit-object: ict-risk:artifact:{payload_sha256}
+      x-scope: DEMO
+      parameters:
+        - {name: payload_sha256, in: path, required: true, schema: {type: string, pattern: '^sha256:[0-9a-f]{64}$'}}
+      responses:
+        '200':
+          description: Artifact body
+          content:
+            application/json:
+              schema: {type: object}
+            text/csv:
+              schema: {type: string}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/methodology/versions:
+    get:
+      operationId: listMethodologyVersions
+      tags: [methodology]
+      x-roles: [outsourcing-manager, security, it-governance, compliance, auditor]
+      x-surface: user
+      x-audit-object: ict-risk:methodology
+      x-scope: DEMO
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Versions ordered version desc
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/MethodologyVersion'}}
+                  next_cursor: {type: [string, 'null']}
+        default: {$ref: '#/components/responses/Problem'}
+    post:
+      operationId: createMethodologyVersion
+      tags: [methodology]
+      x-roles: [it-governance]
+      x-surface: user
+      x-audit-object: ict-risk:methodology-version
+      x-scope: DEMO
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/MethodologyConfig'}
+      responses:
+        '201':
+          description: Draft created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MethodologyVersion'}
+        '409':
+          description: Another methodology version of the tenant has a pending methodology_approval (ICT_METHODOLOGY_DRAFT_PENDING; one draft at a time, Q-026)
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/methodology/versions/{version_id}/submit:
+    post:
+      operationId: submitMethodologyVersion
+      tags: [methodology]
+      summary: Submit a draft for approval (maker of the 109-F4 kind methodology_approval, the author only, 107 FR2); approved only through platform decideApproval and applyApproval
+      description: >
+        Maker submit call (Dusan decision 2026-11-06, X2; 109-F4-FR10). Only the author of the version may submit it;
+        another user is refused (403). Creates the pending methodology_approval through platform.request_approval and
+        records its id on the version; the version stays draft and the approved version stays active until the checker
+        approves. 409 ICT_METHODOLOGY_DRAFT_PENDING when this or another version of the tenant already has a pending
+        methodology_approval (Q-026); 409 when the version is not a draft. A draft whose approval was withdrawn or
+        expired may be submitted again.
+      x-roles: [it-governance]
+      x-action: P41
+      x-surface: user
+      x-audit-object: ict-risk:methodology-version:{version_id}
+      x-scope: DEMO
+      parameters: [{$ref: '#/components/parameters/VersionId'}]
+      responses:
+        '202':
+          description: Pending methodology_approval created; the version carries approval_id
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MethodologyVersion'}
+        '409':
+          description: Not a draft, or a methodology_approval of the tenant is already pending (ICT_METHODOLOGY_DRAFT_PENDING)
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/methodology/versions/{version_id}/body-decision:
+    post:
+      operationId: attachMethodologyBodyDecision
+      tags: [methodology]
+      summary: Attach the management body's decision to a draft pending methodology_approval (107-F0-FR7, Q-104)
+      description: >
+        The compliance checker records the approval of the bank's management body before approving through
+        decideApproval (Dusan decision 2026-11-05, Q-104). The document is written as evidence of type
+        ict-risk-methodology, one record per active obligation of the catalog that lists that type (in the NBS
+        fixture: Sections 11 and 12), whether or not a control is mapped (Confirmed by Dusan 2026-11-06);
+        body_decision.evidence lists the records. The body fields are not part of the approval subject version,
+        so attaching does not make the approval stale. A new
+        attachment replaces the reference on the version; the earlier evidence record stays (append-only).
+        409 when the version is not a draft with a pending methodology_approval. The author of the version
+        is refused (403), as for the approval itself.
+      x-roles: [compliance]
+      x-action: P42
+      x-surface: user
+      x-audit-object: ict-risk:methodology-version:{version_id}
+      x-scope: DEMO
+      parameters: [{$ref: '#/components/parameters/VersionId'}]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, body_name, decided_on]
+              properties:
+                file: {type: string, contentMediaType: application/pdf}
+                body_name: {type: string, minLength: 1}
+                decided_on: {type: string, format: date}
+      responses:
+        '200':
+          description: Decision attached; the version carries body_decision
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MethodologyVersion'}
+        '409':
+          description: Version is not a draft pending methodology_approval
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/risks:
+    get:
+      operationId: listRisks
+      tags: [risks]
+      summary: Risks with effective residual computed at read time, ordered effective score desc, id asc
+      x-roles: [outsourcing-manager, security, it-governance, compliance, auditor]
+      x-surface: user
+      x-audit-object: ict-risk:risks
+      x-scope: DEMO
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - {name: band, in: query, required: false, schema: {$ref: '#/components/schemas/Band'}}
+        - {name: basis, in: query, required: false, schema: {type: string, enum: [inherent, effective], default: effective}}
+        - {name: category, in: query, required: false, schema: {type: string}}
+        - {name: owner_subject, in: query, required: false, schema: {type: string, format: uuid}}
+        - {name: in_breach, in: query, required: false, schema: {type: boolean}}
+        - {name: controls_not_effective, in: query, required: false, schema: {type: boolean}}
+        - {name: likelihood, in: query, required: false, schema: {type: integer, minimum: 1}}
+        - {name: impact, in: query, required: false, schema: {type: integer, minimum: 1}}
+        - {name: asset_id, in: query, required: false, schema: {type: string, format: uuid}}
+        - {name: provider_id, in: query, required: false, schema: {type: string, format: uuid}, description: risks scoped to assets or functions of this provider (107-F2 FR1)}
+      responses:
+        '200':
+          description: Page of risks
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor, methodology_version_id]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/Risk'}}
+                  next_cursor: {type: [string, 'null']}
+                  methodology_version_id: {type: string, format: uuid}
+        default: {$ref: '#/components/responses/Problem'}
+    post:
+      operationId: createRisk
+      tags: [risks]
+      x-roles: [it-governance, security]
+      x-surface: user
+      x-audit-object: ict-risk:risk
+      x-scope: DEMO
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RiskWrite'}
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RiskDetail'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/risks/heatmap:
+    get:
+      operationId: getRiskHeatmap
+      tags: [risks]
+      x-roles: [outsourcing-manager, security, it-governance, compliance, auditor]
+      x-surface: user
+      x-audit-object: ict-risk:heatmap
+      x-scope: DEMO
+      parameters:
+        - {name: basis, in: query, required: true, schema: {type: string, enum: [inherent, effective]}}
+        - {name: category, in: query, required: false, schema: {type: string}}
+        - {name: owner_subject, in: query, required: false, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Heat map; cell counts equal listRisks counts for the same filter
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Heatmap'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/risks/{risk_id}:
+    get:
+      operationId: getRisk
+      tags: [risks]
+      x-roles: [outsourcing-manager, security, it-governance, compliance, auditor]
+      x-surface: user
+      x-audit-object: ict-risk:risk:{risk_id}
+      x-scope: DEMO
+      parameters: [{$ref: '#/components/parameters/RiskId'}]
+      responses:
+        '200':
+          description: Risk detail with controls, impairments and pending proposals
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RiskDetail'}
+        default: {$ref: '#/components/responses/Problem'}
+    patch:
+      operationId: updateRisk
+      tags: [risks]
+      summary: Edit or re-rate (rating history source edit); never changes state except identified to assessed
+      x-roles: [it-governance, security]
+      x-surface: user
+      x-audit-object: ict-risk:risk:{risk_id}
+      x-scope: DEMO
+      parameters: [{$ref: '#/components/parameters/RiskId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RiskWrite'}
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RiskDetail'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/risks/{risk_id}/close:
+    post:
+      operationId: closeRisk
+      tags: [risks]
+      x-roles: [security, it-governance]
+      x-surface: user
+      x-audit-object: ict-risk:risk:{risk_id}
+      x-scope: DEMO
+      parameters: [{$ref: '#/components/parameters/RiskId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 1}
+            example: {reason: System decommissioned.}
+      responses:
+        '200':
+          description: Closed
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RiskDetail'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/risks/{risk_id}/treatments:
+    post:
+      operationId: decideTreatment
+      tags: [risks]
+      summary: Treatment decision (109-F1 P44, security or it-governance); accept is the maker submit call of the four-eyes risk_acceptance (P45, checker compliance through platform decideApproval, never the risk owner) (107 FR5, 109-F4-FR10)
+      x-roles: [security, it-governance]
+      x-surface: user
+      x-audit-object: ict-risk:risk:{risk_id}:treatment
+      x-scope: DEMO
+      parameters: [{$ref: '#/components/parameters/RiskId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TreatmentWrite'}
+      responses:
+        '201':
+          description: Mitigate, transfer or avoid recorded with evidence outcomes
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Treatment'}
+        '202':
+          description: >
+            Accept: maker submit call of the 109-F4 kind risk_acceptance (P45; X2). The pending approval is created
+            with in_breach_at_request in its proposed change; the treatment is written, with the checker as acceptor,
+            only when applyApproval applies the approve decision.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [approval_id, state]
+                properties:
+                  approval_id: {type: string, format: uuid}
+                  state: {type: string, enum: [pending]}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/risks/{risk_id}/residual-history:
+    get:
+      operationId: listResidualObservations
+      tags: [risks]
+      summary: Residual observations (107-F2 FR8), ordered observed_at desc
+      x-roles: [outsourcing-manager, security, it-governance, compliance, auditor]
+      x-action: P39
+      x-surface: user
+      x-audit-object: ict-risk:risk:{risk_id}:residual-history
+      x-scope: DEMO
+      parameters:
+        - $ref: '#/components/parameters/RiskId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Page of observations
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/ResidualObservation'}}
+                  next_cursor: {type: [string, 'null']}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/campaigns:
+    get:
+      operationId: listCampaigns
+      tags: [campaigns]
+      x-roles: [outsourcing-manager, security, it-governance, compliance, auditor]
+      x-surface: user
+      x-audit-object: ict-risk:campaigns
+      x-scope: DEMO
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - {name: state, in: query, required: false, schema: {type: string, enum: [open, signed]}}
+      responses:
+        '200':
+          description: Campaigns ordered created_at desc
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/Campaign'}}
+                  next_cursor: {type: [string, 'null']}
+        default: {$ref: '#/components/responses/Problem'}
+    post:
+      operationId: createCampaign
+      tags: [campaigns]
+      x-roles: [it-governance]
+      x-surface: user
+      x-audit-object: ict-risk:campaign
+      x-scope: DEMO
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CampaignWrite'}
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Campaign'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/campaigns/{campaign_id}:
+    get:
+      operationId: getCampaign
+      tags: [campaigns]
+      x-roles: [outsourcing-manager, security, it-governance, compliance, auditor]
+      x-surface: user
+      x-audit-object: ict-risk:campaign:{campaign_id}
+      x-scope: DEMO
+      parameters: [{$ref: '#/components/parameters/CampaignId'}]
+      responses:
+        '200':
+          description: Campaign
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Campaign'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/campaigns/{campaign_id}/items/{risk_id}:
+    put:
+      operationId: rateCampaignItem
+      tags: [campaigns]
+      description: >
+        Rates or confirms one in-scope risk of an open campaign (107 FR6). Refused with 409
+        ICT_CAMPAIGN_SIGNOFF_PENDING while the campaign has a pending ictrisk_campaign_signoff (read through
+        campaigns.approval_id), so the excluded checkers fixed at submission and the content signed stay those of the
+        submitted campaign (107-F0 edge cases, added 2026-11-06); after the approval is withdrawn, expired or stale,
+        rating is allowed again. Refused with 409 ICT_CAMPAIGN_SIGNED once the campaign is signed.
+      x-roles: [it-governance, security]
+      x-surface: user
+      x-audit-object: ict-risk:campaign:{campaign_id}:item:{risk_id}
+      x-scope: DEMO
+      parameters:
+        - $ref: '#/components/parameters/CampaignId'
+        - $ref: '#/components/parameters/RiskId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CampaignItemWrite'}
+      responses:
+        '200':
+          description: Item rated or confirmed
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CampaignItem'}
+        '409':
+          description: Campaign signed (ICT_CAMPAIGN_SIGNED) or its sign-off approval is pending (ICT_CAMPAIGN_SIGNOFF_PENDING)
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/campaigns/{campaign_id}/sign-off:
+    post:
+      operationId: submitCampaignSignOff
+      tags: [campaigns]
+      summary: Submit a complete campaign for sign-off (maker of the 109-F4 kind ictrisk_campaign_signoff, the campaign creator, 107 FR6); signed only through platform decideApproval and applyApproval
+      description: >
+        Maker submit call (Dusan decision 2026-11-06, X2; 109-F4-FR10). Only the creator of the campaign may submit
+        it; another user is refused (403). Refused with 409 while any in-scope risk is neither rated nor confirmed
+        (107 FR6 completeness), when the campaign is not open, or while a sign-off approval of the campaign is
+        pending. Creates the pending ictrisk_campaign_signoff with every user who rated or confirmed an item as
+        excluded checker; the campaign stays open. On approval applyApproval signs it and writes the snapshot, the
+        rating write-back and the evidence in one transaction. A campaign whose approval was withdrawn, expired or
+        went stale may be submitted again.
+      x-roles: [it-governance]
+      x-action: P46
+      x-surface: user
+      x-audit-object: ict-risk:campaign:{campaign_id}
+      x-scope: DEMO
+      parameters: [{$ref: '#/components/parameters/CampaignId'}]
+      responses:
+        '202':
+          description: Pending ictrisk_campaign_signoff created; the campaign carries approval_id
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Campaign'}
+        '409':
+          description: Campaign incomplete, not open, or a sign-off approval is already pending
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/campaigns/{campaign_id}/summary:
+    get:
+      operationId: getCampaignSummary
+      tags: [campaigns]
+      x-roles: [outsourcing-manager, security, it-governance, compliance, auditor]
+      x-surface: user
+      x-audit-object: ict-risk:campaign:{campaign_id}:summary
+      x-scope: DEMO
+      parameters: [{$ref: '#/components/parameters/CampaignId'}]
+      responses:
+        '200':
+          description: Management summary measured at sign-off (107 FR9)
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ManagementSummary'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/campaigns/{campaign_id}/summary/delivered:
+    post:
+      operationId: markSummaryDelivered
+      tags: [campaigns]
+      x-roles: [compliance]
+      x-surface: user
+      x-audit-object: ict-risk:campaign:{campaign_id}:summary
+      x-scope: DEMO
+      parameters: [{$ref: '#/components/parameters/CampaignId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [body_name, delivered_on]
+              properties:
+                body_name: {type: string, minLength: 1}
+                delivered_on: {type: string, format: date}
+            example: {body_name: Management board, delivered_on: '2026-11-20'}
+      responses:
+        '200':
+          description: Delivery recorded with evidence outcomes
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ManagementSummary'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/proposals:
+    get:
+      operationId: listProposals
+      tags: [proposals]
+      summary: Proposals (107-F2), ordered created_at desc
+      x-roles: [it-governance, outsourcing-manager, security, compliance, auditor]
+      x-action: P39
+      x-surface: user
+      x-audit-object: ict-risk:proposals
+      x-scope: DEMO
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - {name: kind, in: query, required: false, schema: {$ref: '#/components/schemas/ProposalKind'}}
+        - {name: state, in: query, required: false, schema: {$ref: '#/components/schemas/ProposalState'}}
+        - {name: provider_id, in: query, required: false, schema: {type: string, format: uuid}}
+        - {name: risk_id, in: query, required: false, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Page of proposals
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/Proposal'}}
+                  next_cursor: {type: [string, 'null']}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/proposals/{proposal_id}:
+    get:
+      operationId: getProposal
+      tags: [proposals]
+      x-roles: [it-governance, outsourcing-manager, security, compliance, auditor]
+      x-action: P39
+      x-surface: user
+      x-audit-object: ict-risk:proposal:{proposal_id}
+      x-scope: DEMO
+      parameters: [{$ref: '#/components/parameters/ProposalId'}]
+      responses:
+        '200':
+          description: Proposal
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Proposal'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/proposals/{proposal_id}/confirm:
+    post:
+      operationId: confirmProposal
+      tags: [proposals]
+      summary: Confirm an impairment, restore or re-rating proposal (107-F2 FR3, FR4, FR5)
+      x-roles: [it-governance]
+      x-action: P51
+      x-surface: user
+      x-audit-object: ict-risk:proposal:{proposal_id}
+      x-scope: DEMO
+      parameters: [{$ref: '#/components/parameters/ProposalId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ProposalConfirm'}
+      responses:
+        '200':
+          description: Confirmed; impairments opened or closed, or ratings recorded
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Proposal'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/proposals/{proposal_id}/dismiss:
+    post:
+      operationId: dismissProposal
+      tags: [proposals]
+      x-roles: [it-governance]
+      x-action: P51
+      x-surface: user
+      x-audit-object: ict-risk:proposal:{proposal_id}
+      x-scope: DEMO
+      parameters: [{$ref: '#/components/parameters/ProposalId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 1}
+            example: {reason: Outage affected a region the bank does not use.}
+      responses:
+        '200':
+          description: Dismissed; nothing else changed
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Proposal'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/impairments:
+    get:
+      operationId: listImpairments
+      tags: [proposals]
+      x-roles: [it-governance, outsourcing-manager, security, compliance, auditor]
+      x-action: P39
+      x-surface: user
+      x-audit-object: ict-risk:impairments
+      x-scope: DEMO
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - {name: control_id, in: query, required: false, schema: {type: string, format: uuid}}
+        - {name: provider_id, in: query, required: false, schema: {type: string, format: uuid}}
+        - {name: state, in: query, required: false, schema: {type: string, enum: [open, closed]}}
+      responses:
+        '200':
+          description: Page of impairments, ordered created_at desc
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/Impairment'}}
+                  next_cursor: {type: [string, 'null']}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/impairments/{impairment_id}/close:
+    post:
+      operationId: closeImpairment
+      tags: [proposals]
+      summary: Close an impairment directly with a note (107-F2 FR4)
+      x-roles: [it-governance]
+      x-action: P51
+      x-surface: user
+      x-audit-object: ict-risk:impairment:{impairment_id}
+      x-scope: DEMO
+      parameters: [{$ref: '#/components/parameters/ImpairmentId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [note]
+              properties:
+                note: {type: string, minLength: 1}
+            example: {note: Provider confirmed recovery by phone; status page not updated.}
+      responses:
+        '200':
+          description: Closed
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Impairment'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/control-bindings:
+    get:
+      operationId: listControlBindings
+      tags: [proposals]
+      x-roles: [outsourcing-manager, security, it-governance, compliance, auditor]
+      x-action: P39
+      x-surface: user
+      x-audit-object: ict-risk:control-bindings
+      x-scope: DEMO
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - {name: provider_id, in: query, required: false, schema: {type: string, format: uuid}}
+        - {name: control_id, in: query, required: false, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Page of bindings, ordered created_at asc
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/ControlBinding'}}
+                  next_cursor: {type: [string, 'null']}
+        default: {$ref: '#/components/responses/Problem'}
+    post:
+      operationId: createControlBinding
+      tags: [proposals]
+      x-roles: [it-governance]
+      x-action: P51
+      x-surface: user
+      x-audit-object: ict-risk:control-binding
+      x-scope: DEMO
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ControlBindingWrite'}
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ControlBinding'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/control-bindings/{binding_id}:
+    delete:
+      operationId: deleteControlBinding
+      tags: [proposals]
+      x-roles: [it-governance]
+      x-action: P51
+      x-surface: user
+      x-audit-object: ict-risk:control-binding:{binding_id}
+      x-scope: DEMO
+      parameters: [{$ref: '#/components/parameters/BindingId'}]
+      responses:
+        '204':
+          description: Deleted (open proposals keep their pre-selection)
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/summary:
+    get:
+      operationId: getIctRiskSummary
+      tags: [summary]
+      summary: Figures for the 104-F7 heat map tile, equal to getRiskHeatmap and listRisks for the same basis
+      x-roles: [outsourcing-manager, security, it-governance, compliance, auditor]
+      x-action: P39
+      x-surface: user
+      x-audit-object: ict-risk:summary
+      x-scope: DEMO
+      responses:
+        '200':
+          description: Summary
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/IctRiskSummary'}
+        default: {$ref: '#/components/responses/Problem'}
+  /api/v1/ict-risk/approvals/{approval_id}/apply:
+    post:
+      operationId: applyApproval
+      tags: [methodology]
+      summary: Decide a pending 109-F4 approval of a subject this service owns and apply the change in one transaction (109-F4-FR10)
+      description: >
+        Called only by the platform decideApproval handler, synchronously, with the checker's identity
+        (109-F4 plan D6). The service calls platform.decide_approval (role, delegation, identity and stale
+        checks) and applies the proposed change in the same transaction, or does neither. Added 2026-11-04
+        (independent review H5). For kind risk_acceptance the service recomputes the risk's breach state and,
+        when it differs from in_breach_at_request in the approval's proposed change, refuses with 409
+        ICT_RISK_CHANGED_SINCE_REQUEST ("risk changed since request"); the approval is recorded stale and the
+        maker re-submits (Dusan decision 2026-11-05, Q-027). For kind methodology_approval in production mode
+        (demo_mode false in the tenant configuration, 109-F2), an approve decision on a version without an attached
+        management body decision is refused with 409 ICT_METHODOLOGY_BODY_DECISION_MISSING and the approval stays
+        pending; in demo mode the compliance user's approval stands without it (Dusan decision 2026-11-05, Q-104;
+        107-F0-FR7). Changes applied per kind (107-F0 plan D-2): methodology_approval approve sets the version
+        approved and the previous approved version superseded and writes the 107 FR2 evidence, reject sets the
+        version rejected; risk_acceptance approve writes the accept treatment with the checker as acceptor;
+        ictrisk_campaign_signoff approve signs the campaign (signed_by the checker) and writes the snapshot, the
+        rating write-back and the evidence. A reject of risk_acceptance or ictrisk_campaign_signoff changes no
+        subject state. This is the only operation of the service that approves, accepts or signs off (X2).
+        Refusal results of decide_approval commit (109-F4 plan D10): no subject change, the refusal audit event and
+        any stale state persist, then the service answers refused_four_eyes with 409 ICT_SELF_APPROVAL (caller is
+        the maker), ICT_ACCEPTOR_IS_OWNER (risk_acceptance, caller is the risk owner) or ICT_SIGNER_IS_ASSESSOR
+        (ictrisk_campaign_signoff, caller rated or confirmed an item); refused_not_checker with 403
+        PLATFORM_NOT_IN_MATRIX; stale with 409 ICT_RISK_CHANGED_SINCE_REQUEST (risk_acceptance) or
+        PLATFORM_APPROVAL_STALE (other kinds); not_pending with 409 PLATFORM_APPROVAL_NOT_PENDING (107-F0 plan D-2).
+      x-roles: [service:platform]
+      x-surface: service
+      x-audit-object: platform:approval
+      x-scope: DEMO
+      parameters:
+        - {name: approval_id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [decision]
+              properties:
+                decision: {type: string, enum: [approve, reject]}
+                reason: {type: [string, 'null'], maxLength: 2000, description: Required when decision is reject}
+      responses:
+        '200':
+          description: Decision recorded; on approve the change is applied
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [approval_id, state]
+                properties:
+                  approval_id: {type: string, format: uuid}
+                  state: {type: string, enum: [approved, rejected]}
+                  subject_id: {type: string}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: {type: integer, minimum: 1, maximum: 500, default: 50}
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema: {type: string}
+    AssetId: {name: asset_id, in: path, required: true, schema: {type: string, format: uuid}}
+    RiskId: {name: risk_id, in: path, required: true, schema: {type: string, format: uuid}}
+    CampaignId: {name: campaign_id, in: path, required: true, schema: {type: string, format: uuid}}
+    VersionId: {name: version_id, in: path, required: true, schema: {type: string, format: uuid}}
+    ProposalId: {name: proposal_id, in: path, required: true, schema: {type: string, format: uuid}}
+    ImpairmentId: {name: impairment_id, in: path, required: true, schema: {type: string, format: uuid}}
+    BindingId: {name: binding_id, in: path, required: true, schema: {type: string, format: uuid}}
+  responses:
+    Problem:
+      description: Problem Details, RFC 9457 (api-standards section 5)
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status, error_code, correlation_id]
+      properties:
+        type: {type: string, format: uri-reference}
+        title: {type: string}
+        status: {type: integer}
+        detail: {type: [string, 'null']}
+        error_code: {$ref: '#/components/schemas/IctRiskErrorCode'}
+        correlation_id: {type: string}
+        errors:
+          type: array
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field: {type: string}
+              message: {type: string}
+      example:
+        type: https://errors.wiser.local/ict-risk/acceptor-is-owner
+        title: Acceptor is the risk owner
+        status: 409
+        detail: A risk cannot be accepted by its owner.
+        error_code: ICT_ACCEPTOR_IS_OWNER
+        correlation_id: 2a7d9c13-5e8b-4f1a-b6c0-3d9e2f7a1b54
+    IctRiskErrorCode:
+      type: string
+      description: >
+        107 S1 codes as in the suite draft, plus 107-F1 and 107-F2 codes:
+        ICT_TARGET_RETIRED 422 (new link to a retired register record, or a new link on a retired asset; detail names
+        the retired id); ICT_REGISTER_UNAVAILABLE 503 (write adding a link, or an import carrying link values, while register-service is down);
+        ICT_PROPOSAL_DECIDED 409; ICT_SELECTION_EMPTY 422; ICT_NOTE_REQUIRED 422; ICT_IMPAIRMENT_CLOSED 409;
+        ICT_BINDING_EXISTS 409; ICT_CONTROL_UNAVAILABLE 503 (ControlStatusPort unreachable);
+        ICT_METHODOLOGY_DRAFT_PENDING 409 (Q-026); ICT_RISK_CHANGED_SINCE_REQUEST 409 (Q-027);
+        ICT_METHODOLOGY_BODY_DECISION_MISSING 409 (Q-104, applyApproval in production mode);
+        ICT_CAMPAIGN_SIGNOFF_PENDING 409 (rateCampaignItem while a sign-off approval is pending, 107-F0 edge cases);
+        PLATFORM_NOT_IN_MATRIX 403, PLATFORM_APPROVAL_STALE 409 and PLATFORM_APPROVAL_NOT_PENDING 409 are platform
+        decide_approval results that applyApproval relays (109-F4 plan D6, D10; 107-F0 plan D-2).
+      enum: [AUTH_UNAUTHENTICATED, AUTH_FORBIDDEN, NOT_FOUND, VALIDATION_FAILED,
+             ICT_SELF_APPROVAL, ICT_ACCEPTOR_IS_OWNER, ICT_SIGNER_IS_ASSESSOR,
+             ICT_CAMPAIGN_INCOMPLETE, ICT_CAMPAIGN_SIGNED, ICT_SCALE_CHANGE_REFUSED,
+             ICT_TAXONOMY_REMOVAL_REFUSED, ICT_EXPIRY_BEYOND_MAX, ICT_REASON_REQUIRED,
+             ICT_RISK_CLOSED, ICT_INVALID_TRANSITION, ICT_RISK_NOT_RATED,
+             ICT_IMPORT_UNREADABLE, ICT_IMPORT_TOO_LARGE, ICT_UNKNOWN_CONTROL,
+             ICT_UNKNOWN_FUNCTION, ICT_UNKNOWN_PROVIDER, ICT_TARGET_RETIRED,
+             ICT_REGISTER_UNAVAILABLE, ICT_PROPOSAL_DECIDED, ICT_SELECTION_EMPTY, ICT_NOTE_REQUIRED,
+             ICT_IMPAIRMENT_CLOSED, ICT_BINDING_EXISTS, ICT_CONTROL_UNAVAILABLE,
+             ICT_METHODOLOGY_DRAFT_PENDING, ICT_RISK_CHANGED_SINCE_REQUEST,
+             ICT_METHODOLOGY_BODY_DECISION_MISSING, ICT_CAMPAIGN_SIGNOFF_PENDING,
+             PLATFORM_NOT_IN_MATRIX, PLATFORM_APPROVAL_STALE, PLATFORM_APPROVAL_NOT_PENDING]
+    EvidenceOutcome:
+      type: object
+      required: [obligation_id, outcome, evidence_id]
+      properties:
+        obligation_id: {type: string}
+        outcome: {type: string, enum: [passed, failed, no_control_mapped]}
+        evidence_id: {type: [string, 'null'], format: uuid}
+    Artifact:
+      type: object
+      required: [name, media_type, payload_sha256]
+      properties:
+        name: {type: string}
+        media_type: {type: string, enum: [application/json, text/csv]}
+        payload_sha256: {type: string, pattern: '^sha256:[0-9a-f]{64}$'}
+    Band:
+      type: string
+      enum: [low, medium, high, critical]
+    Level:
+      type: integer
+      minimum: 1
+    ControlStatus:
+      type: string
+      enum: [satisfied, failing, stale, unknown]
+    LinkTarget:
+      type: object
+      required: [id, retired]
+      properties:
+        id: {type: string, format: uuid}
+        retired: {type: [boolean, 'null'], description: null when register-service could not be reached (unverified)}
+    ProviderLink:
+      type: object
+      required: [id, retired, sources]
+      properties:
+        id: {type: string, format: uuid}
+        retired: {type: [boolean, 'null']}
+        sources:
+          type: array
+          minItems: 1
+          items: {type: string, enum: [direct, engagement]}
+    Classification:
+      type: object
+      required: [confidentiality, integrity, availability, classified_at]
+      properties:
+        confidentiality: {$ref: '#/components/schemas/Level'}
+        integrity: {$ref: '#/components/schemas/Level'}
+        availability: {$ref: '#/components/schemas/Level'}
+        classified_at: {type: string, format: date}
+    Asset:
+      type: object
+      required: [id, reference, name, asset_type, responsible_person, responsible_subject, lifecycle, classification,
+                 criticality, functions, providers, engagements, register_verified, is_complete, created_at, updated_at]
+      properties:
+        id: {type: string, format: uuid}
+        reference: {type: [string, 'null']}
+        name: {type: string}
+        asset_type: {type: string, enum: [software, hardware, network, information]}
+        responsible_person: {type: [string, 'null']}
+        responsible_subject: {type: [string, 'null'], format: uuid}
+        lifecycle: {type: string, enum: [planned, active, retired]}
+        classification:
+          oneOf:
+            - $ref: '#/components/schemas/Classification'
+            - {type: 'null'}
+        criticality: {type: [integer, 'null'], minimum: 1}
+        functions: {type: array, items: {$ref: '#/components/schemas/LinkTarget'}}
+        providers: {type: array, items: {$ref: '#/components/schemas/ProviderLink'}}
+        engagements:
+          description: engagements touching the asset, read from register-service (104-F4 owns these links); empty when the register is unreachable
+          type: array
+          items:
+            type: object
+            required: [engagement_id, provider_id, access]
+            properties:
+              engagement_id: {type: string, format: uuid}
+              provider_id: {type: string, format: uuid}
+              access: {type: string, description: access level as defined by 104-F4}
+        register_verified: {type: boolean, description: 'false when register-service could not be reached: link retired flags are null, engagements empty and only direct provider sources shown (107-F1-FR8)'}
+        is_complete: {type: boolean}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+      example:
+        id: 4f8a2c61-9d3e-4b7a-a1f5-6c0e2d8b3a97
+        reference: A-07
+        name: Card payments gateway
+        asset_type: software
+        responsible_person: Head of Payments IT
+        responsible_subject: null
+        lifecycle: active
+        classification: {confidentiality: 3, integrity: 1, availability: 2, classified_at: '2026-06-30'}
+        criticality: 3
+        functions: [{id: 9b1e4d27-3c6a-4f8e-b0d2-7a5c1e9f4b63, retired: false}]
+        providers: [{id: 3d1b7f8e-2a44-4f0e-9a4b-7c0b8e1d2f33, retired: false, sources: [direct]}]
+        engagements: []
+        register_verified: true
+        is_complete: true
+        created_at: '2026-11-04T10:00:00Z'
+        updated_at: '2026-11-04T10:00:00Z'
+    AssetWrite:
+      type: object
+      additionalProperties: false
+      properties:
+        reference: {type: [string, 'null']}
+        name: {type: string, minLength: 1}
+        asset_type: {type: string, enum: [software, hardware, network, information]}
+        responsible_person: {type: [string, 'null']}
+        responsible_subject: {type: [string, 'null'], format: uuid}
+        lifecycle: {type: string, enum: [planned, active, retired]}
+        confidentiality: {type: [integer, 'null'], minimum: 1}
+        integrity: {type: [integer, 'null'], minimum: 1}
+        availability: {type: [integer, 'null'], minimum: 1}
+        classified_at: {type: [string, 'null'], format: date}
+        function_ids: {type: array, items: {type: string, format: uuid}}
+        provider_ids: {type: array, items: {type: string, format: uuid}, description: direct provider links only}
+      example: {name: Card payments gateway, asset_type: software, lifecycle: active, provider_ids: [3d1b7f8e-2a44-4f0e-9a4b-7c0b8e1d2f33]}
+    AssetImport:
+      type: object
+      required: [id, file_name, rows_total, rows_imported, rejections]
+      properties:
+        id: {type: string, format: uuid}
+        file_name: {type: string}
+        rows_total: {type: integer, minimum: 0}
+        rows_imported: {type: integer, minimum: 0}
+        rejections:
+          type: array
+          items:
+            type: object
+            required: [row, reason]
+            properties:
+              row: {type: integer, minimum: 1}
+              reason: {type: string}
+      example: {id: 1d7e3b52-9a4c-4f6e-b8d0-2c5a7e9f1b46, file_name: asset-import-links-01.csv, rows_total: 10, rows_imported: 9, rejections: [{row: 7, reason: 'unknown provider identification code PRV-X99'}]}
+    IctExport:
+      type: object
+      required: [id, view, result, artifacts, evidence, methodology_version_id, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        view: {type: string, enum: [inventory, classification]}
+        result: {type: string, enum: [passed, failed]}
+        artifacts: {type: array, items: {$ref: '#/components/schemas/Artifact'}}
+        evidence: {type: array, items: {$ref: '#/components/schemas/EvidenceOutcome'}}
+        methodology_version_id: {type: string, format: uuid}
+        created_at: {type: string, format: date-time}
+    AssetGraphInput:
+      type: object
+      required: [asset_id, name, asset_type, lifecycle, criticality, availability, function_ids, provider_ids,
+                 retired_targets, register_verified, open_risk_count, highest_effective_band, any_in_breach]
+      properties:
+        asset_id: {type: string, format: uuid}
+        name: {type: string}
+        asset_type: {type: string, enum: [software, hardware, network, information]}
+        lifecycle: {type: string, enum: [planned, active, retired]}
+        criticality: {type: [integer, 'null'], minimum: 1}
+        availability: {type: [integer, 'null'], minimum: 1}
+        function_ids: {type: array, items: {type: string, format: uuid}}
+        provider_ids: {type: array, items: {type: string, format: uuid}, description: direct provider links}
+        retired_targets: {type: array, items: {type: string, format: uuid}, description: linked provider and function ids retired in the register (107-F1-FR5)}
+        register_verified: {type: boolean, description: false when register-service could not be reached; retired_targets is then empty (107-F1-FR8)}
+        open_risk_count: {type: integer, minimum: 0, description: risks whose scope includes the asset and whose state is not closed (107-F1-FR4)}
+        highest_effective_band:
+          oneOf:
+            - $ref: '#/components/schemas/Band'
+            - {type: 'null'}
+          description: >
+            Highest effective residual band (107 FR4) among the open risks over the asset. Null when the asset has
+            no open risk, or, for every asset, when ControlStatusPort cannot answer (unknown, 107-F0-FR4;
+            107-F1-FR8, plan D-6).
+        any_in_breach:
+          type: [boolean, 'null']
+          description: >
+            Whether any open risk over the asset is in appetite breach; false when the asset has no open risk and
+            control statuses can be read. Null (unknown) for every asset, including one with no open risk, when
+            ControlStatusPort cannot answer, which is the case while register-service is unreachable; never computed
+            from a cached or guessed status (107-F0-FR4, ICT_CONTROL_UNAVAILABLE; 107-F1-FR8, AC8, plan D-6).
+            open_risk_count is still returned and shows whether there is any risk.
+      example:
+        asset_id: 4f8a2c61-9d3e-4b7a-a1f5-6c0e2d8b3a97
+        name: Card payments gateway
+        asset_type: software
+        lifecycle: active
+        criticality: 3
+        availability: 2
+        function_ids: [9b1e4d27-3c6a-4f8e-b0d2-7a5c1e9f4b63]
+        provider_ids: [3d1b7f8e-2a44-4f0e-9a4b-7c0b8e1d2f33]
+        retired_targets: []
+        register_verified: true
+        open_risk_count: 2
+        highest_effective_band: high
+        any_in_breach: true
+    LocalizedLabels:
+      type: object
+      required: [en, sr-Latn, sr-Cyrl]
+      properties:
+        en: {type: array, items: {type: string}}
+        sr-Latn: {type: array, items: {type: string}}
+        sr-Cyrl: {type: array, items: {type: string}}
+    MethodologyConfig:
+      type: object
+      additionalProperties: false
+      required: [likelihood_levels, impact_levels, likelihood_labels, impact_labels, bands, appetite_band,
+                 taxonomy, classification_scale, criticality_rule, acceptance_max_months]
+      properties:
+        likelihood_levels: {type: integer, minimum: 2}
+        impact_levels: {type: integer, minimum: 2}
+        likelihood_labels: {$ref: '#/components/schemas/LocalizedLabels'}
+        impact_labels: {$ref: '#/components/schemas/LocalizedLabels'}
+        bands:
+          type: array
+          items:
+            type: object
+            required: [band, min, max]
+            properties:
+              band: {$ref: '#/components/schemas/Band'}
+              min: {type: integer, minimum: 1}
+              max: {type: integer, minimum: 1}
+        appetite_band: {$ref: '#/components/schemas/Band'}
+        taxonomy: {type: array, minItems: 1, items: {type: string}}
+        classification_scale:
+          type: object
+          required: [levels, labels]
+          properties:
+            levels: {type: integer, minimum: 2}
+            labels: {$ref: '#/components/schemas/LocalizedLabels'}
+        criticality_rule: {type: string, enum: [max]}
+        acceptance_max_months: {type: integer, minimum: 1}
+    MethodologyVersion:
+      type: object
+      required: [id, version, state, config, authored_by, approved_by, approved_at, evidence]
+      properties:
+        id: {type: string, format: uuid}
+        approval_id: {type: [string, 'null'], format: uuid, description: platform approval id of the pending or last methodology_approval (submitMethodologyVersion)}
+        version: {type: integer, minimum: 1}
+        state: {type: string, enum: [draft, approved, superseded, rejected]}
+        config: {$ref: '#/components/schemas/MethodologyConfig'}
+        authored_by: {type: [string, 'null'], format: uuid, description: null for version 1 (system)}
+        approved_by: {type: [string, 'null'], format: uuid}
+        approved_at: {type: [string, 'null'], format: date-time}
+        evidence: {type: array, items: {$ref: '#/components/schemas/EvidenceOutcome'}}
+        body_decision:
+          description: Management body decision recorded by compliance (Q-104, 107-F0-FR7); null until attached
+          oneOf:
+            - type: 'null'
+            - type: object
+              additionalProperties: false
+              required: [body_name, decided_on, evidence]
+              properties:
+                body_name: {type: string}
+                decided_on: {type: string, format: date}
+                evidence:
+                  type: array
+                  minItems: 1
+                  description: one ict-risk-methodology record per anchoring obligation (Confirmed by Dusan 2026-11-06)
+                  items: {$ref: '#/components/schemas/EvidenceOutcome'}
+    Rating:
+      type: object
+      required: [likelihood, impact, score, band]
+      properties:
+        likelihood: {$ref: '#/components/schemas/Level'}
+        impact: {$ref: '#/components/schemas/Level'}
+        score: {type: integer, minimum: 1}
+        band: {$ref: '#/components/schemas/Band'}
+    NotEffectiveControl:
+      type: object
+      required: [control_id, status, impairment_ids]
+      properties:
+        control_id: {type: string, format: uuid}
+        status: {type: string, enum: [failing, stale, unknown]}
+        impairment_ids: {type: array, items: {type: string, format: uuid}, description: open 107-F2 impairments on this control}
+    Risk:
+      type: object
+      required: [id, reference, title, category, threat, vulnerability, owner_subject, state, inherent, expected_residual,
+                 effective_residual, controls_not_effective, in_breach, breach_state, accepted_until,
+                 rated_under_version_id, pending_proposal_count]
+      properties:
+        id: {type: string, format: uuid}
+        reference: {type: [string, 'null']}
+        title: {type: string}
+        category: {type: string}
+        threat: {type: [string, 'null']}
+        vulnerability: {type: [string, 'null']}
+        owner_subject: {type: string, format: uuid}
+        state: {type: string, enum: [identified, assessed, treated, accepted, closed]}
+        inherent:
+          oneOf: [{$ref: '#/components/schemas/Rating'}, {type: 'null'}]
+        expected_residual:
+          oneOf: [{$ref: '#/components/schemas/Rating'}, {type: 'null'}]
+        effective_residual:
+          oneOf: [{$ref: '#/components/schemas/Rating'}, {type: 'null'}]
+        controls_not_effective: {type: array, items: {$ref: '#/components/schemas/NotEffectiveControl'}}
+        in_breach: {type: boolean}
+        breach_state: {type: [string, 'null'], enum: [open, treatment_decided, null]}
+        accepted_until: {type: [string, 'null'], format: date}
+        rated_under_version_id: {type: [string, 'null'], format: uuid}
+        pending_proposal_count: {type: integer, minimum: 0}
+      example:
+        id: 7c3a1e95-2d4b-4f8a-b6e0-9d1c5a7f3b28
+        reference: R-03
+        title: Card payments unavailable due to hosting provider outage
+        category: availability_and_continuity
+        threat: Provider data centre outage
+        vulnerability: Single-region hosting
+        owner_subject: 0e5b8d24-7a1c-4f3e-9b62-4d8a1c7e5f90
+        state: assessed
+        inherent: {likelihood: 4, impact: 4, score: 16, band: critical}
+        expected_residual: {likelihood: 2, impact: 2, score: 4, band: low}
+        effective_residual: {likelihood: 4, impact: 4, score: 16, band: critical}
+        controls_not_effective: [{control_id: 1c9e7b52-6d3a-4a8f-b2e1-0f5d4c7a9b36, status: failing, impairment_ids: [5d2f8a61-3b9c-4e7a-a0d4-8c6e1f2b9a73]}]
+        in_breach: true
+        breach_state: open
+        accepted_until: null
+        rated_under_version_id: 2b8e4c17-6a3d-4f9b-a5e1-7c0d3f8a2b64
+        pending_proposal_count: 1
+    RiskWrite:
+      type: object
+      additionalProperties: false
+      properties:
+        reference: {type: [string, 'null']}
+        title: {type: string, minLength: 1}
+        category: {type: string}
+        threat: {type: [string, 'null']}
+        vulnerability: {type: [string, 'null']}
+        owner_subject: {type: string, format: uuid}
+        asset_ids: {type: array, items: {type: string, format: uuid}}
+        function_ids: {type: array, items: {type: string, format: uuid}}
+        control_ids: {type: array, items: {type: string, format: uuid}}
+        inherent_likelihood: {type: [integer, 'null'], minimum: 1}
+        inherent_impact: {type: [integer, 'null'], minimum: 1}
+        expected_likelihood: {type: [integer, 'null'], minimum: 1}
+        expected_impact: {type: [integer, 'null'], minimum: 1}
+      example: {title: Card payments unavailable due to hosting provider outage, category: availability_and_continuity, inherent_likelihood: 4, inherent_impact: 4}
+    RatingHistoryEntry:
+      type: object
+      required: [inherent_likelihood, inherent_impact, expected_likelihood, expected_impact, source, campaign_id, proposal_id, methodology_version_id, rated_at, rated_by]
+      properties:
+        inherent_likelihood: {type: [integer, 'null']}
+        inherent_impact: {type: [integer, 'null']}
+        expected_likelihood: {type: [integer, 'null']}
+        expected_impact: {type: [integer, 'null']}
+        source: {type: string, enum: [edit, campaign, signal_review]}
+        campaign_id: {type: [string, 'null'], format: uuid}
+        proposal_id: {type: [string, 'null'], format: uuid}
+        methodology_version_id: {type: string, format: uuid}
+        rated_at: {type: string, format: date-time}
+        rated_by: {type: string, format: uuid}
+    RiskDetail:
+      allOf:
+        - $ref: '#/components/schemas/Risk'
+        - type: object
+          required: [asset_ids, function_ids, controls, treatments, rating_history, pending_proposal_ids]
+          properties:
+            asset_ids: {type: array, items: {type: string, format: uuid}}
+            function_ids: {type: array, items: {type: string, format: uuid}}
+            controls:
+              type: array
+              items:
+                type: object
+                required: [control_id, name, status]
+                properties:
+                  control_id: {type: string, format: uuid}
+                  name: {type: string}
+                  status: {$ref: '#/components/schemas/ControlStatus'}
+            treatments: {type: array, items: {$ref: '#/components/schemas/Treatment'}}
+            rating_history: {type: array, items: {$ref: '#/components/schemas/RatingHistoryEntry'}}
+            pending_proposal_ids: {type: array, items: {type: string, format: uuid}}
+    TreatmentWrite:
+      type: object
+      additionalProperties: false
+      required: [decision, owner_subject]
+      properties:
+        decision: {type: string, enum: [mitigate, accept, transfer, avoid]}
+        owner_subject: {type: string, format: uuid}
+        due_date: {type: [string, 'null'], format: date}
+        interim_measures: {type: [string, 'null']}
+        reason: {type: [string, 'null']}
+        expires_at: {type: [string, 'null'], format: date}
+      example: {decision: mitigate, owner_subject: 0e5b8d24-7a1c-4f3e-9b62-4d8a1c7e5f90, due_date: '2027-02-28', interim_measures: Manual fallback procedure activated.}
+    Treatment:
+      type: object
+      required: [id, risk_id, decision, owner_subject, due_date, interim_measures, accepted_by, reason, expires_at, methodology_version_id, evidence, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        risk_id: {type: string, format: uuid}
+        decision: {type: string, enum: [mitigate, accept, transfer, avoid]}
+        owner_subject: {type: string, format: uuid}
+        due_date: {type: [string, 'null'], format: date}
+        interim_measures: {type: [string, 'null']}
+        accepted_by: {type: [string, 'null'], format: uuid}
+        reason: {type: [string, 'null']}
+        expires_at: {type: [string, 'null'], format: date}
+        methodology_version_id: {type: string, format: uuid}
+        evidence: {type: array, items: {$ref: '#/components/schemas/EvidenceOutcome'}}
+        created_at: {type: string, format: date-time}
+    Heatmap:
+      type: object
+      required: [basis, likelihood_levels, impact_levels, cells, methodology_version_id]
+      properties:
+        basis: {type: string, enum: [inherent, effective]}
+        likelihood_levels: {type: integer}
+        impact_levels: {type: integer}
+        methodology_version_id: {type: string, format: uuid}
+        cells:
+          type: array
+          items:
+            type: object
+            required: [likelihood, impact, band, count]
+            properties:
+              likelihood: {type: integer, minimum: 1}
+              impact: {type: integer, minimum: 1}
+              band: {$ref: '#/components/schemas/Band'}
+              count: {type: integer, minimum: 0}
+    CampaignWrite:
+      type: object
+      additionalProperties: false
+      required: [campaign_type]
+      properties:
+        campaign_type: {type: string, enum: [annual_comprehensive, pre_change, post_incident]}
+        reference: {type: [string, 'null']}
+        asset_ids: {type: array, items: {type: string, format: uuid}}
+        function_ids: {type: array, items: {type: string, format: uuid}}
+      example: {campaign_type: annual_comprehensive, reference: null}
+    CampaignItemWrite:
+      type: object
+      additionalProperties: false
+      properties:
+        confirmed_unchanged: {type: boolean, default: false}
+        comment: {type: [string, 'null']}
+        inherent_likelihood: {type: [integer, 'null'], minimum: 1}
+        inherent_impact: {type: [integer, 'null'], minimum: 1}
+        expected_likelihood: {type: [integer, 'null'], minimum: 1}
+        expected_impact: {type: [integer, 'null'], minimum: 1}
+    CampaignItem:
+      type: object
+      required: [risk_id, rated_by, confirmed_unchanged, comment, inherent_likelihood, inherent_impact, expected_likelihood, expected_impact, rated_at]
+      properties:
+        risk_id: {type: string, format: uuid}
+        rated_by: {type: [string, 'null'], format: uuid}
+        confirmed_unchanged: {type: boolean}
+        comment: {type: [string, 'null']}
+        inherent_likelihood: {type: [integer, 'null']}
+        inherent_impact: {type: [integer, 'null']}
+        expected_likelihood: {type: [integer, 'null']}
+        expected_impact: {type: [integer, 'null']}
+        rated_at: {type: [string, 'null'], format: date-time}
+    Campaign:
+      type: object
+      required: [id, campaign_type, reference, state, methodology_version_id, items, signed_by, signed_at, artifacts, evidence, result]
+      properties:
+        id: {type: string, format: uuid}
+        campaign_type: {type: string, enum: [annual_comprehensive, pre_change, post_incident]}
+        reference: {type: [string, 'null']}
+        state: {type: string, enum: [open, signed]}
+        approval_id: {type: [string, 'null'], format: uuid, description: platform approval id of the pending or last ictrisk_campaign_signoff (submitCampaignSignOff)}
+        methodology_version_id: {type: string, format: uuid}
+        items: {type: array, items: {$ref: '#/components/schemas/CampaignItem'}}
+        signed_by: {type: [string, 'null'], format: uuid}
+        signed_at: {type: [string, 'null'], format: date-time}
+        artifacts: {type: array, items: {$ref: '#/components/schemas/Artifact'}}
+        evidence: {type: array, items: {$ref: '#/components/schemas/EvidenceOutcome'}}
+        result: {type: [string, 'null'], enum: [passed, failed, null]}
+    BandCounts:
+      type: object
+      required: [low, medium, high, critical]
+      properties:
+        low: {type: integer, minimum: 0}
+        medium: {type: integer, minimum: 0}
+        high: {type: integer, minimum: 0}
+        critical: {type: integer, minimum: 0}
+    ManagementSummary:
+      type: object
+      required: [campaign_id, measured_at, counts_inherent, counts_effective, appetite_breaches, controls_not_effective, treatments_past_due, acceptances_expiring_60d, deliveries]
+      properties:
+        campaign_id: {type: string, format: uuid}
+        measured_at: {type: string, format: date-time}
+        counts_inherent: {$ref: '#/components/schemas/BandCounts'}
+        counts_effective: {$ref: '#/components/schemas/BandCounts'}
+        appetite_breaches: {type: integer, minimum: 0}
+        controls_not_effective: {type: integer, minimum: 0}
+        treatments_past_due: {type: integer, minimum: 0}
+        acceptances_expiring_60d: {type: integer, minimum: 0}
+        deliveries:
+          type: array
+          items:
+            type: object
+            required: [body_name, delivered_on, delivered_by, evidence]
+            properties:
+              body_name: {type: string}
+              delivered_on: {type: string, format: date}
+              delivered_by: {type: string, format: uuid}
+              evidence: {type: array, items: {$ref: '#/components/schemas/EvidenceOutcome'}}
+    ResidualObservation:
+      type: object
+      required: [id, risk_id, effective_residual, in_breach, controls_not_effective, methodology_version_id, cause, cause_ref, event_id, observed_at]
+      properties:
+        id: {type: string, format: uuid}
+        risk_id: {type: string, format: uuid}
+        effective_residual: {$ref: '#/components/schemas/Rating'}
+        in_breach: {type: boolean}
+        controls_not_effective: {type: boolean}
+        methodology_version_id: {type: string, format: uuid}
+        cause: {type: string, enum: [proposal, rating, treatment, sweep, edit]}
+        cause_ref: {type: [string, 'null'], format: uuid}
+        event_id: {type: string, format: uuid}
+        observed_at: {type: string, format: date-time}
+    ProposalKind:
+      type: string
+      enum: [impairment, restore, rerating]
+    ProposalState:
+      type: string
+      enum: [proposed, confirmed, dismissed]
+    ProposalRisk:
+      type: object
+      required: [risk_id, controls, selected_control_ids, resolution, comment]
+      properties:
+        risk_id: {type: string, format: uuid}
+        controls:
+          type: array
+          items:
+            type: object
+            required: [control_id, preselected]
+            properties:
+              control_id: {type: string, format: uuid}
+              preselected: {type: boolean}
+        selected_control_ids:
+          type: [array, 'null']
+          items: {type: string, format: uuid}
+        resolution: {type: [string, 'null'], enum: [rerated, confirmed_unchanged, dismissed, excluded_closed, null]}
+        comment: {type: [string, 'null']}
+    Proposal:
+      type: object
+      required: [id, kind, provider_id, source_event_key, trigger_signal_ids, score_context, state, risks,
+                 impairment_ids, decided_by, decided_at, decision_note, dismiss_reason, created_at, updated_at]
+      properties:
+        id: {type: string, format: uuid}
+        kind: {$ref: '#/components/schemas/ProposalKind'}
+        provider_id: {type: string, format: uuid}
+        source_event_key: {type: [string, 'null']}
+        trigger_signal_ids: {type: array, items: {type: string, format: uuid}}
+        score_context:
+          oneOf:
+            - type: object
+              required: [previous_score, score, previous_band, band, config_version]
+              properties:
+                previous_score: {type: [integer, 'null']}
+                score: {type: integer}
+                previous_band: {type: [string, 'null']}
+                band: {type: string}
+                config_version: {type: integer}
+            - {type: 'null'}
+        state: {$ref: '#/components/schemas/ProposalState'}
+        risks: {type: array, items: {$ref: '#/components/schemas/ProposalRisk'}}
+        impairment_ids: {type: array, items: {type: string, format: uuid}}
+        decided_by: {type: [string, 'null'], format: uuid}
+        decided_at: {type: [string, 'null'], format: date-time}
+        decision_note: {type: [string, 'null']}
+        dismiss_reason: {type: [string, 'null']}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+      example:
+        id: 8e1c4a73-5b2d-4f9e-a6c3-0d7b9e2f5a14
+        kind: impairment
+        provider_id: 3d1b7f8e-2a44-4f0e-9a4b-7c0b8e1d2f33
+        source_event_key: nimbus-incident-4471
+        trigger_signal_ids: [0b6f3c2e-1a4d-4e8b-9c7f-2d5a6b8e1f30]
+        score_context: null
+        state: proposed
+        risks:
+          - risk_id: 7c3a1e95-2d4b-4f8a-b6e0-9d1c5a7f3b28
+            controls: [{control_id: 1c9e7b52-6d3a-4a8f-b2e1-0f5d4c7a9b36, preselected: true}, {control_id: 6a0d3f82-1e7b-4c5a-9d24-b8f3e6c1a057, preselected: false}]
+            selected_control_ids: null
+            resolution: null
+            comment: null
+        impairment_ids: []
+        decided_by: null
+        decided_at: null
+        decision_note: null
+        dismiss_reason: null
+        created_at: '2026-11-06T09:12:03Z'
+        updated_at: '2026-11-06T09:12:03Z'
+    ProposalConfirm:
+      description: >
+        impairment: selected_control_ids (at least one) and note. restore: note.
+        rerating: ratings, one entry per risk of the proposal to resolve (re-rate or confirm unchanged).
+      oneOf:
+        - type: object
+          title: ImpairmentConfirm
+          additionalProperties: false
+          required: [kind, selected_control_ids, note]
+          properties:
+            kind: {const: impairment}
+            selected_control_ids: {type: array, minItems: 1, items: {type: string, format: uuid}}
+            note: {type: string, minLength: 1}
+        - type: object
+          title: RestoreConfirm
+          additionalProperties: false
+          required: [kind, note]
+          properties:
+            kind: {const: restore}
+            note: {type: string, minLength: 1}
+        - type: object
+          title: RerateConfirm
+          additionalProperties: false
+          required: [kind, ratings]
+          properties:
+            kind: {const: rerating}
+            ratings:
+              type: array
+              minItems: 1
+              items:
+                type: object
+                additionalProperties: false
+                required: [risk_id, resolution]
+                properties:
+                  risk_id: {type: string, format: uuid}
+                  resolution: {type: string, enum: [rerated, confirmed_unchanged]}
+                  inherent_likelihood: {type: [integer, 'null'], minimum: 1}
+                  inherent_impact: {type: [integer, 'null'], minimum: 1}
+                  expected_likelihood: {type: [integer, 'null'], minimum: 1}
+                  expected_impact: {type: [integer, 'null'], minimum: 1}
+                  comment: {type: [string, 'null']}
+      example: {kind: impairment, selected_control_ids: [1c9e7b52-6d3a-4a8f-b2e1-0f5d4c7a9b36], note: Hosting outage confirmed by the provider.}
+    Impairment:
+      type: object
+      required: [id, control_id, provider_id, proposal_id, evidence_id, state, closed_by, closed_at, close_proposal_id, close_note, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        control_id: {type: string, format: uuid}
+        provider_id: {type: string, format: uuid}
+        proposal_id: {type: string, format: uuid}
+        evidence_id: {type: string, format: uuid}
+        state: {type: string, enum: [open, closed]}
+        closed_by: {type: [string, 'null'], format: uuid}
+        closed_at: {type: [string, 'null'], format: date-time}
+        close_proposal_id: {type: [string, 'null'], format: uuid}
+        close_note: {type: [string, 'null']}
+        created_at: {type: string, format: date-time}
+    SignalKindImpairing:
+      type: string
+      enum: [itsm_incident, itsm_sla_breach, cloud_status, security_advisory, breach_news, financial_health]
+    ControlBindingWrite:
+      type: object
+      additionalProperties: false
+      required: [control_id, provider_id, impairing_kinds]
+      properties:
+        control_id: {type: string, format: uuid}
+        provider_id: {type: string, format: uuid}
+        impairing_kinds: {type: array, minItems: 1, uniqueItems: true, items: {$ref: '#/components/schemas/SignalKindImpairing'}}
+      example: {control_id: 1c9e7b52-6d3a-4a8f-b2e1-0f5d4c7a9b36, provider_id: 3d1b7f8e-2a44-4f0e-9a4b-7c0b8e1d2f33, impairing_kinds: [cloud_status, itsm_incident]}
+    ControlBinding:
+      allOf:
+        - $ref: '#/components/schemas/ControlBindingWrite'
+        - type: object
+          required: [id, created_at, created_by]
+          properties:
+            id: {type: string, format: uuid}
+            created_at: {type: string, format: date-time}
+            created_by: {type: string, format: uuid}
+    IctRiskSummary:
+      type: object
+      required: [as_of, methodology_version_id, heatmap_effective, heatmap_inherent, in_breach, controls_not_effective, open_proposals]
+      properties:
+        as_of: {type: string, format: date-time}
+        methodology_version_id: {type: string, format: uuid}
+        heatmap_effective: {$ref: '#/components/schemas/Heatmap'}
+        heatmap_inherent: {$ref: '#/components/schemas/Heatmap'}
+        in_breach: {type: integer, minimum: 0}
+        controls_not_effective: {type: integer, minimum: 0}
+        open_proposals: {type: integer, minimum: 0}

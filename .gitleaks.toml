@@ -6,7 +6,7 @@ title = "Wiser Compliance Register"
 [extend]
 useDefault = true
 
-[allowlist]
+[[allowlists]]
 description = "build output, installed dependencies, git internals"
 paths = [
   '''(^|/)\.git/''',
@@ -15,3 +15,11 @@ paths = [
   '''(^|/)\.venv/''',
   '''(^|/)\.suite-reports/''',
 ]
+
+# False positive (block 111-B4, owner decision on issue 20): the example value of `source_event_key` in the frozen monitoring and ict-risk contracts.
+[[allowlists]]
+description = "the fake example value nimbus-incident-4471 in the synced OpenAPI contracts"
+condition = "AND"
+targetRules = ["generic-api-key"]
+paths = ['''(^|/)contracts/[^/]+\.openapi\.yaml$''']
+regexes = ['''^nimbus-incident-4471$''']

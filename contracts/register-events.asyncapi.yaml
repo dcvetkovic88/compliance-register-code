@@ -1,0 +1,776 @@
+asyncapi: 3.0.0
+info:
+  title: Standalone register build events (draft)
+  version: 0.1.0-draft
+  description: >
+    Every event of the L1 event catalog (docs/standalone/register-standalone-spec.md section 3).
+    Transport in the demo: the platform Postgres outbox, one topic per event, drained by per-service
+    poll workers (standalone research R-6); the channel address is the outbox topic name and stays
+    valid when a broker is introduced. Every message is the Envelope with a typed `data` payload.
+    Delivery is at least once; consumers deduplicate on `event_id` and on the idempotency key named
+    per message. Event names are frozen once this draft lands.
+    Status: DRAFT | Added 2026-11-04 by decision of Dusan (Raiffeisen Demo Decisions and Build Brief).
+    Payloads of events produced by register-service and ai-document-service follow 104-F2, 104-F3,
+    108-F1 and 108-F2 as drafted on 2026-11-04; their owners confirm field lists at planning-done,
+    as a change to this file.
+    AMENDED 2026-11-05: contract.analysed and contract.gaps.detected payloads aligned with the
+    108-F1 and 108-F2 plan Events tables (cross-file reconciliation).
+    AMENDED 2026-11-07 (Dusan's decision (delegated proxy, 2026-11-07) on dcvetkovic88/compliance-register#18): unquoted flow-mapping `description` values containing a comma are quoted so YAML keeps each sentence whole; no type, field, path, message or response changes (111-AC5, AsyncAPI 3.0 parse by `@asyncapi/parser`).
+    AMENDED 2026-11-08 (Dusan's decision by delegated proxy on dcvetkovic88/compliance-register#42, Quorum panel-20261107-021, option A; specs/111-register-foundation Q-F0-14, open-questions Q-179):
+    each of the 11 messages states `x-schema-version: 1` and one example; the Envelope's
+    `schema_version` is the value its channel's message states; no payload field changes.
+defaultContentType: application/json
+servers:
+  outbox:
+    host: localhost
+    protocol: postgres-outbox
+    description: Platform outbox table in the local Supabase Postgres (owned by platform)
+channels:
+  arrangementRequestSubmitted:
+    address: arrangement.request.submitted
+    messages:
+      arrangementRequestSubmitted: {$ref: '#/components/messages/ArrangementRequestSubmitted'}
+  arrangementReviewDecided:
+    address: arrangement.review.decided
+    messages:
+      arrangementReviewDecided: {$ref: '#/components/messages/ArrangementReviewDecided'}
+  arrangementApproved:
+    address: arrangement.approved
+    messages:
+      arrangementApproved: {$ref: '#/components/messages/ArrangementApproved'}
+  arrangementAssessmentReopened:
+    address: arrangement.assessment.reopened
+    messages:
+      arrangementAssessmentReopened: {$ref: '#/components/messages/ArrangementAssessmentReopened'}
+  contractAnalysed:
+    address: contract.analysed
+    messages:
+      contractAnalysed: {$ref: '#/components/messages/ContractAnalysed'}
+  contractGapsDetected:
+    address: contract.gaps.detected
+    messages:
+      contractGapsDetected: {$ref: '#/components/messages/ContractGapsDetected'}
+  providerSignalReceived:
+    address: provider.signal.received
+    messages:
+      providerSignalReceived: {$ref: '#/components/messages/ProviderSignalReceived'}
+  providerRiskScoreChanged:
+    address: provider.risk-score.changed
+    messages:
+      providerRiskScoreChanged: {$ref: '#/components/messages/ProviderRiskScoreChanged'}
+  providerObligationExpiring:
+    address: provider.obligation.expiring
+    messages:
+      providerObligationExpiring: {$ref: '#/components/messages/ProviderObligationExpiring'}
+  ictriskResidualChanged:
+    address: ictrisk.residual.changed
+    messages:
+      ictriskResidualChanged: {$ref: '#/components/messages/IctriskResidualChanged'}
+  remediationTaskCreated:
+    address: remediation.task.created
+    messages:
+      remediationTaskCreated: {$ref: '#/components/messages/RemediationTaskCreated'}
+operations:
+  # producers
+  publishArrangementRequestSubmitted:
+    action: send
+    channel: {$ref: '#/channels/arrangementRequestSubmitted'}
+    x-producer: register-service
+    x-functionality: 104-F2
+  publishArrangementReviewDecided:
+    action: send
+    channel: {$ref: '#/channels/arrangementReviewDecided'}
+    x-producer: register-service
+    x-functionality: 104-F2
+  publishArrangementApproved:
+    action: send
+    channel: {$ref: '#/channels/arrangementApproved'}
+    x-producer: register-service
+    x-functionality: 104-F2
+  publishArrangementAssessmentReopened:
+    action: send
+    channel: {$ref: '#/channels/arrangementAssessmentReopened'}
+    x-producer: register-service
+    x-functionality: 104-F3
+  publishContractAnalysed:
+    action: send
+    channel: {$ref: '#/channels/contractAnalysed'}
+    x-producer: ai-document-service
+    x-functionality: 108-F1
+  publishContractGapsDetected:
+    action: send
+    channel: {$ref: '#/channels/contractGapsDetected'}
+    x-producer: ai-document-service
+    x-functionality: 108-F2
+  publishProviderSignalReceived:
+    action: send
+    channel: {$ref: '#/channels/providerSignalReceived'}
+    x-producer: monitoring-service
+    x-functionality: 104-F5
+  publishProviderRiskScoreChanged:
+    action: send
+    channel: {$ref: '#/channels/providerRiskScoreChanged'}
+    x-producer: monitoring-service
+    x-functionality: 104-F5
+  publishProviderObligationExpiring:
+    action: send
+    channel: {$ref: '#/channels/providerObligationExpiring'}
+    x-producer: monitoring-service
+    x-functionality: 104-F5
+  publishIctriskResidualChanged:
+    action: send
+    channel: {$ref: '#/channels/ictriskResidualChanged'}
+    x-producer: ict-risk-service
+    x-functionality: 107-F2
+  publishRemediationTaskCreated:
+    action: send
+    channel: {$ref: '#/channels/remediationTaskCreated'}
+    x-producer: register-service
+    x-functionality: 104-F3
+  # consumers
+  aiDocumentConsumesArrangementRequestSubmitted:
+    action: receive
+    channel: {$ref: '#/channels/arrangementRequestSubmitted'}
+    x-consumer: ai-document-service
+    x-functionality: 108-F4
+    description: Starts the criticality suggestion for the pre-assessment step (lifecycle step 2).
+  registerConsumesContractAnalysed:
+    action: receive
+    channel: {$ref: '#/channels/contractAnalysed'}
+    x-consumer: register-service
+    x-functionality: 104-F2
+    description: Shows the pre-fill suggestion on the arrangement for human confirmation (IX.5).
+  registerConsumesContractGapsDetected:
+    action: receive
+    channel: {$ref: '#/channels/contractGapsDetected'}
+    x-consumer: register-service
+    x-functionality: 104-F2, 104-F3
+    description: Shows suggested clause statuses for human review; remediation tasks follow human confirmation.
+  registerConsumesProviderSignalReceived:
+    action: receive
+    channel: {$ref: '#/channels/providerSignalReceived'}
+    x-consumer: register-service
+    x-functionality: 104-F3
+    description: Incident event trigger for affected providers (proposal, confirmed by a person).
+  ictRiskConsumesProviderSignalReceived:
+    action: receive
+    channel: {$ref: '#/channels/providerSignalReceived'}
+    x-consumer: ict-risk-service
+    x-functionality: 107-F2
+    description: Impairment and restore proposals; only counting_state counted is acted on.
+  registerConsumesProviderRiskScoreChanged:
+    action: receive
+    channel: {$ref: '#/channels/providerRiskScoreChanged'}
+    x-consumer: register-service
+    x-functionality: 104-F3
+    description: Materialises reopen_proposal as a reassessment task in state proposed.
+  ictRiskConsumesProviderRiskScoreChanged:
+    action: receive
+    channel: {$ref: '#/channels/providerRiskScoreChanged'}
+    x-consumer: ict-risk-service
+    x-functionality: 107-F2
+    description: Re-rating proposals when the band rises into the review band.
+  registerConsumesProviderObligationExpiring:
+    action: receive
+    channel: {$ref: '#/channels/providerObligationExpiring'}
+    x-consumer: register-service
+    x-functionality: 104-F5 (FR12)
+    description: On phase lapsed the bound control becomes stale; on phase fulfilled fresh evidence is recorded.
+  monitoringConsumesIctriskResidualChanged:
+    action: receive
+    channel: {$ref: '#/channels/ictriskResidualChanged'}
+    x-consumer: monitoring-service
+    x-functionality: 104-F5 (FR10), 107-F2 (FR9)
+    description: Appetite breach alert to it-governance when in_breach turns true; closes it when false.
+  monitoringConsumesArrangementAssessmentReopened:
+    action: receive
+    channel: {$ref: '#/channels/arrangementAssessmentReopened'}
+    x-consumer: monitoring-service
+    x-functionality: 104-F5 (FR11)
+    description: Resolves the score alert that carried the reopen proposal.
+components:
+  messages:
+    ArrangementRequestSubmitted:
+      name: arrangement.request.submitted
+      title: Outsourcing request submitted (lifecycle step 1)
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              event_type: {const: arrangement.request.submitted}
+              data:
+                type: object
+                additionalProperties: true
+                required: [request_id, arrangement_id, requesting_unit_id, provider_id, proposed_provider_name, submitted_by]
+                properties:
+                  request_id: {type: string, format: uuid}
+                  arrangement_id: {type: string, format: uuid}
+                  requesting_unit_id: {type: string, format: uuid}
+                  provider_id: {type: [string, 'null'], format: uuid, description: null when the provider is not yet in the register}
+                  proposed_provider_name: {type: [string, 'null']}
+                  submitted_by: {type: string, format: uuid}
+      x-idempotency-key: request_id
+      x-schema-version: 1
+      examples:
+        - name: requestSubmitted
+          payload:
+            event_id: 6a1c2e4f-8b3d-4c5e-9f70-1a2b3c4d5e01
+            event_type: arrangement.request.submitted
+            schema_version: 1
+            occurred_at: '2026-11-06T08:30:00Z'
+            tenant_id: 11111111-2222-4333-8444-555555555555
+            correlation_id: 7b2d3f50-9c4e-4d6f-a081-2b3c4d5e6f01
+            actor: {kind: user, id: 9c3e4a61-0d5f-4e70-b192-3c4d5e6f7a01, role: requester}
+            data:
+              request_id: 1d4f5a72-3e6b-4c81-92a3-4d5e6f7a8b01
+              arrangement_id: 2e5a6b83-4f7c-4d92-a3b4-5e6f7a8b9c01
+              requesting_unit_id: 3f6b7c94-5a8d-4ea3-b4c5-6f7a8b9c0d01
+              provider_id: null
+              proposed_provider_name: Example Cloud Provider
+              submitted_by: 9c3e4a61-0d5f-4e70-b192-3c4d5e6f7a01
+    ArrangementReviewDecided:
+      name: arrangement.review.decided
+      title: One department review decided (lifecycle step 4)
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              event_type: {const: arrangement.review.decided}
+              data:
+                type: object
+                additionalProperties: true
+                required: [review_id, arrangement_id, department, decision, decided_by]
+                properties:
+                  review_id: {type: string, format: uuid}
+                  arrangement_id: {type: string, format: uuid}
+                  department: {type: string, enum: [security, it_governance, compliance, legal], description: 104-F2 FR4 department values}
+                  decision: {type: string, enum: [approve, comment, request_changes], description: 104-F2 FR4}
+                  decided_by: {type: string, format: uuid}
+      x-idempotency-key: review_id
+      x-schema-version: 1
+      examples:
+        - name: securityReviewApproved
+          payload:
+            event_id: 6a1c2e4f-8b3d-4c5e-9f70-1a2b3c4d5e02
+            event_type: arrangement.review.decided
+            schema_version: 1
+            occurred_at: '2026-11-06T08:45:00Z'
+            tenant_id: 11111111-2222-4333-8444-555555555555
+            correlation_id: 7b2d3f50-9c4e-4d6f-a081-2b3c4d5e6f02
+            actor: {kind: user, id: 9c3e4a61-0d5f-4e70-b192-3c4d5e6f7a02, role: security}
+            data:
+              review_id: 4a7c8da5-6b9e-4fb4-85d6-7a8b9c0d1e02
+              arrangement_id: 2e5a6b83-4f7c-4d92-a3b4-5e6f7a8b9c01
+              department: security
+              decision: approve
+              decided_by: 9c3e4a61-0d5f-4e70-b192-3c4d5e6f7a02
+    ArrangementApproved:
+      name: arrangement.approved
+      title: Arrangement approved and entered in the register (lifecycle step 5)
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              event_type: {const: arrangement.approved}
+              data:
+                type: object
+                additionalProperties: true
+                required: [arrangement_id, provider_id, approved_by, approved_at]
+                properties:
+                  arrangement_id: {type: string, format: uuid}
+                  provider_id: {type: string, format: uuid}
+                  approved_by: {type: array, minItems: 2, items: {type: string, format: uuid}, description: four-eyes approvers (109-F4)}
+                  approved_at: {type: string, format: date-time}
+      x-idempotency-key: arrangement_id
+      x-schema-version: 1
+      examples:
+        - name: arrangementApproved
+          payload:
+            event_id: 6a1c2e4f-8b3d-4c5e-9f70-1a2b3c4d5e03
+            event_type: arrangement.approved
+            schema_version: 1
+            occurred_at: '2026-11-06T09:00:00Z'
+            tenant_id: 11111111-2222-4333-8444-555555555555
+            correlation_id: 7b2d3f50-9c4e-4d6f-a081-2b3c4d5e6f03
+            actor: {kind: user, id: 9c3e4a61-0d5f-4e70-b192-3c4d5e6f7a03, role: compliance}
+            data:
+              arrangement_id: 2e5a6b83-4f7c-4d92-a3b4-5e6f7a8b9c01
+              provider_id: 3d1b7f8e-2a44-4f0e-9a4b-7c0b8e1d2f33
+              approved_by: [9c3e4a61-0d5f-4e70-b192-3c4d5e6f7a04, 9c3e4a61-0d5f-4e70-b192-3c4d5e6f7a03]
+              approved_at: '2026-11-06T09:00:00Z'
+    ArrangementAssessmentReopened:
+      name: arrangement.assessment.reopened
+      title: Assessment of an arrangement reopened after human confirmation (104-F3)
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              event_type: {const: arrangement.assessment.reopened}
+              data:
+                type: object
+                additionalProperties: true
+                required: [arrangement_id, provider_id, proposal_id, trigger, reasons, confirmed_by]
+                properties:
+                  arrangement_id: {type: string, format: uuid}
+                  provider_id: {type: string, format: uuid}
+                  proposal_id: {type: string, format: uuid, description: the 104-F3 reopen proposal confirmed}
+                  trigger: {type: string, enum: [event], description: 104-F3 FR6 opens event-triggered reassessments with trigger event}
+                  reasons:
+                    type: array
+                    minItems: 1
+                    items:
+                      type: object
+                      required: [kind, ref]
+                      properties:
+                        kind: {type: string, enum: [incident, risk_score_band_increase, contract_amendment, new_subcontractor, regulatory_change], description: 104-F3 FR6 trigger list}
+                        ref: {type: [string, 'null'], description: 'id of the causing event, document or catalog version'}
+                  confirmed_by: {type: string, format: uuid}
+      x-idempotency-key: proposal_id
+      x-schema-version: 1
+      examples:
+        - name: reopenedAfterScoreBand
+          payload:
+            event_id: 6a1c2e4f-8b3d-4c5e-9f70-1a2b3c4d5e04
+            event_type: arrangement.assessment.reopened
+            schema_version: 1
+            occurred_at: '2026-11-06T09:20:00Z'
+            tenant_id: 11111111-2222-4333-8444-555555555555
+            correlation_id: 0b6f3c2e-1a4d-4e8b-9c7f-2d5a6b8e1f30
+            actor: {kind: user, id: 9c3e4a61-0d5f-4e70-b192-3c4d5e6f7a04, role: outsourcing-manager}
+            data:
+              arrangement_id: 2e5a6b83-4f7c-4d92-a3b4-5e6f7a8b9c01
+              provider_id: 3d1b7f8e-2a44-4f0e-9a4b-7c0b8e1d2f33
+              proposal_id: 5b8d9eb6-7caf-4ac5-96e7-8b9c0d1e2f04
+              trigger: event
+              reasons:
+                - {kind: risk_score_band_increase, ref: 2f7a9c41-6b3e-4d8a-b5c2-1e9d0f4a7b63}
+              confirmed_by: 9c3e4a61-0d5f-4e70-b192-3c4d5e6f7a04
+    ContractAnalysed:
+      name: contract.analysed
+      title: AI contract reading finished (suggestions only, 108-F1)
+      description: >
+        Payload keys per the 108-F1 plan Events table. Never carries field values (108-F1-FR11, AC8).
+        Exactly one of arrangement_id and request_id is set. The occurrence time is the envelope occurred_at.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              event_type: {const: contract.analysed}
+              data:
+                type: object
+                additionalProperties: false
+                required: [analysis_id, document_id, arrangement_id, request_id, counts, catalog_versions, model_id, prompt_version]
+                properties:
+                  analysis_id: {type: string, format: uuid}
+                  document_id: {type: string, format: uuid}
+                  arrangement_id: {type: [string, 'null'], format: uuid}
+                  request_id: {type: [string, 'null'], format: uuid, description: 104-F2 lifecycle request when the arrangement does not exist yet}
+                  counts:
+                    type: object
+                    additionalProperties: false
+                    required: [fill, conflict, agree, not_found, rejected]
+                    properties:
+                      fill: {type: integer, minimum: 0}
+                      conflict: {type: integer, minimum: 0}
+                      agree: {type: integer, minimum: 0}
+                      not_found: {type: integer, minimum: 0}
+                      rejected: {type: integer, minimum: 0}
+                  catalog_versions:
+                    type: object
+                    description: 'Active catalogs used, {regulation_id: regulation_version} (constitution III.4)'
+                    additionalProperties: {type: string}
+                  model_id: {type: string}
+                  prompt_version: {type: string}
+                oneOf:
+                  - properties: {arrangement_id: {type: string}, request_id: {type: 'null'}}
+                  - properties: {arrangement_id: {type: 'null'}, request_id: {type: string}}
+      x-idempotency-key: analysis_id
+      x-schema-version: 1
+      examples:
+        - name: analysedForArrangement
+          payload:
+            event_id: 6a1c2e4f-8b3d-4c5e-9f70-1a2b3c4d5e05
+            event_type: contract.analysed
+            schema_version: 1
+            occurred_at: '2026-11-06T08:40:00Z'
+            tenant_id: 11111111-2222-4333-8444-555555555555
+            correlation_id: 7b2d3f50-9c4e-4d6f-a081-2b3c4d5e6f05
+            actor: {kind: service, id: ai-document-service, role: null}
+            data:
+              analysis_id: 6c9eafc7-8db0-4bd6-a7f8-9c0d1e2f3a05
+              document_id: 7daf0bd8-9ec1-4ce7-b809-0d1e2f3a4b05
+              arrangement_id: 2e5a6b83-4f7c-4d92-a3b4-5e6f7a8b9c01
+              request_id: null
+              counts: {fill: 12, conflict: 1, agree: 5, not_found: 3, rejected: 0}
+              catalog_versions: {dora: '1.0'}
+              model_id: example-model
+              prompt_version: v1
+    ContractGapsDetected:
+      name: contract.gaps.detected
+      title: Clause gap check finished (suggestions only, 108-F2)
+      description: >
+        Payload keys per the 108-F2 plan Events table. confirmed is always false (108-F2-FR7).
+        Exactly one of arrangement_id and request_id is set. The occurrence time is the envelope occurred_at.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              event_type: {const: contract.gaps.detected}
+              data:
+                type: object
+                additionalProperties: false
+                required: [clause_check_id, document_id, arrangement_id, request_id, gaps, confirmed, catalog_versions]
+                properties:
+                  clause_check_id: {type: string, format: uuid}
+                  document_id: {type: string, format: uuid}
+                  arrangement_id: {type: [string, 'null'], format: uuid}
+                  request_id: {type: [string, 'null'], format: uuid, description: 104-F2 lifecycle request when the arrangement does not exist yet}
+                  gaps:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [regulation_id, obligation_id, clause_id, proposed_status]
+                      properties:
+                        regulation_id: {type: string}
+                        obligation_id: {type: string}
+                        clause_id: {type: string}
+                        proposed_status: {type: string, enum: [missing, unclear]}
+                  confirmed: {const: false}
+                  catalog_versions:
+                    type: object
+                    additionalProperties: {type: string}
+                oneOf:
+                  - properties: {arrangement_id: {type: string}, request_id: {type: 'null'}}
+                  - properties: {arrangement_id: {type: 'null'}, request_id: {type: string}}
+      x-idempotency-key: clause_check_id
+      x-schema-version: 1
+      examples:
+        - name: gapsForRequest
+          payload:
+            event_id: 6a1c2e4f-8b3d-4c5e-9f70-1a2b3c4d5e06
+            event_type: contract.gaps.detected
+            schema_version: 1
+            occurred_at: '2026-11-06T08:42:00Z'
+            tenant_id: 11111111-2222-4333-8444-555555555555
+            correlation_id: 7b2d3f50-9c4e-4d6f-a081-2b3c4d5e6f06
+            actor: {kind: service, id: ai-document-service, role: null}
+            data:
+              clause_check_id: 8eb01ce9-0fd2-4df8-892a-1e2f3a4b5c06
+              document_id: 7daf0bd8-9ec1-4ce7-b809-0d1e2f3a4b05
+              arrangement_id: null
+              request_id: 1d4f5a72-3e6b-4c81-92a3-4d5e6f7a8b01
+              gaps:
+                - {regulation_id: dora, obligation_id: example-obligation-1, clause_id: example-clause-1, proposed_status: missing}
+              confirmed: false
+              catalog_versions: {dora: '1.0'}
+    ProviderSignalReceived:
+      name: provider.signal.received
+      title: Signal stored or its counting state changed (104-F5)
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              event_type: {const: provider.signal.received}
+              data: {$ref: '#/components/schemas/NormalizedSignal'}
+      x-idempotency-key: (signal_id, counting_state)
+      x-schema-version: 1
+      examples:
+        - name: outageSignalCounted
+          payload:
+            event_id: 6a1c2e4f-8b3d-4c5e-9f70-1a2b3c4d5e07
+            event_type: provider.signal.received
+            schema_version: 1
+            occurred_at: '2026-11-06T09:12:01Z'
+            tenant_id: 11111111-2222-4333-8444-555555555555
+            correlation_id: 0b6f3c2e-1a4d-4e8b-9c7f-2d5a6b8e1f30
+            actor: {kind: service, id: monitoring-service, role: null}
+            data:
+              signal_id: 0b6f3c2e-1a4d-4e8b-9c7f-2d5a6b8e1f30
+              layer: external
+              kind: cloud_status
+              source_code: example-status-feed
+              source_ref: example-incident-1
+              source_event_key: example-status-feed:example-incident-1
+              provider_id: 3d1b7f8e-2a44-4f0e-9a4b-7c0b8e1d2f33
+              engagement_id: null
+              supplied_product_id: null
+              observed_at: '2026-11-06T09:11:00Z'
+              severity: high
+              title: Example regional outage
+              relevance: {assessed_by: rule, rationale: null, model_ref: null}
+              counting_state: counted
+              raw_sha256: 'sha256:0000000000000000000000000000000000000000000000000000000000000001'
+    ProviderRiskScoreChanged:
+      name: provider.risk-score.changed
+      title: Provider risk score integer or band changed (104-F5)
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              event_type: {const: provider.risk-score.changed}
+              data:
+                type: object
+                additionalProperties: true
+                required: [provider_id, score_seq, previous_score, score, previous_band, band, config_version, cause, cause_signal_ids, reopen_proposal, evaluated_at]
+                properties:
+                  provider_id: {type: string, format: uuid}
+                  score_seq: {type: integer, minimum: 1}
+                  previous_score: {type: [integer, 'null'], minimum: 0, maximum: 100}
+                  score: {type: integer, minimum: 0, maximum: 100}
+                  previous_band:
+                    oneOf:
+                      - $ref: '#/components/schemas/ScoreBand'
+                      - {type: 'null'}
+                  band: {$ref: '#/components/schemas/ScoreBand'}
+                  config_version: {type: integer, minimum: 1}
+                  cause: {type: string, enum: [signal, review, obligation, config, daily]}
+                  cause_signal_ids: {type: array, items: {type: string, format: uuid}}
+                  reopen_proposal:
+                    oneOf:
+                      - type: object
+                        required: [reason, cause_signal_ids]
+                        properties:
+                          reason: {type: string, enum: [band_reached_reopen_band, sanctions_match]}
+                          cause_signal_ids: {type: array, items: {type: string, format: uuid}}
+                      - {type: 'null'}
+                  evaluated_at: {type: string, format: date-time}
+      x-idempotency-key: (provider_id, score_seq)
+      x-schema-version: 1
+      examples:
+        - name: outageScene
+          payload:
+            event_id: 2f7a9c41-6b3e-4d8a-b5c2-1e9d0f4a7b63
+            event_type: provider.risk-score.changed
+            schema_version: 1
+            occurred_at: '2026-11-06T09:12:02Z'
+            tenant_id: 11111111-2222-4333-8444-555555555555
+            correlation_id: 0b6f3c2e-1a4d-4e8b-9c7f-2d5a6b8e1f30
+            actor: {kind: service, id: monitoring-service, role: null}
+            data:
+              provider_id: 3d1b7f8e-2a44-4f0e-9a4b-7c0b8e1d2f33
+              score_seq: 2
+              previous_score: 8
+              score: 58
+              previous_band: low
+              band: high
+              config_version: 1
+              cause: signal
+              cause_signal_ids: [0b6f3c2e-1a4d-4e8b-9c7f-2d5a6b8e1f30]
+              reopen_proposal: {reason: band_reached_reopen_band, cause_signal_ids: [0b6f3c2e-1a4d-4e8b-9c7f-2d5a6b8e1f30]}
+              evaluated_at: '2026-11-06T09:12:02Z'
+    ProviderObligationExpiring:
+      name: provider.obligation.expiring
+      title: Obligation reminder phase reached, lapsed or fulfilled (104-F5)
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              event_type: {const: provider.obligation.expiring}
+              data:
+                type: object
+                additionalProperties: true
+                required: [obligation_id, provider_id, arrangement_id, kind, due_date, phase, bound_control_id, next_obligation_id]
+                properties:
+                  obligation_id: {type: string, format: uuid}
+                  provider_id: {type: string, format: uuid}
+                  arrangement_id: {type: [string, 'null'], format: uuid}
+                  kind: {type: string, enum: [iso27001_certificate, soc2_report, contract_renewal, audit, exit_plan_test, other]}
+                  due_date: {type: string, format: date}
+                  phase: {type: string, pattern: '^(d[0-9]+|lapsed|fulfilled)$'}
+                  bound_control_id: {type: [string, 'null'], format: uuid}
+                  next_obligation_id: {type: [string, 'null'], format: uuid}
+      x-idempotency-key: (obligation_id, phase)
+      x-schema-version: 1
+      examples:
+        - name: certificateDueIn30Days
+          payload:
+            event_id: 6a1c2e4f-8b3d-4c5e-9f70-1a2b3c4d5e09
+            event_type: provider.obligation.expiring
+            schema_version: 1
+            occurred_at: '2026-11-01T06:00:00Z'
+            tenant_id: 11111111-2222-4333-8444-555555555555
+            correlation_id: 7b2d3f50-9c4e-4d6f-a081-2b3c4d5e6f09
+            actor: {kind: system, id: monitoring-service, role: null}
+            data:
+              obligation_id: 9fc12dfa-1ae3-4e09-9a3b-2f3a4b5c6d09
+              provider_id: 3d1b7f8e-2a44-4f0e-9a4b-7c0b8e1d2f33
+              arrangement_id: 2e5a6b83-4f7c-4d92-a3b4-5e6f7a8b9c01
+              kind: iso27001_certificate
+              due_date: '2026-12-01'
+              phase: d30
+              bound_control_id: a0d23e0b-2bf4-4f1a-8b4c-3a4b5c6d7e09
+              next_obligation_id: null
+    IctriskResidualChanged:
+      name: ictrisk.residual.changed
+      title: Observed effective residual, breach or controls-not-effective flag of a risk changed (107-F2)
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              event_type: {const: ictrisk.residual.changed}
+              data:
+                type: object
+                additionalProperties: true
+                required: [risk_id, risk_reference, previous, current, cause, cause_ref, methodology_version_id, scope]
+                properties:
+                  risk_id: {type: string, format: uuid}
+                  risk_reference: {type: [string, 'null']}
+                  previous:
+                    oneOf:
+                      - $ref: '#/components/schemas/ResidualState'
+                      - {type: 'null'}
+                  current: {$ref: '#/components/schemas/ResidualState'}
+                  cause: {type: string, enum: [proposal, rating, treatment, sweep, edit]}
+                  cause_ref: {type: [string, 'null'], format: uuid}
+                  methodology_version_id: {type: string, format: uuid}
+                  scope:
+                    type: object
+                    required: [asset_ids, function_ids, provider_ids]
+                    properties:
+                      asset_ids: {type: array, items: {type: string, format: uuid}}
+                      function_ids: {type: array, items: {type: string, format: uuid}}
+                      provider_ids: {type: array, items: {type: string, format: uuid}}
+      x-idempotency-key: event_id
+      x-schema-version: 1
+      examples:
+        - name: residualIntoBreach
+          payload:
+            event_id: 6a1c2e4f-8b3d-4c5e-9f70-1a2b3c4d5e10
+            event_type: ictrisk.residual.changed
+            schema_version: 1
+            occurred_at: '2026-11-06T09:30:00Z'
+            tenant_id: 11111111-2222-4333-8444-555555555555
+            correlation_id: 7b2d3f50-9c4e-4d6f-a081-2b3c4d5e6f10
+            actor: {kind: user, id: 9c3e4a61-0d5f-4e70-b192-3c4d5e6f7a10, role: it-governance}
+            data:
+              risk_id: b1e34f1c-3c05-4a2b-9c5d-4b5c6d7e8f10
+              risk_reference: EXAMPLE-RISK-1
+              previous: {likelihood: 2, impact: 3, score: 6, band: medium, in_breach: false, controls_not_effective: false}
+              current: {likelihood: 4, impact: 4, score: 16, band: high, in_breach: true, controls_not_effective: false}
+              cause: rating
+              cause_ref: c2f4502d-4d16-4b3c-8d6e-5c6d7e8f9a10
+              methodology_version_id: d305613e-5e27-4c4d-9e7f-6d7e8f9a0b10
+              scope:
+                asset_ids: [e416724f-6f38-4d5e-8f80-7e8f9a0b1c10]
+                function_ids: []
+                provider_ids: [3d1b7f8e-2a44-4f0e-9a4b-7c0b8e1d2f33]
+    RemediationTaskCreated:
+      name: remediation.task.created
+      title: Remediation task created after a confirmed gap (104-F3)
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              event_type: {const: remediation.task.created}
+              data:
+                type: object
+                additionalProperties: true
+                required: [task_id, arrangement_id, provider_id, gap_ref, owner_role, assignee_id, due_date, tier]
+                properties:
+                  task_id: {type: string, format: uuid}
+                  arrangement_id: {type: string, format: uuid}
+                  provider_id: {type: string, format: uuid}
+                  gap_ref: {type: string, description: 'catalog clause id, or exit_plan_missing (104-F3 FR4 grain)'}
+                  owner_role: {type: string, enum: [legal, outsourcing-manager]}
+                  assignee_id: {type: [string, 'null'], format: uuid}
+                  due_date: {type: string, format: date}
+                  tier: {type: string, enum: [P1, P2, P3], description: 'arrangement priority tier, 104-F3 FR3'}
+      x-idempotency-key: task_id
+      x-schema-version: 1
+      examples:
+        - name: clauseGapTask
+          payload:
+            event_id: 6a1c2e4f-8b3d-4c5e-9f70-1a2b3c4d5e11
+            event_type: remediation.task.created
+            schema_version: 1
+            occurred_at: '2026-11-06T10:00:00Z'
+            tenant_id: 11111111-2222-4333-8444-555555555555
+            correlation_id: 7b2d3f50-9c4e-4d6f-a081-2b3c4d5e6f11
+            actor: {kind: user, id: 9c3e4a61-0d5f-4e70-b192-3c4d5e6f7a11, role: legal}
+            data:
+              task_id: f5278350-7049-4e6f-9091-8f9a0b1c2d11
+              arrangement_id: 2e5a6b83-4f7c-4d92-a3b4-5e6f7a8b9c01
+              provider_id: 3d1b7f8e-2a44-4f0e-9a4b-7c0b8e1d2f33
+              gap_ref: example-clause-1
+              owner_role: legal
+              assignee_id: null
+              due_date: '2026-12-06'
+              tier: P1
+  schemas:
+    Envelope:
+      type: object
+      required: [event_id, event_type, schema_version, occurred_at, tenant_id, correlation_id, actor, data]
+      properties:
+        event_id: {type: string, format: uuid}
+        event_type:
+          type: string
+          enum: [arrangement.request.submitted, arrangement.review.decided, arrangement.approved,
+                 arrangement.assessment.reopened, contract.analysed, contract.gaps.detected,
+                 provider.signal.received, provider.risk-score.changed, provider.obligation.expiring,
+                 ictrisk.residual.changed, remediation.task.created]
+        schema_version: {type: integer, minimum: 1}
+        occurred_at: {type: string, format: date-time}
+        tenant_id: {type: string, format: uuid}
+        correlation_id: {type: string, description: carried end to end (constitution III.5)}
+        actor:
+          type: object
+          required: [kind, id, role]
+          properties:
+            kind: {type: string, enum: [user, service, system]}
+            id: {type: string, description: 'user uuid, or service name for service and system actors'}
+            role:
+              type: [string, 'null']
+              enum: [requester, outsourcing-manager, security, it-governance, compliance, legal, auditor, admin, null]
+        data: {type: object}
+    ScoreBand:
+      type: string
+      enum: [low, medium, high, critical]
+    ResidualState:
+      type: object
+      required: [likelihood, impact, score, band, in_breach, controls_not_effective]
+      properties:
+        likelihood: {type: integer, minimum: 1}
+        impact: {type: integer, minimum: 1}
+        score: {type: integer, minimum: 1}
+        band: {type: string, enum: [low, medium, high, critical]}
+        in_breach: {type: boolean}
+        controls_not_effective: {type: boolean}
+    NormalizedSignal:
+      type: object
+      additionalProperties: true
+      required: [signal_id, layer, kind, source_code, source_ref, source_event_key, provider_id, engagement_id,
+                 supplied_product_id, observed_at, severity, title, relevance, counting_state, raw_sha256]
+      properties:
+        signal_id: {type: string, format: uuid}
+        layer: {type: string, enum: [internal, external, obligation]}
+        kind: {type: string, enum: [itsm_incident, itsm_sla_breach, cloud_status, security_advisory, breach_news, sanctions_match, financial_health, obligation_expiring, obligation_lapsed]}
+        source_code: {type: string}
+        source_ref: {type: string}
+        source_event_key: {type: string}
+        provider_id: {type: [string, 'null'], format: uuid}
+        engagement_id: {type: [string, 'null'], format: uuid}
+        supplied_product_id: {type: [string, 'null'], format: uuid}
+        observed_at: {type: string, format: date-time}
+        severity: {type: string, enum: [info, low, medium, high, critical]}
+        title: {type: string}
+        relevance:
+          type: object
+          required: [assessed_by, rationale, model_ref]
+          properties:
+            assessed_by: {type: string, enum: [rule, ai_suggested]}
+            rationale: {type: [string, 'null']}
+            model_ref: {type: [string, 'null']}
+        counting_state: {type: string, enum: [counted, pending_review, dismissed, unmatched]}
+        raw_sha256: {type: string, pattern: '^sha256:[0-9a-f]{64}$'}

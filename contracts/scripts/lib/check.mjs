@@ -1,9 +1,11 @@
 // contracts/scripts/check (plan D6; 111-FR5, 111-AC5): the drift check. Fails when a synced file does not match
 // SOURCE.lock (any local edit), when a file is missing or not listed, and, given the spec checkout
-// (--spec-repo or SPEC_REPO_DIR), when the lock is behind it.
+// (--spec-repo or SPEC_REPO_DIR), when the lock is behind it. Then validates each OpenAPI file as 3.1 and the
+// AsyncAPI file as 3.0, unless --skip-validation.
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { CONTRACT_PATTERN, LOCK_NAME, contractsDir, parseOptions, sha256, specRepo } from "./frozen.mjs";
+import { validationProblems } from "./validate.mjs";
 
 function driftProblems(folder, repo) {
   const lock = JSON.parse(readFileSync(path.join(folder, LOCK_NAME), "utf8"));
@@ -27,6 +29,11 @@ function driftProblems(folder, repo) {
 const options = parseOptions(process.argv.slice(2), ["skip-validation"]);
 const folder = contractsDir(options);
 const problems = driftProblems(folder, specRepo(options));
+if (problems.length === 0) console.log(`check: every contract in ${folder} matches ${LOCK_NAME}`);
+if (!options["skip-validation"]) {
+  const lock = JSON.parse(readFileSync(path.join(folder, LOCK_NAME), "utf8"));
+  const present = Object.keys(lock.files).filter((name) => existsSync(path.join(folder, name)));
+  problems.push(...(await validationProblems(folder, present)));
+}
 for (const problem of problems) console.log(`check: ${problem}`);
-if (problems.length > 0) process.exit(1);
-console.log(`check: every contract in ${folder} matches ${LOCK_NAME}`);
+process.exitCode = problems.length > 0 ? 1 : 0;

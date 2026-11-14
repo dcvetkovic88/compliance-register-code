@@ -1,0 +1,33 @@
+{
+  "commit": "1e4d12abd5ef92aa4d32ef00fb9e195d0602b913",
+  "files": {
+    "ai-document-service.openapi.yaml": {
+      "source": "docs/standalone/contracts/ai-document-service.openapi.yaml",
+      "sha256": "62ff4584287c0d8dfdb908516458cb56fae5d63f8b1de36b7f34791bdc17fa16"
+    },
+    "ict-risk-service.openapi.yaml": {
+      "source": "docs/standalone/contracts/ict-risk-service.openapi.yaml",
+      "sha256": "adc8e1179f541c62390124de7f9615916285e9ef723e087ca69aa835a1a1115d"
+    },
+    "monitoring-service.openapi.yaml": {
+      "source": "docs/standalone/contracts/monitoring-service.openapi.yaml",
+      "sha256": "3171c6feaba64c6ced63fd08540c0db8b3724ebfb70926150ca0441ba76f3eb8"
+    },
+    "platform.openapi.yaml": {
+      "source": "docs/standalone/contracts/platform.openapi.yaml",
+      "sha256": "32bc32e7de58d30b5bc144db1c2f0c0d8a333d10bca0d4d2ed3089053a00583a"
+    },
+    "register-events.asyncapi.yaml": {
+      "source": "docs/standalone/contracts/register-events.asyncapi.yaml",
+      "sha256": "6b7695e8a8fed18e12452ecbc8a5026e3a56e45258ec4c515501a330c505d6e6"
+    },
+    "register-service.openapi.yaml": {
+      "source": "docs/standalone/contracts/register-service.openapi.yaml",
+      "sha256": "a8d976ac8a31d9d27de909c3d2b3e123df4cb81008177dcf725e2eef3eedcd30"
+    },
+    "web-bff.openapi.yaml": {
+      "source": "docs/standalone/contracts/web-bff.openapi.yaml",
+      "sha256": "0785a471a09f56758eb95e05c4d7dd58a02af4324d6acd6ba952a4cc063be33d"
+    }
+  }
+}

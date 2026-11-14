@@ -1,0 +1,2 @@
+# The contracts tools' own npm packages, installed from package-lock.json.
+node_modules/

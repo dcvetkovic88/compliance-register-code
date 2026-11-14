@@ -1,0 +1,15 @@
+{
+  "name": "@register/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tools of the synced contracts: OpenAPI 3.1 and AsyncAPI 3.0 validation (plan D6)",
+  "type": "module",
+  "engines": {
+    "node": "26.13.0"
+  },
+  "dependencies": {
+    "@asyncapi/parser": "3.6.6",
+    "@readme/openapi-parser": "10.0.0",
+    "openapi-types": "12.1.3"
+  }
+}

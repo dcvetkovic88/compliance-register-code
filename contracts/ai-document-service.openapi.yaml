@@ -1,0 +1,1458 @@
+openapi: 3.1.0
+info:
+  title: ai-document-service API (standalone register build, feature 108 draft)
+  version: 0.1.0-draft.108
+  description: >
+    Draft of the HTTP API of ai-document-service (docs/standalone/register-standalone-spec.md
+    section 3), serving feature 108 functionalities F1 (contract reading), F2 (clause gap check),
+    F3 (compliance copilot) and F4 (criticality suggestion), plus the signal relevance
+    judgement used by 104-F5. Contract-first under constitution
+    IX.2; frozen at planning-done. Status: DRAFT | Added 2026-11-04 by decision of Dusan
+    (Raiffeisen Demo Decisions and Build Brief). AMENDED 2026-11-05 (Dusan decision Q-012):
+    draft_wording_language is the contract's language. Every AI output is a suggestion with verified
+    sources; nothing enters a record without a decision by a named user (register values:
+    register-service decideFieldSuggestions; clause statuses and gaps: register-service
+    setContractReviewItem and decideContractGaps; criticality kinds: register-service
+    proposeClassification, updateRequest and recordCriticalityDecision, 108-F4).
+    Roles in x-roles are the L1 section 2 role ids and remain drafts until 109-F1 lands.
+    Errors follow RFC 9457 Problem Details with error_code (docs/standards/api-standards.md
+    section 5). The tenant is taken from the verified bearer token, never from the request.
+    AMENDED 2026-11-05: judgeSignalRelevance added for 104-F5 (cross-file reconciliation).
+    AMENDED 2026-11-05 (foundation T0.2, dcvetkovic88/compliance-register#1): servers entry for the local Docker Compose stack, port 8084 after register-service 8081 in the service order of L1 section 3.
+    AMENDED 2026-11-06 (108-F1 speckit-clarify, autonomous Spec Kit run; Dusan decision X3):
+    register-service is the only caller of the 108 operations and forwards the signed-in user's
+    bearer token (x-surface user, that user's identity); apps/web never calls this service.
+    uploadDocument takes a JSON reference to a register-service document (bucket
+    register-documents) instead of a multipart file, and the service stores no copy;
+    confirmSuggestion refuses kind register_field.
+    AMENDED 2026-11-06 (108-F2 speckit-clarify, autonomous Spec Kit run; Dusan decisions X2, X3;
+    109-F4 analyze 2026-11-06 F1, F3): runClauseCheck reads the active annotation version only
+    through platform getActiveAnnotationVersion (seed/catalogs/clause-applicability.json is seed
+    input only) and ClauseCheck carries annotation_version; ClauseFinding.applicability_condition
+    adds national_scope (Q-028); confirmSuggestion refuses kind clause_status, whose decisions
+    register-service records on the contract checklist item (setContractReviewItem) and on the
+    contract gaps (decideContractGaps).
+    AMENDED 2026-11-06 (108-F2 speckit-plan re-run, speckit-analyze 2026-11-06 108-F2 F1):
+    ClauseCheck.outdated is false in the demo; the outdated mark of a clause check is computed on
+    read by register-service on the contract review (ContractReview.outdated, 108-F2 plan D-6;
+    wording AMENDED 2026-11-06, analyze final-108-F2-p1 F1: not stored).
+    AMENDED 2026-11-06 (108-F4 speckit-clarify, autonomous Spec Kit run; docs/analyze-2026-11-06.md
+    108-F4 H3, H4; Dusan decisions X2, X3): requestCriticalitySuggestion and
+    getCriticalitySuggestion are called only by register-service; confirmSuggestion refuses the
+    five criticality kinds and is now x-scope PILOT; CriticalitySuggestionSet.outdated is false in
+    the demo (register-service computes the mark on read, 108-F4-FR8).
+    AMENDED 2026-11-06 (108-F3 speckit-clarify, autonomous Spec Kit run; docs/analyze-2026-11-06.md
+    108-F3 H2; Dusan decision X3): listCopilotSessions added (own sessions; auditor all sessions of
+    the tenant with optional user_id; another user_id from a non-auditor is 404) with
+    CopilotSessionList; the four copilot operations are called only by the register-service relay
+    operations of the same name (108-F3-FR13).
+    AMENDED 2026-11-06 (108-F3 speckit-plan, analyze report final-108-F3-c1t1 U1, I1; Confirmed by Dusan 2026-11-06, Q-169): listCopilotMessages read by a user other than the session owner
+    (auditor) withholds each assistant segment that cites a confidential record or a contract
+    segment the reader cannot read (CopilotSegment.withheld); the copilot request locale is the
+    register-service aiLocale value, so the CopilotSessionCreate and CopilotSession examples read
+    sr-Latn (110-F1 T3.5, T7.1).
+    AMENDED 2026-11-06 (108-F3 speckit-plan, analyze report final-108-F3-p1 H2, M1): the
+    real-document guard of the copilot applies to askCopilot only, the one model-calling copilot
+    operation (409 AIDOC_DATA_HANDLING_NOT_APPROVED, 108-F1 plan, 108-AC4); session create and the
+    two list operations stay available; CopilotAnswer.status drops `error`, which 108-F3-FR6 does
+    not define (a model outage is a 503 Problem, not an answer).
+    AMENDED 2026-11-07 (Dusan's decision (delegated proxy, 2026-11-07) on dcvetkovic88/compliance-register#18): unquoted flow-mapping `description` values containing a comma are quoted so YAML keeps each sentence whole; no type, field, path, message or response changes (111-AC5, Redocly `struct`).
+servers:
+  - url: http://localhost:8084
+    description: ai-document-service in the local Docker Compose stack
+security:
+  - bearerAuth: []
+tags:
+  - name: health
+  - name: documents
+  - name: jobs
+  - name: analyses
+  - name: clause-checks
+  - name: batches
+  - name: criticality
+  - name: copilot
+  - name: suggestions
+  - name: signal-relevance
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      tags: [health]
+      summary: Liveness and readiness, no data
+      security: []
+      x-roles: []
+      x-surface: service
+      x-audit-object: none
+      responses:
+        '200':
+          description: Service is up
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Health'}
+  /api/v1/ai-document/documents:
+    post:
+      operationId: uploadDocument
+      tags: [documents]
+      summary: Register a contract held by register-service (PDF with text layer or DOCX) linked to one arrangement or request (108-F1-FR1)
+      description: >
+        Called by register-service only (X3), with the signed-in user's token. The body names the
+        register-service document; this service reads its bytes through register-service
+        downloadDocument as that user and stores no copy. Maximum 20 MB and 300 pages. A second
+        registration with the same SHA-256 on the same arrangement or request returns the existing
+        document with status 200 instead of 201. Text extraction runs before the response returns;
+        a PDF without a text layer is refused (DEMO scope).
+      x-roles: [requester, outsourcing-manager, security, it-governance, compliance, legal]
+      x-surface: user
+      x-audit-object: aidoc:document
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DocumentRegistration'}
+      responses:
+        '201':
+          description: Document registered and text extracted
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Document'}
+        '200':
+          description: Same file already registered on this arrangement or request; existing document returned
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Document'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '413': {$ref: '#/components/responses/FileTooLarge'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/v1/ai-document/documents/{document_id}:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+    get:
+      operationId: getDocument
+      tags: [documents]
+      summary: Document metadata (108-F1-FR1, FR2)
+      x-roles: [requester, outsourcing-manager, security, it-governance, compliance, legal, auditor]
+      x-surface: user
+      x-audit-object: aidoc:document
+      responses:
+        '200':
+          description: Document
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Document'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    patch:
+      operationId: updateDocumentLanguage
+      tags: [documents]
+      summary: Override the detected language and script (108-F1-FR2)
+      x-roles: [requester, outsourcing-manager, security, it-governance, compliance, legal]
+      x-surface: user
+      x-audit-object: aidoc:document
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DocumentLanguageUpdate'}
+      responses:
+        '200':
+          description: Updated document
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Document'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/v1/ai-document/documents/{document_id}/analyse:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+    post:
+      operationId: analyseDocument
+      tags: [documents]
+      summary: Start contract reading and register pre-fill (108-F1-FR4 to FR11)
+      x-roles: [outsourcing-manager, compliance, legal]
+      x-surface: user
+      x-audit-object: aidoc:analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AnalyseRequest'}
+      responses:
+        '202': {$ref: '#/components/responses/JobAccepted'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/v1/ai-document/documents/{document_id}/clause-checks:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+    post:
+      operationId: runClauseCheck
+      tags: [clause-checks]
+      summary: Start the clause gap check against the active catalogs (108-F2-FR1 to FR7)
+      description: >
+        Called by register-service only, with the signed-in user's token (X3). At the start of
+        each check the service reads the active annotation version through platform
+        getActiveAnnotationVersion (109-F4) and stamps it on the result; it never reads the seed
+        file. When that call fails the job fails with no model call and no proposals.
+      x-roles: [outsourcing-manager, compliance, legal]
+      x-surface: user
+      x-audit-object: aidoc:clause-check
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ClauseCheckRequest'}
+      responses:
+        '202': {$ref: '#/components/responses/JobAccepted'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/v1/ai-document/jobs/{job_id}:
+    parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getJob
+      tags: [jobs]
+      summary: Job state; links the analysis or batch result when done
+      x-roles: [requester, outsourcing-manager, security, it-governance, compliance, legal, auditor]
+      x-surface: user
+      x-audit-object: aidoc:job
+      responses:
+        '200':
+          description: Job
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Job'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/ai-document/analyses/{analysis_id}:
+    parameters:
+      - name: analysis_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getAnalysis
+      tags: [analyses]
+      summary: Contract reading result with suggestions and sources (108-F1-FR5 to FR10)
+      x-roles: [requester, outsourcing-manager, security, it-governance, compliance, legal, auditor]
+      x-surface: user
+      x-audit-object: aidoc:analysis
+      responses:
+        '200':
+          description: Analysis
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Analysis'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/ai-document/clause-checks/{clause_check_id}:
+    parameters:
+      - name: clause_check_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getClauseCheck
+      tags: [clause-checks]
+      summary: Clause gap check result, one finding per clause (108-F2-FR3, FR4)
+      x-roles: [requester, outsourcing-manager, security, it-governance, compliance, legal, auditor]
+      x-surface: user
+      x-audit-object: aidoc:clause-check
+      responses:
+        '200':
+          description: Clause check
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ClauseCheck'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/ai-document/batches:
+    post:
+      operationId: createBatch
+      tags: [batches]
+      summary: Batch reading and clause checks over existing contracts (108-F1-FR9, 108-F2-FR8); called by register-service only (X3)
+      x-roles: [outsourcing-manager]
+      x-surface: user
+      x-audit-object: aidoc:batch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BatchRequest'}
+      responses:
+        '202': {$ref: '#/components/responses/JobAccepted'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/v1/ai-document/batches/{batch_id}:
+    parameters:
+      - name: batch_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getBatch
+      tags: [batches]
+      summary: Batch progress, per-document results and totals
+      x-roles: [outsourcing-manager, compliance, legal, auditor]
+      x-surface: user
+      x-audit-object: aidoc:batch
+      responses:
+        '200':
+          description: Batch
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Batch'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/ai-document/criticality-suggestions:
+    post:
+      operationId: requestCriticalitySuggestion
+      tags: [criticality]
+      summary: Start the lifecycle step 2 pre-assessment suggestion (108-F4-FR1 to FR6)
+      description: >
+        Called only by register-service (requestCriticalitySuggestion, 104-F2 T3.3 AiDocumentClient)
+        with the signed-in user's bearer token (X3); apps/web never calls it. AMENDED 2026-11-06
+        (108-F4): role compliance removed, the outsourcing manager starts the suggestion.
+      x-roles: [outsourcing-manager]
+      x-surface: user
+      x-audit-object: aidoc:criticality-suggestion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CriticalityRequest'}
+      responses:
+        '202': {$ref: '#/components/responses/JobAccepted'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/v1/ai-document/criticality-suggestions/{suggestion_set_id}:
+    parameters:
+      - name: suggestion_set_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getCriticalitySuggestion
+      tags: [criticality]
+      summary: Criticality and ICT relevance suggestion set
+      description: >
+        Called by register-service with the user's token to copy the set into
+        register.request_criticality_suggestions (X3, 108-F4-FR7); the screen reads the register copy
+        (getRequestCriticalitySuggestions).
+      x-roles: [requester, outsourcing-manager, security, it-governance, compliance, legal, auditor]
+      x-surface: user
+      x-audit-object: aidoc:criticality-suggestion
+      responses:
+        '200':
+          description: Suggestion set
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CriticalitySuggestionSet'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/ai-document/copilot/sessions:
+    post:
+      operationId: createCopilotSession
+      tags: [copilot]
+      summary: Open a copilot session (108-F3-FR1, FR9)
+      x-roles: [requester, outsourcing-manager, security, it-governance, compliance, legal, auditor]
+      x-surface: user
+      x-audit-object: aidoc:copilot-session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CopilotSessionCreate'}
+      responses:
+        '201':
+          description: Session created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CopilotSession'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+    get:
+      operationId: listCopilotSessions
+      tags: [copilot]
+      summary: List copilot sessions, newest first (108-F3-FR9, AC9)
+      description: >
+        Every copilot role lists its own sessions. auditor lists all sessions of the tenant and may pass
+        user_id. A user_id other than the caller's from a caller without auditor is answered 404, as is any
+        session of another user (108-F3-AC9). No delete or hide operation exists in the demo (Q-162).
+        Called only by the register-service relay operation of the same name (X3).
+      x-roles: [requester, outsourcing-manager, security, it-governance, compliance, legal, auditor]
+      x-surface: user
+      x-audit-object: aidoc:copilot-session
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - {name: user_id, in: query, required: false, schema: {type: string}}
+      responses:
+        '200':
+          description: Sessions ordered by created_at descending
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CopilotSessionList'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/ai-document/copilot/sessions/{session_id}/messages:
+    parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      operationId: askCopilot
+      tags: [copilot]
+      summary: Ask a question; JSON answer, or Server-Sent Events with Accept text/event-stream (108-F3-FR1 to FR10)
+      description: >
+        Streaming note: with `Accept: text/event-stream` the response is a Server-Sent Events
+        stream of events `progress` (CopilotProgressEvent), `sentence` (CopilotSentenceEvent, one
+        validated segment with its citations), `final` (CopilotAnswer) and `error` (Problem).
+        Sentences are emitted only after citation validation, never as unvalidated text.
+        Only the session owner may ask. Reads are made as the asking user (109-F3).
+        In real-document mode without a recorded client approval reference the question is refused
+        with 409 AIDOC_DATA_HANDLING_NOT_APPROVED before any model call, and the refusal is audited
+        (108-F3-FR12, 108-AC4); this is the only copilot operation the guard refuses.
+      x-roles: [requester, outsourcing-manager, security, it-governance, compliance, legal, auditor]
+      x-surface: user
+      x-audit-object: aidoc:copilot-message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CopilotQuestion'}
+      responses:
+        '200':
+          description: Answer (JSON) or event stream
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CopilotAnswer'}
+            text/event-stream:
+              schema:
+                type: string
+                description: >
+                  SSE stream. Each event has `event:` one of progress, sentence, final, error and a
+                  `data:` line holding the JSON of CopilotProgressEvent, CopilotSentenceEvent,
+                  CopilotAnswer or Problem respectively.
+              example: "event: progress\ndata: {\"message_key\":\"copilot.progress.reading_arrangements\"}\n\n"
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '503': {$ref: '#/components/responses/ModelUnavailable'}
+    get:
+      operationId: listCopilotMessages
+      tags: [copilot]
+      summary: Messages of a session, oldest first (owner or auditor)
+      description: >
+        The owner reads the stored messages as written. A reader who is not the owner (auditor,
+        108-F3-FR9) reads the questions, statuses, scope counts, interpretations and read lists, but
+        each assistant segment with a record citation stored as confidential, or with a span
+        citation to a contract segment the reader cannot read as themself (109-F3 policies), is
+        returned with withheld true, empty text and no citations (109-F3-FR6). A grant held by the
+        reader does not lift the withholding of a confidential record citation in the demo; lifting
+        it by grant is PILOT (Confirmed by Dusan 2026-11-06, Q-169).
+      x-roles: [requester, outsourcing-manager, security, it-governance, compliance, legal, auditor]
+      x-surface: user
+      x-audit-object: aidoc:copilot-message
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Messages ordered by seq ascending
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CopilotMessageList'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/ai-document/suggestions/{suggestion_id}/confirm:
+    parameters:
+      - name: suggestion_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      operationId: confirmSuggestion
+      tags: [suggestions]
+      summary: Record the human decision on one suggestion (108 FR6)
+      description: >
+        Records the human decision on one suggestion; the value would then be written by the
+        owning service (register-service) with the returned decision id. In the demo every kind is
+        refused (amendments below). AMENDED 2026-11-06 (108-F4 final analyze I1): base sentence no
+        longer assigns roles to refused kinds.
+        AMENDED 2026-11-06 (X3): kind register_field is refused with 422 AIDOC_VALIDATION;
+        register-value decisions are recorded by register-service decideFieldSuggestions.
+        AMENDED 2026-11-06 (108-F2, X3): kind clause_status is refused with 422 AIDOC_VALIDATION;
+        clause-status and gap decisions are recorded by register-service setContractReviewItem
+        and decideContractGaps with the suggestion reference; role legal removed.
+        AMENDED 2026-11-06 (108-F4, X2, X3): kinds ict_relevance, ict_service_type, function_link,
+        critical_support and nbs_critical_key are refused with 422 AIDOC_VALIDATION; their decisions
+        are recorded by register-service (proposeClassification, updateRequest
+        function_link_decisions, recordCriticalityDecision) with the suggestion reference, and
+        approved only through platform decideApproval. Every kind is now refused, so the operation
+        has no demo caller and writes no aidoc.suggestion_decisions row; it is kept as x-scope PILOT
+        and its removal or reuse is decided at the pilot contract review.
+      x-roles: [outsourcing-manager, compliance]
+      x-scope: PILOT
+      x-surface: user
+      x-audit-object: aidoc:suggestion-decision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ConfirmRequest'}
+      responses:
+        '201':
+          description: Decision recorded
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Decision'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/v1/ai-document/signal-relevance:
+    post:
+      operationId: judgeSignalRelevance
+      tags: [signal-relevance]
+      summary: Relevance judgement of one external signal for the tenant's providers (104-F5-FR3, FR5)
+      description: >
+        Synchronous call from monitoring-service (104-F5 plan, AI relevance adapter). Uses the
+        ModelGateway classify operation. The result is a suggestion: monitoring-service stores
+        the signal ai_suggested and pending_review, and it counts only after a named user
+        confirms it (104-F5-FR6, constitution III.2 and IX.5). Stateless: nothing is stored in
+        aidoc except the audit record; the caller keeps rationale and model_ref with the signal.
+      x-roles: [service]
+      x-surface: service
+      x-audit-object: aidoc:signal-relevance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SignalRelevanceRequest'}
+      responses:
+        '200':
+          description: Judgement
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SignalRelevanceJudgement'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+        '503': {$ref: '#/components/responses/ModelUnavailable'}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    DocumentId:
+      name: document_id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: {type: integer, minimum: 1, maximum: 500, default: 50}
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema: {type: string}
+  responses:
+    JobAccepted:
+      description: Job accepted
+      headers:
+        Location:
+          description: URL of the job resource
+          schema: {type: string}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/JobAccepted'}
+    BadRequest:
+      description: Malformed request
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    Unauthenticated:
+      description: Missing or invalid credential (AIDOC_UNAUTHENTICATED)
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    Forbidden:
+      description: Authenticated but not permitted (AIDOC_FORBIDDEN)
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    NotFound:
+      description: Not found or not visible to the caller (AIDOC_NOT_FOUND)
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    Conflict:
+      description: >
+        State conflict: AIDOC_SUGGESTION_ALREADY_DECIDED, AIDOC_SUGGESTION_SUPERSEDED,
+        AIDOC_DATA_HANDLING_NOT_APPROVED, AIDOC_LANGUAGE_UNKNOWN, AIDOC_ORDER_VIOLATION
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    FileTooLarge:
+      description: File over 20 MB or 300 pages (AIDOC_FILE_TOO_LARGE)
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    ValidationFailed:
+      description: >
+        Validation failure: AIDOC_VALIDATION, AIDOC_UNSUPPORTED_FORMAT, AIDOC_NO_TEXT_LAYER,
+        AIDOC_BATCH_TOO_LARGE
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    ModelUnavailable:
+      description: Model endpoint unavailable, retry later (AIDOC_MODEL_UNAVAILABLE; deviation recorded in 108-F1 plan Complexity tracking)
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+  schemas:
+    ErrorCode:
+      type: string
+      description: Stable error codes of this service with status and title
+      enum:
+        - AIDOC_UNAUTHENTICATED
+        - AIDOC_FORBIDDEN
+        - AIDOC_NOT_FOUND
+        - AIDOC_VALIDATION
+        - AIDOC_UNSUPPORTED_FORMAT
+        - AIDOC_NO_TEXT_LAYER
+        - AIDOC_FILE_TOO_LARGE
+        - AIDOC_BATCH_TOO_LARGE
+        - AIDOC_LANGUAGE_UNKNOWN
+        - AIDOC_SUGGESTION_ALREADY_DECIDED
+        - AIDOC_SUGGESTION_SUPERSEDED
+        - AIDOC_ORDER_VIOLATION
+        - AIDOC_DATA_HANDLING_NOT_APPROVED
+        - AIDOC_MODEL_UNAVAILABLE
+      examples: [AIDOC_NO_TEXT_LAYER]
+      x-error-catalog:
+        AIDOC_UNAUTHENTICATED: {status: 401, title: Authentication required}
+        AIDOC_FORBIDDEN: {status: 403, title: Operation not permitted for this role}
+        AIDOC_NOT_FOUND: {status: 404, title: Resource not found}
+        AIDOC_VALIDATION: {status: 422, title: Request validation failed}
+        AIDOC_UNSUPPORTED_FORMAT: {status: 422, title: Unsupported document format}
+        AIDOC_NO_TEXT_LAYER: {status: 422, title: Document has no text layer}
+        AIDOC_FILE_TOO_LARGE: {status: 413, title: Document too large}
+        AIDOC_BATCH_TOO_LARGE: {status: 422, title: Too many documents in batch}
+        AIDOC_LANGUAGE_UNKNOWN: {status: 409, title: Document language must be set before analysis}
+        AIDOC_SUGGESTION_ALREADY_DECIDED: {status: 409, title: Suggestion already decided}
+        AIDOC_SUGGESTION_SUPERSEDED: {status: 409, title: Suggestion superseded by a newer run}
+        AIDOC_ORDER_VIOLATION: {status: 409, title: Decide the function links before critical support}
+        AIDOC_DATA_HANDLING_NOT_APPROVED: {status: 409, title: Model endpoint not approved for client documents}
+        AIDOC_MODEL_UNAVAILABLE: {status: 503, title: Model endpoint unavailable}
+    Problem:
+      type: object
+      required: [type, title, status, error_code, correlation_id]
+      properties:
+        type: {type: string}
+        title: {type: string}
+        status: {type: integer}
+        detail: {type: string}
+        error_code: {$ref: '#/components/schemas/ErrorCode'}
+        correlation_id: {type: string}
+        errors:
+          type: array
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field: {type: string}
+              message: {type: string}
+      examples:
+        - type: https://errors.wiser.local/aidoc/suggestion-already-decided
+          title: Suggestion already decided
+          status: 409
+          detail: This suggestion already has a recorded decision.
+          error_code: AIDOC_SUGGESTION_ALREADY_DECIDED
+          correlation_id: 01J9Z6Q8T4X2C3V5B7N9M1K3H5
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status: {type: string, enum: [ok, degraded]}
+      examples:
+        - status: ok
+    Language:
+      type: string
+      enum: [en, sr-Latn, sr-Cyrl, unknown]
+      examples: [sr-Cyrl]
+    UiLocale:
+      type: string
+      enum: [en, sr-Latn, sr-Cyrl]
+      examples: [sr-Latn]
+    Confidence:
+      type: string
+      enum: [high, medium, low]
+      examples: [medium]
+    DataHandlingMode:
+      type: string
+      enum: [demo-fictional, client-approved]
+      examples: [demo-fictional]
+    DocumentRegistration:
+      type: object
+      additionalProperties: false
+      required: [register_document_id]
+      properties:
+        register_document_id: {type: string, description: 'register-service document id (bucket register-documents), X3'}
+        arrangement_id: {type: string, description: Exactly one of arrangement_id and request_id}
+        request_id: {type: string}
+        version_of: {type: string, format: uuid}
+        declared_language: {$ref: '#/components/schemas/Language'}
+      examples:
+        - register_document_id: 0193a1c2-6a10-7c2b-8e11-3d4e5f6a7b82
+          arrangement_id: arr-0007
+    Document:
+      type: object
+      required: [document_id, register_document_id, file_name, media_type, size_bytes, sha256, detected_language, declared_language, text_status, is_fictional, uploaded_by, uploaded_at, arrangement_id, request_id, page_count, version_of]
+      properties:
+        document_id: {type: string, format: uuid}
+        register_document_id: {type: string, description: register-service document id (X3)}
+        arrangement_id: {type: [string, 'null']}
+        request_id: {type: [string, 'null']}
+        version_of: {type: [string, 'null'], format: uuid}
+        file_name: {type: string}
+        media_type: {type: string, enum: [application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document]}
+        size_bytes: {type: integer}
+        page_count: {type: [integer, 'null']}
+        sha256: {type: string, pattern: '^[0-9a-f]{64}$'}
+        detected_language: {$ref: '#/components/schemas/Language'}
+        declared_language:
+          oneOf:
+            - {$ref: '#/components/schemas/Language'}
+            - {type: 'null'}
+        text_status: {type: string, enum: [pending, extracted, no_text_layer, failed]}
+        is_fictional: {type: boolean}
+        uploaded_by: {type: string}
+        uploaded_at: {type: string, format: date-time}
+      examples:
+        - document_id: 0193a1c2-7d4e-7b1a-9f00-2c4d5e6f7a81
+          register_document_id: 0193a1c2-6a10-7c2b-8e11-3d4e5f6a7b82
+          arrangement_id: arr-0007
+          request_id: null
+          version_of: null
+          file_name: C-01.en.pdf
+          media_type: application/pdf
+          size_bytes: 482113
+          page_count: 14
+          sha256: 3f5a0c2b9e8d7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a
+          detected_language: en
+          declared_language: null
+          text_status: extracted
+          is_fictional: true
+          uploaded_by: user-om-01
+          uploaded_at: '2026-11-09T09:15:00Z'
+    DocumentLanguageUpdate:
+      type: object
+      additionalProperties: false
+      required: [declared_language]
+      properties:
+        declared_language: {$ref: '#/components/schemas/Language'}
+      examples:
+        - declared_language: sr-Cyrl
+    AnalyseRequest:
+      type: object
+      additionalProperties: false
+      required: [locale]
+      properties:
+        locale: {$ref: '#/components/schemas/UiLocale'}
+      examples:
+        - locale: sr-Latn
+    ClauseCheckRequest:
+      type: object
+      additionalProperties: false
+      required: [locale]
+      properties:
+        locale: {$ref: '#/components/schemas/UiLocale'}
+      examples:
+        - locale: en
+    JobAccepted:
+      type: object
+      required: [job_id]
+      properties:
+        job_id: {type: string, format: uuid}
+      examples:
+        - job_id: 0193a1c3-1111-7000-8000-000000000001
+    Job:
+      type: object
+      required: [job_id, kind, status, created_at, started_at, finished_at, error_code, result]
+      properties:
+        job_id: {type: string, format: uuid}
+        kind: {type: string, enum: [extract, clause_check, criticality, batch]}
+        status: {type: string, enum: [queued, running, succeeded, failed, completed_with_failures]}
+        created_at: {type: string, format: date-time}
+        started_at: {type: [string, 'null'], format: date-time}
+        finished_at: {type: [string, 'null'], format: date-time}
+        error_code: {type: [string, 'null'], description: 'Job failure code, e.g. AIDOC_UNGROUNDED_OUTPUT or AIDOC_MODEL_UNAVAILABLE (job errors, not HTTP statuses)'}
+        result:
+          type: [object, 'null']
+          required: [resource, id]
+          properties:
+            resource: {type: string, enum: [analysis, clause_check, criticality_suggestion, batch]}
+            id: {type: string, format: uuid}
+      examples:
+        - job_id: 0193a1c3-1111-7000-8000-000000000001
+          kind: extract
+          status: succeeded
+          created_at: '2026-11-09T09:15:05Z'
+          started_at: '2026-11-09T09:15:06Z'
+          finished_at: '2026-11-09T09:15:41Z'
+          error_code: null
+          result: {resource: analysis, id: 0193a1c4-2222-7000-8000-000000000002}
+    CatalogVersion:
+      type: object
+      required: [regulation_id, regulation_version]
+      properties:
+        regulation_id: {type: string}
+        regulation_version: {type: string}
+      examples:
+        - regulation_id: dora
+          regulation_version: 2022-2554-fixture-v1
+    Source:
+      type: object
+      description: A verified source of a suggestion. Members not used by the kind are null.
+      required: [kind, document_id, page, paragraph_index, char_start, char_end, quote, verification, regulation_id, regulation_version, obligation_id, clause_id, record_type, record_id, field_path, definition_ref]
+      properties:
+        kind: {type: string, enum: [contract_span, regulation_clause, regulation_obligation, register_record, definition]}
+        document_id: {type: [string, 'null'], format: uuid}
+        page: {type: [integer, 'null']}
+        paragraph_index: {type: [integer, 'null']}
+        char_start: {type: [integer, 'null']}
+        char_end: {type: [integer, 'null']}
+        quote: {type: [string, 'null'], description: 'Verbatim, never transliterated'}
+        verification: {type: [string, 'null'], enum: [exact, normalized, null]}
+        regulation_id: {type: [string, 'null']}
+        regulation_version: {type: [string, 'null']}
+        obligation_id: {type: [string, 'null']}
+        clause_id: {type: [string, 'null']}
+        record_type: {type: [string, 'null']}
+        record_id: {type: [string, 'null']}
+        field_path: {type: [string, 'null']}
+        definition_ref: {type: [string, 'null']}
+      examples:
+        - kind: contract_span
+          document_id: 0193a1c2-7d4e-7b1a-9f00-2c4d5e6f7a81
+          page: 1
+          paragraph_index: 2
+          char_start: 412
+          char_end: 471
+          quote: This Agreement enters into force on 1 January 2027.
+          verification: exact
+          regulation_id: null
+          regulation_version: null
+          obligation_id: null
+          clause_id: null
+          record_type: null
+          record_id: null
+          field_path: null
+          definition_ref: null
+    Suggestion:
+      type: object
+      required: [suggestion_id, kind, status, target_level, target_record_id, field_id, regulation_id, obligation_id, clause_id, proposed_value, current_value, comparison, rationale, rationale_locale, confidence, confidence_rule, sources, decision_id]
+      properties:
+        suggestion_id: {type: string, format: uuid}
+        kind: {type: string, enum: [register_field, clause_status, ict_relevance, ict_service_type, function_link, critical_support, nbs_critical_key]}
+        status: {type: string, enum: [proposed, decided, superseded]}
+        target_level: {type: [string, 'null'], enum: [provider, arrangement, arrangement_function, supply_chain, function, null]}
+        target_record_id: {type: [string, 'null']}
+        field_id: {type: [string, 'null'], description: 104 FR1 field id}
+        regulation_id: {type: [string, 'null']}
+        obligation_id: {type: [string, 'null']}
+        clause_id: {type: [string, 'null']}
+        proposed_value: {description: 'Normalized value, clause status or label'}
+        current_value: {description: 'Register value at analysis time, or null'}
+        comparison: {type: [string, 'null'], enum: [fill, conflict, agree, new, null]}
+        rationale: {type: string}
+        rationale_locale: {type: string, enum: [en, sr-Latn]}
+        confidence: {$ref: '#/components/schemas/Confidence'}
+        confidence_rule: {type: string}
+        sources:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/Source'}
+        decision_id: {type: [string, 'null'], format: uuid}
+      examples:
+        - suggestion_id: 0193a1c5-3333-7000-8000-000000000003
+          kind: register_field
+          status: proposed
+          target_level: arrangement_function
+          target_record_id: null
+          field_id: B_02.02.0070
+          regulation_id: null
+          obligation_id: null
+          clause_id: null
+          proposed_value: '2027-01-01'
+          current_value: null
+          comparison: new
+          rationale: The contract states its entry into force on 1 January 2027.
+          rationale_locale: en
+          confidence: high
+          confidence_rule: exact-span-domain-parse
+          sources:
+            - kind: contract_span
+              document_id: 0193a1c2-7d4e-7b1a-9f00-2c4d5e6f7a81
+              page: 1
+              paragraph_index: 2
+              char_start: 412
+              char_end: 471
+              quote: This Agreement enters into force on 1 January 2027.
+              verification: exact
+              regulation_id: null
+              regulation_version: null
+              obligation_id: null
+              clause_id: null
+              record_type: null
+              record_id: null
+              field_path: null
+              definition_ref: null
+          decision_id: null
+    Analysis:
+      type: object
+      required: [analysis_id, kind, document_id, arrangement_id, catalog_versions, model_id, prompt_id, prompt_version, data_handling_mode, created_at, outdated, counts, not_found_fields, suggestions]
+      properties:
+        analysis_id: {type: string, format: uuid}
+        kind: {type: string, enum: [extract]}
+        document_id: {type: string, format: uuid}
+        arrangement_id: {type: [string, 'null']}
+        catalog_versions:
+          type: array
+          items: {$ref: '#/components/schemas/CatalogVersion'}
+        model_id: {type: string}
+        prompt_id: {type: string}
+        prompt_version: {type: string}
+        data_handling_mode: {$ref: '#/components/schemas/DataHandlingMode'}
+        created_at: {type: string, format: date-time}
+        outdated: {type: boolean}
+        counts:
+          type: object
+          required: [fill, conflict, agree, new, not_found, rejected]
+          properties:
+            fill: {type: integer}
+            conflict: {type: integer}
+            agree: {type: integer}
+            new: {type: integer}
+            not_found: {type: integer}
+            rejected: {type: integer}
+        not_found_fields:
+          type: array
+          items: {type: string}
+        suggestions:
+          type: array
+          items: {$ref: '#/components/schemas/Suggestion'}
+      examples:
+        - analysis_id: 0193a1c4-2222-7000-8000-000000000002
+          kind: extract
+          document_id: 0193a1c2-7d4e-7b1a-9f00-2c4d5e6f7a81
+          arrangement_id: arr-0007
+          catalog_versions: [{regulation_id: dora, regulation_version: 2022-2554-fixture-v1}]
+          model_id: configured-model-id
+          prompt_id: aidoc.extract.contract-fields
+          prompt_version: 1.0.0
+          data_handling_mode: demo-fictional
+          created_at: '2026-11-09T09:15:41Z'
+          outdated: false
+          counts: {fill: 0, conflict: 0, agree: 0, new: 18, not_found: 3, rejected: 0}
+          not_found_fields: [B_05.01.0010]
+          suggestions: []
+    ClauseFinding:
+      type: object
+      required: [suggestion, applicability, applicability_condition, unmet_elements, annex_reference, segments_checked, draft_wording, draft_wording_language, wording_source, wording_label]
+      properties:
+        suggestion: {$ref: '#/components/schemas/Suggestion'}
+        applicability: {type: string, enum: [applies, applies_if, not_applicable]}
+        applicability_condition: {type: [string, 'null'], enum: [critical_or_important, cloud, sub_outsourcing, national_scope, null]}
+        unmet_elements: {type: [string, 'null']}
+        annex_reference: {type: [string, 'null']}
+        segments_checked: {type: integer}
+        draft_wording: {type: [string, 'null']}
+        draft_wording_language: {type: [string, 'null'], description: 'Language of the contract checked (108-F2-FR4; Dusan decision 2026-11-05, Q-012); labels stay in the user locale'}
+        wording_source: {type: [string, 'null'], enum: [generated, partner_library, null]}
+        wording_label: {type: [string, 'null'], description: 'Localized "Draft for legal review. AI suggestion, not legal advice."'}
+      examples:
+        - suggestion:
+            suggestion_id: 0193a1c6-4444-7000-8000-000000000004
+            kind: clause_status
+            status: proposed
+            target_level: arrangement
+            target_record_id: arr-0007
+            field_id: null
+            regulation_id: dora
+            obligation_id: dora:art30-contract-provisions-01
+            clause_id: art30-3f-exit-strategy
+            proposed_value: missing
+            current_value: null
+            comparison: null
+            rationale: No exit strategy or transition period was found in any of the 212 segments.
+            rationale_locale: en
+            confidence: high
+            confidence_rule: all-windows-not-found
+            sources:
+              - kind: regulation_clause
+                document_id: null
+                page: null
+                paragraph_index: null
+                char_start: null
+                char_end: null
+                quote: null
+                verification: null
+                regulation_id: dora
+                regulation_version: 2022-2554-fixture-v1
+                obligation_id: dora:art30-contract-provisions-01
+                clause_id: art30-3f-exit-strategy
+                record_type: null
+                record_id: null
+                field_path: null
+                definition_ref: null
+            decision_id: null
+          applicability: applies
+          applicability_condition: critical_or_important
+          unmet_elements: null
+          annex_reference: null
+          segments_checked: 212
+          draft_wording: The Provider shall support an exit strategy including a transition period of at least ...
+          draft_wording_language: en
+          wording_source: generated
+          wording_label: Draft for legal review. AI suggestion, not legal advice.
+    ClauseCheck:
+      type: object
+      required: [clause_check_id, document_id, arrangement_id, catalog_versions, annotation_version, model_id, prompt_id, prompt_version, data_handling_mode, created_at, outdated, findings]
+      properties:
+        clause_check_id: {type: string, format: uuid}
+        document_id: {type: string, format: uuid}
+        arrangement_id: {type: [string, 'null']}
+        catalog_versions:
+          type: array
+          items: {$ref: '#/components/schemas/CatalogVersion'}
+        annotation_version: {type: string, description: 'Applicability annotation version read through platform getActiveAnnotationVersion at the start of the check (108-F2-FR1, FR2)'}
+        model_id: {type: string}
+        prompt_id: {type: string}
+        prompt_version: {type: string}
+        data_handling_mode: {$ref: '#/components/schemas/DataHandlingMode'}
+        created_at: {type: string, format: date-time}
+        outdated: {type: boolean, description: 'Always false in the demo. The outdated mark of 108-F2-FR9 is ContractReview.outdated of register-service, computed on read (108-F2 plan D-6); setting it here on an input-change event is [PILOT].'}
+        findings:
+          type: array
+          items: {$ref: '#/components/schemas/ClauseFinding'}
+      examples:
+        - clause_check_id: 0193a1c7-5555-7000-8000-000000000005
+          document_id: 0193a1c2-7d4e-7b1a-9f00-2c4d5e6f7a81
+          arrangement_id: arr-0007
+          catalog_versions: [{regulation_id: dora, regulation_version: 2022-2554-fixture-v1}, {regulation_id: nbs-ict-outsourcing, regulation_version: rs-og-100-2023-fixture-v1}]
+          annotation_version: '1.0'
+          model_id: configured-model-id
+          prompt_id: aidoc.compare.clauses
+          prompt_version: 1.0.0
+          data_handling_mode: demo-fictional
+          created_at: '2026-11-09T09:17:02Z'
+          outdated: false
+          findings: []
+    BatchRequest:
+      type: object
+      additionalProperties: false
+      required: [purpose, operations, items, locale]
+      properties:
+        purpose: {type: string, enum: [migration, remediation]}
+        operations:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: {type: string, enum: [extract, clause_check]}
+        items:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            type: object
+            additionalProperties: false
+            required: [document_id]
+            properties:
+              document_id: {type: string, format: uuid}
+        locale: {$ref: '#/components/schemas/UiLocale'}
+      examples:
+        - purpose: remediation
+          operations: [extract, clause_check]
+          items: [{document_id: 0193a1c2-7d4e-7b1a-9f00-2c4d5e6f7a81}]
+          locale: en
+    Batch:
+      type: object
+      required: [batch_id, purpose, operations, status, document_count, succeeded, failed, items, clause_totals]
+      properties:
+        batch_id: {type: string, format: uuid}
+        purpose: {type: string, enum: [migration, remediation]}
+        operations:
+          type: array
+          items: {type: string, enum: [extract, clause_check]}
+        status: {type: string, enum: [queued, running, succeeded, failed, completed_with_failures]}
+        document_count: {type: integer}
+        succeeded: {type: integer}
+        failed: {type: integer}
+        items:
+          type: array
+          items:
+            type: object
+            required: [document_id, arrangement_id, status, analysis_id, clause_check_id, error_code]
+            properties:
+              document_id: {type: string, format: uuid}
+              arrangement_id: {type: [string, 'null']}
+              status: {type: string, enum: [queued, running, succeeded, failed]}
+              analysis_id: {type: [string, 'null'], format: uuid}
+              clause_check_id: {type: [string, 'null'], format: uuid}
+              error_code: {type: [string, 'null']}
+        clause_totals:
+          type: array
+          items:
+            type: object
+            required: [regulation_id, clause_id, missing, unclear]
+            properties:
+              regulation_id: {type: string}
+              clause_id: {type: string}
+              missing: {type: integer}
+              unclear: {type: integer}
+      examples:
+        - batch_id: 0193a1c8-6666-7000-8000-000000000006
+          purpose: remediation
+          operations: [clause_check]
+          status: succeeded
+          document_count: 3
+          succeeded: 3
+          failed: 0
+          items: []
+          clause_totals: [{regulation_id: dora, clause_id: art30-3f-exit-strategy, missing: 1, unclear: 0}]
+    CriticalityRequest:
+      type: object
+      additionalProperties: false
+      required: [request_id, locale]
+      properties:
+        request_id: {type: string, description: register-service outsourcing request id}
+        document_id: {type: [string, 'null'], format: uuid, description: 'Draft contract to use, if uploaded'}
+        locale: {$ref: '#/components/schemas/UiLocale'}
+      examples:
+        - request_id: req-demo-01
+          document_id: null
+          locale: en
+    CriticalitySuggestionSet:
+      type: object
+      required: [suggestion_set_id, request_id, model_id, prompt_id, prompt_version, data_handling_mode, created_at, outdated, unmatched_activities, suggestions]
+      properties:
+        suggestion_set_id: {type: string, format: uuid}
+        request_id: {type: string}
+        model_id: {type: string}
+        prompt_id: {type: string}
+        prompt_version: {type: string}
+        data_handling_mode: {$ref: '#/components/schemas/DataHandlingMode'}
+        created_at: {type: string, format: date-time}
+        outdated: {type: boolean, description: 'Always false in the demo. The outdated mark of 108-F4-FR8 is RequestCriticalitySuggestionSet.outdated of register-service, computed on read; setting it here on an input-change event is [PILOT].'}
+        unmatched_activities:
+          type: array
+          items:
+            type: object
+            required: [text, sources]
+            properties:
+              text: {type: string}
+              sources:
+                type: array
+                items: {$ref: '#/components/schemas/Source'}
+        suggestions:
+          type: array
+          items: {$ref: '#/components/schemas/Suggestion'}
+      examples:
+        - suggestion_set_id: 0193a1c9-7777-7000-8000-000000000007
+          request_id: req-demo-01
+          model_id: configured-model-id
+          prompt_id: aidoc.classify.criticality
+          prompt_version: 1.0.0
+          data_handling_mode: demo-fictional
+          created_at: '2026-11-09T09:10:12Z'
+          outdated: false
+          unmatched_activities: []
+          suggestions: []
+    ConfirmRequest:
+      type: object
+      additionalProperties: false
+      required: [decision]
+      properties:
+        decision: {type: string, enum: [accepted, edited, rejected]}
+        final_value: {description: Required for edited; ignored for accepted (the proposed value is used)}
+        reason: {type: string, description: Required for rejected and for a not-applicable clause status}
+      examples:
+        - decision: edited
+          final_value: '2027-02-01'
+          reason: Signature delayed by one month per legal.
+    Decision:
+      type: object
+      required: [decision_id, suggestion_id, decision, final_value, reason, decided_by, decided_by_role, decided_at, correlation_id]
+      properties:
+        decision_id: {type: string, format: uuid}
+        suggestion_id: {type: string, format: uuid}
+        decision: {type: string, enum: [accepted, edited, rejected]}
+        final_value: {description: 'Value to be written by the owning service, null when rejected'}
+        reason: {type: [string, 'null']}
+        decided_by: {type: string}
+        decided_by_role: {type: string}
+        decided_at: {type: string, format: date-time}
+        correlation_id: {type: string}
+      examples:
+        - decision_id: 0193a1ca-8888-7000-8000-000000000008
+          suggestion_id: 0193a1c5-3333-7000-8000-000000000003
+          decision: accepted
+          final_value: '2027-01-01'
+          reason: null
+          decided_by: user-om-01
+          decided_by_role: outsourcing-manager
+          decided_at: '2026-11-09T09:20:00Z'
+          correlation_id: 01J9Z6Q8T4X2C3V5B7N9M1K3H6
+    CopilotSessionCreate:
+      type: object
+      additionalProperties: false
+      required: [locale]
+      properties:
+        locale: {$ref: '#/components/schemas/UiLocale', description: 'Set by register-service through aiLocale (110-F1 T3.5): en or sr-Latn, never sr-Cyrl'}
+      examples:
+        - locale: sr-Latn
+    CopilotSession:
+      type: object
+      required: [session_id, user_id, locale, created_at]
+      properties:
+        session_id: {type: string, format: uuid}
+        user_id: {type: string}
+        locale: {$ref: '#/components/schemas/UiLocale'}
+        created_at: {type: string, format: date-time}
+      examples:
+        - session_id: 0193a1cb-9999-7000-8000-000000000009
+          user_id: user-co-01
+          locale: sr-Latn
+          created_at: '2026-11-09T09:30:00Z'
+    CopilotQuestion:
+      type: object
+      additionalProperties: false
+      required: [question, locale]
+      properties:
+        question: {type: string, minLength: 1, maxLength: 2000}
+        locale: {$ref: '#/components/schemas/UiLocale'}
+      examples:
+        - question: Which providers lack an exit plan?
+          locale: en
+    CopilotCitation:
+      type: object
+      required: [kind, record_type, record_id, display_name, link, document_id, page, paragraph_index, quote]
+      properties:
+        kind: {type: string, enum: [record, span]}
+        record_type: {type: [string, 'null']}
+        record_id: {type: [string, 'null']}
+        display_name: {type: [string, 'null']}
+        link: {type: [string, 'null'], description: Web app path of the record or the passage viewer}
+        document_id: {type: [string, 'null'], format: uuid}
+        page: {type: [integer, 'null']}
+        paragraph_index: {type: [integer, 'null']}
+        quote: {type: [string, 'null']}
+      examples:
+        - kind: record
+          record_type: provider
+          record_id: prv-0012
+          display_name: Fictional Cloud d.o.o.
+          link: /providers/prv-0012
+          document_id: null
+          page: null
+          paragraph_index: null
+          quote: null
+    CopilotSegment:
+      type: object
+      required: [text, citations]
+      properties:
+        text: {type: string}
+        withheld:
+          type: boolean
+          default: false
+          description: True only in listCopilotMessages for a reader who is not the session owner, when the segment cites a confidential record or a contract segment the reader cannot read (108-F3-FR9, Q-169)
+        citations:
+          type: array
+          items: {$ref: '#/components/schemas/CopilotCitation'}
+      if:
+        required: [withheld]
+        properties: {withheld: {const: true}}
+      then:
+        properties: {text: {const: ''}, citations: {maxItems: 0}}
+      else:
+        properties: {citations: {minItems: 1}}
+      examples:
+        - text: Fictional Cloud d.o.o. has no exit plan recorded in its assessment.
+          citations:
+            - {kind: record, record_type: provider, record_id: prv-0012, display_name: Fictional Cloud d.o.o., link: /providers/prv-0012, document_id: null, page: null, paragraph_index: null, quote: null}
+    CopilotAnswer:
+      type: object
+      required: [message_id, status, interpretation, scope_count, segments, locale, model_id, prompt_version, notice_key]
+      properties:
+        message_id: {type: string, format: uuid}
+        status: {type: string, enum: [answered, partially_answered, unsupported, out_of_scope]}
+        interpretation: {type: [string, 'null']}
+        scope_count: {type: [integer, 'null'], description: Number of arrangements visible to the asking user that the answer covers}
+        segments:
+          type: array
+          items: {$ref: '#/components/schemas/CopilotSegment'}
+        locale: {$ref: '#/components/schemas/UiLocale'}
+        model_id: {type: string}
+        prompt_version: {type: string}
+        notice_key: {type: string, description: i18n key of the not-legal-advice notice}
+      examples:
+        - message_id: 0193a1cc-aaaa-7000-8000-00000000000a
+          status: answered
+          interpretation: Exit plan read from the assessment field B_07.01.0080.
+          scope_count: 33
+          segments: []
+          locale: en
+          model_id: configured-model-id
+          prompt_version: 1.0.0
+          notice_key: aidoc.notice.not_legal_advice
+    CopilotProgressEvent:
+      type: object
+      required: [message_key]
+      properties:
+        message_key: {type: string}
+      examples:
+        - message_key: copilot.progress.searching_contracts
+    CopilotSentenceEvent:
+      type: object
+      required: [index, segment]
+      properties:
+        index: {type: integer}
+        segment: {$ref: '#/components/schemas/CopilotSegment'}
+      examples:
+        - index: 0
+          segment: {text: Two providers have no exit plan recorded., citations: [{kind: record, record_type: provider, record_id: prv-0012, display_name: Fictional Cloud d.o.o., link: /providers/prv-0012, document_id: null, page: null, paragraph_index: null, quote: null}]}
+    CopilotMessage:
+      type: object
+      required: [message_id, seq, role, content, answer]
+      properties:
+        message_id: {type: string, format: uuid}
+        seq: {type: integer}
+        role: {type: string, enum: [user, assistant]}
+        content: {type: string}
+        answer:
+          oneOf:
+            - {$ref: '#/components/schemas/CopilotAnswer'}
+            - {type: 'null'}
+      examples:
+        - message_id: 0193a1cc-bbbb-7000-8000-00000000000b
+          seq: 1
+          role: user
+          content: Which providers lack an exit plan?
+          answer: null
+    SignalRelevanceRequest:
+      type: object
+      additionalProperties: false
+      required: [signal_id, kind, title, text, observed_at, candidates]
+      properties:
+        signal_id: {type: string, format: uuid, description: monitoring-service signal id}
+        kind: {type: string, enum: [security_advisory, breach_news, sanctions_match, financial_health, cloud_status]}
+        title: {type: string}
+        text: {type: string, maxLength: 20000}
+        source_url: {type: [string, 'null']}
+        observed_at: {type: string, format: date-time}
+        candidates:
+          type: array
+          minItems: 1
+          maxItems: 50
+          description: Providers the signal may concern (from register-service lookupRegisterRecords), with the supplied-product watchlist
+          items:
+            type: object
+            additionalProperties: false
+            required: [provider_id, legal_name]
+            properties:
+              provider_id: {type: string, format: uuid}
+              legal_name: {type: string}
+              identification_code: {type: [string, 'null']}
+              supplied_products: {type: array, items: {type: string}}
+      examples:
+        - signal_id: 0193a1c9-8888-7000-8000-000000000001
+          kind: breach_news
+          title: Fictional news item about a data breach at a cloud vendor
+          text: Fictional demo text.
+          source_url: null
+          observed_at: '2026-11-09T08:00:00Z'
+          candidates:
+            - provider_id: 0193a1c9-9999-7000-8000-000000000001
+              legal_name: Stratus Cloud Platform
+              identification_code: null
+              supplied_products: [Stratus Compute]
+    SignalRelevanceJudgement:
+      type: object
+      additionalProperties: false
+      required: [signal_id, relevant, provider_id, rationale, confidence, model_ref, prompt_id, prompt_version, data_handling_mode, judged_at]
+      properties:
+        signal_id: {type: string, format: uuid}
+        relevant: {type: boolean}
+        provider_id: {type: [string, 'null'], format: uuid, description: The candidate the signal concerns; null when not relevant to any candidate}
+        rationale: {type: string, description: Short reason shown with the AI-suggested label}
+        confidence: {$ref: '#/components/schemas/Confidence'}
+        model_ref: {type: string, description: Model id as configured in ModelGateway (stored as monitoring ai_model_ref)}
+        prompt_id: {type: string}
+        prompt_version: {type: string}
+        data_handling_mode: {$ref: '#/components/schemas/DataHandlingMode'}
+        judged_at: {type: string, format: date-time}
+      examples:
+        - signal_id: 0193a1c9-8888-7000-8000-000000000001
+          relevant: true
+          provider_id: 0193a1c9-9999-7000-8000-000000000001
+          rationale: The item names the provider's compute product.
+          confidence: medium
+          model_ref: configured-model-id
+          prompt_id: aidoc.classify.signal-relevance
+          prompt_version: 1.0.0
+          data_handling_mode: demo-fictional
+          judged_at: '2026-11-09T08:00:02Z'
+    CopilotSessionList:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/CopilotSession'}
+        next_cursor: {type: [string, 'null']}
+      examples:
+        - items: []
+          next_cursor: null
+    CopilotMessageList:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/CopilotMessage'}
+        next_cursor: {type: [string, 'null']}
+      examples:
+        - items: []
+          next_cursor: null

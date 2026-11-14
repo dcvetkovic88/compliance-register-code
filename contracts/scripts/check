@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
-# contracts/scripts/check (plan D6; 111-FR5): see contracts/scripts/lib/check.mjs.
+# contracts/scripts/check (plan D6; 111-FR5, 111-AC5): see contracts/scripts/lib/check.mjs. Installs the
+# validators of contracts/package-lock.json first when they are missing.
 set -euo pipefail
-exec node "$(dirname "${BASH_SOURCE[0]}")/lib/check.mjs" "$@"
+contracts="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [ ! -d "$contracts/node_modules" ]; then
+  npm ci --prefix "$contracts" --no-audit --no-fund --silent >&2
+fi
+exec node "$contracts/scripts/lib/check.mjs" "$@"
