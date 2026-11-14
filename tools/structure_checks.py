@@ -17,6 +17,8 @@ A search_path, set by SET search_path (also a function's SET clause, read up to 
 set_config, names no schema but the folder's own and pg_catalog, so no unqualified name reaches another schema.
 Nor does a schema operand (CREATE, ALTER or DROP SCHEMA, ON SCHEMA, IN SCHEMA and the like) name another schema.
 SQL comments and string literals are not read, but the value of a search_path is; a quoted name holds neither.
+Nor is a string literal that names an object (a regclass operand, the sequence of nextval, currval or setval):
+its qualifier is a schema, so it names only the folder's own schema or pg_catalog.
 size: a Python module of services/ or libs/ is at most 300 lines (SA-2.3-2).
 Build output, dependencies, virtual environments and test fixtures are never read.
 """
@@ -84,6 +86,11 @@ SCHEMA_OPERAND = re.compile(
 SCHEMA_NAME = re.compile(rf'"([^"]+)"|({IDENTIFIER})')
 # a string literal after these is the SQL body of a function, a procedure or a DO block
 BODY_KEYWORD = re.compile(r"\b(?:AS|DO(?:\s+LANGUAGE\s+\w+)?)\s*$", re.IGNORECASE)
+# a string literal before or after these names an object, a regclass or a sequence
+OBJECT_LITERAL_BEFORE = re.compile(r"(?:\b(?:nextval|currval|setval)\s*\(|\bregclass)\s*$", re.IGNORECASE)
+OBJECT_LITERAL_AFTER = re.compile(r"\s*(?:::\s*regclass\b|\s+AS\s+regclass\b)", re.IGNORECASE)
+CAST_OPEN = re.compile(r"\bCAST\s*\(\s*$", re.IGNORECASE)
+OBJECT_NAME = re.compile(rf"\s*({NAME})\s*\.\s*({NAME})\s*")
 SET_CONFIG_CALL = re.compile(r"\bset_config\s*\(", re.IGNORECASE)
 SET_CONFIG_SEARCH_PATH = re.compile(r"\s*'search_path'\s*,\s*'((?:[^']|'')*)'", re.IGNORECASE)
 PATH_ENTRY = re.compile(r'"([^"]+)"|\'([^\']+)\'|([A-Za-z_][A-Za-z0-9_$]*)')
@@ -173,6 +180,35 @@ def schema_operand_findings(location: tuple[str, int], blanked: str, own: str) -
             findings.append(
                 f"{path}:{line}: schema {schema}; the SQL of a service names only its own schema {own}"
                 " (tools/sql-schemas.yaml)"
+            )
+    return findings
+
+
+def object_literal_findings(location: tuple[str, int], sql: str, blanked: str, own: str) -> list[str]:
+    """Findings for each schema but `own` and pg_catalog that qualifies an object named in a string literal: a
+    regclass operand ('...'::regclass, CAST('...' AS regclass), regclass '...') or a sequence of nextval, currval
+    or setval."""
+    path, first_line = location
+    findings = []
+    for noise in SQL_NOISE.finditer(sql):
+        if not noise.group().startswith("'"):
+            continue
+        before = blanked[: noise.start()]
+        after = OBJECT_LITERAL_AFTER.match(blanked, noise.end())
+        if not (
+            OBJECT_LITERAL_BEFORE.search(before)
+            or after
+            and (after.group().lstrip().startswith("::") or CAST_OPEN.search(before))
+        ):
+            continue
+        name = OBJECT_NAME.fullmatch(noise.group()[1:-1].replace("''", "'"))
+        if name is None:
+            continue
+        schema = unquote(name.group(1)).lower()
+        if schema not in (own, SYSTEM_SCHEMA):
+            findings.append(
+                f"{path}:{first_line + blanked.count(chr(10), 0, noise.start())}: {schema}.{unquote(name.group(2))};"
+                f" the SQL of a service names only its own schema {own} (tools/sql-schemas.yaml)"
             )
     return findings
 
@@ -291,6 +327,7 @@ def text_findings(
     findings = search_path_findings(location, original, own)
     sql = blank_noise(original)
     findings += schema_operand_findings(location, sql, own)
+    findings += object_literal_findings(location, original, sql, own)
     for offset, body in bodies(original, sql):
         findings += text_findings((path, first_line + sql.count(chr(10), 0, offset)), body, service, rules)
     # names the SQL holds unqualified, as an alias or a table is; such a name may qualify a column where an alias can
