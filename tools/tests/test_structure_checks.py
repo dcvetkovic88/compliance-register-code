@@ -40,6 +40,14 @@ SQL_VIOLATIONS = [
         f"services/register/{MIGRATIONS}/V0002__read_archive.sql:1: risk-archive.assessments",
     ),
     (
+        "quoted-schema-holding-a-comment-marker",
+        f"services/register/{MIGRATIONS}/V0002__read_archive.sql:1: risk--archive.secrets",
+    ),
+    (
+        "partition-of-another-schema",
+        f"services/register/{MIGRATIONS}/V0002__copy_secrets.sql:1: unlisted_schema.secrets",
+    ),
+    (
         "quoted-schema-in-a-list",
         f"services/register/{MIGRATIONS}/V0002__read_secrets.sql:1: unlisted_schema.secrets",
     ),
