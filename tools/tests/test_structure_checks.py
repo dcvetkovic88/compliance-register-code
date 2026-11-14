@@ -35,6 +35,14 @@ LANGUAGE_VIOLATIONS = [
 SQL_VIOLATIONS = [
     ("other-service-schema", f"services/register/{MIGRATIONS}/V0002__read_assessments.sql:2: ictrisk.assessments"),
     ("quoted-schema", f"services/register/{MIGRATIONS}/V0002__read_assessments.sql:1: ictrisk.assessments"),
+    (
+        "quoted-schema-with-punctuation",
+        f"services/register/{MIGRATIONS}/V0002__read_archive.sql:1: risk-archive.assessments",
+    ),
+    (
+        "quoted-schema-in-a-list",
+        f"services/register/{MIGRATIONS}/V0002__read_secrets.sql:1: unlisted_schema.secrets",
+    ),
     ("platform-table", f"services/register/{MIGRATIONS}/V0002__read_outbox.sql:1: platform.outbox"),
     ("platform-table-beside-an-alias", f"services/register/{MIGRATIONS}/V0002__read_outbox.sql:1: platform.outbox"),
     ("unlisted-platform-function", f"services/monitoring/{MIGRATIONS}/V0002__reset.sql:1: platform.reset_offsets"),
