@@ -12,6 +12,7 @@ or a table does.
 The SQL is that of the .sql files and of the string literals of the .java and .py files holding an SQL keyword
 (the JdbcClient and psycopg queries, plan D3), string literals joined by + read as one; Java and Python comments
 and docstrings are not read.
+The body of a function, procedure or DO block in a string literal (AS '...', DO '...') is SQL and read as such.
 A search_path, set by SET search_path, SET SCHEMA or set_config, names no schema but the folder's own and
 pg_catalog, so no unqualified name reaches another schema. SQL comments and string literals are not read, but
 the value of a search_path is.
@@ -53,6 +54,8 @@ LIST_ITEM = re.compile(rf'"?{IDENTIFIER}"?(?:\s*\.\s*"?{IDENTIFIER}"?)*(?:\s+(?:
 SET_SEARCH_PATH = re.compile(
     r"\bSET\s+(?:SESSION\s+|LOCAL\s+)?(?:search_path\s*(?:TO|=)|SCHEMA\b)([^;]*)", re.IGNORECASE
 )
+# a string literal after these is the SQL body of a function, a procedure or a DO block
+BODY_KEYWORD = re.compile(r"\b(?:AS|DO(?:\s+LANGUAGE\s+\w+)?)\s*$", re.IGNORECASE)
 SET_CONFIG_CALL = re.compile(r"\bset_config\s*\(", re.IGNORECASE)
 SET_CONFIG_SEARCH_PATH = re.compile(r"\s*'search_path'\s*,\s*'((?:[^']|'')*)'", re.IGNORECASE)
 PATH_ENTRY = re.compile(r'"([^"]+)"|\'([^\']+)\'|([A-Za-z_][A-Za-z0-9_$]*)')
@@ -88,6 +91,13 @@ def language_findings(root: Path) -> list[str]:
 def blank_noise(sql: str) -> str:
     """The SQL with comments and string literals blanked, line breaks kept so line numbers hold."""
     return SQL_NOISE.sub(lambda noise: re.sub(r"[^\n]", " ", noise.group()), sql)
+
+
+def bodies(sql: str, blanked: str) -> Iterator[tuple[int, str]]:
+    """(offset, SQL) of each function, procedure or DO body that `sql` holds in a string literal, quotes undone."""
+    for noise in SQL_NOISE.finditer(sql):
+        if noise.group().startswith("'") and BODY_KEYWORD.search(blanked, 0, noise.start()):
+            yield noise.start() + 1, noise.group()[1:-1].replace("''", "'")
 
 
 def search_paths(sql: str, blanked: str) -> Iterator[tuple[int, str]]:
@@ -221,6 +231,8 @@ def text_findings(
     own = str(service["schema"])
     findings = search_path_findings(location, original, own)
     sql = blank_noise(original)
+    for offset, body in bodies(original, sql):
+        findings += text_findings((path, first_line + sql.count(chr(10), 0, offset)), body, service, rules)
     # names the SQL holds unqualified, as an alias or a table is; such a name may qualify a column where an alias can
     unqualified = {name.lower() for name in UNQUALIFIED_NAME.findall(sql)}
     for match in QUALIFIED_NAME.finditer(sql):

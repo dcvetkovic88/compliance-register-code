@@ -1,5 +1,6 @@
 // Root ESLint configuration of apps/web and packages/* (plan D23; conventions SA-1.1, SA-1.3-4, SA-4-2;
 // backend-rules section 3; frontend-rules SA-2.6; T1.10). Every rule here is an error.
+import path from "node:path";
 import js from "@eslint/js";
 import jsxA11y from "eslint-plugin-jsx-a11y";
 import react from "eslint-plugin-react";
@@ -35,6 +36,42 @@ const naming = [
   },
 ];
 
+// File and folder names (SA-1.1-4, SA-1.1-5): folders kebab-case, components PascalCase.tsx, other files
+// kebab-case.ts. A name's further parts, as in .test.ts or .d.ts, are kebab-case too. naming-convention reads
+// identifiers only, so this local rule reads the path of each linted file below the folder ESLint runs in.
+const KEBAB_CASE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const PASCAL_CASE = /^[A-Z][A-Za-z0-9]*$/;
+const fileAndFolderNames = {
+  meta: {
+    type: "suggestion",
+    schema: [],
+    messages: {
+      folder: "Folder {{name}} is not kebab-case (SA-1.1-4).",
+      component: "File {{name}} is not PascalCase.tsx; a component file is (SA-1.1-5).",
+      file: "File {{name}} is not kebab-case; a file other than a component is (SA-1.1-5).",
+    },
+  },
+  create(context) {
+    const parts = path.relative(context.cwd, context.filename).split(path.sep);
+    const name = parts.pop();
+    const [stem, ...rest] = name.split(".");
+    const extension = rest.pop();
+    const isComponent = extension === "tsx";
+    const isStemValid = (isComponent ? PASCAL_CASE : KEBAB_CASE).test(stem);
+    return {
+      Program(node) {
+        for (const folder of parts.filter((part) => part !== ".." && !KEBAB_CASE.test(part))) {
+          context.report({ node, messageId: "folder", data: { name: folder } });
+        }
+        if (!isStemValid || !rest.every((part) => KEBAB_CASE.test(part))) {
+          context.report({ node, messageId: isComponent ? "component" : "file", data: { name } });
+        }
+      },
+    };
+  },
+};
+const register = { rules: { "file-and-folder-names": fileAndFolderNames } };
+
 // Function components and hooks only (SA-2.6-1).
 const classComponent =
   "ClassDeclaration[superClass.name=/^(Pure)?Component$/], ClassDeclaration[superClass.property.name=/^(Pure)?Component$/], " +
@@ -64,13 +101,14 @@ export default tseslint.config(
     languageOptions: {
       parserOptions: { projectService: true, ecmaFeatures: { jsx: true } },
     },
-    plugins: { react, "react-hooks": reactHooks, "jsx-a11y": jsxA11y },
+    plugins: { react, "react-hooks": reactHooks, "jsx-a11y": jsxA11y, register },
     settings: { react: { version: "19.3" } },
     rules: {
       ...reactHooks.configs.recommended.rules,
       ...Object.fromEntries(Object.keys(jsxA11y.configs.recommended.rules).map((rule) => [rule, "error"])),
       ...sizeLimits,
       "@typescript-eslint/naming-convention": naming,
+      "register/file-and-folder-names": "error",
       // Unused parameters and variables (SA-2.2-5, SA-2.7-2): every parameter counts.
       "@typescript-eslint/no-unused-vars": ["error", { args: "all", argsIgnorePattern: "^$", caughtErrors: "all" }],
       "no-restricted-syntax": [
