@@ -56,6 +56,18 @@ SQL_VIOLATIONS = [
         "unlisted-schema-also-a-column",
         f"services/register/{MIGRATIONS}/V0002__read_secrets.sql:1: unlisted_schema.secrets",
     ),
+    (
+        "unlisted-schema-parenthesized-only",
+        f"services/register/{MIGRATIONS}/V0002__read_secrets.sql:1: unlisted_schema.secrets",
+    ),
+    (
+        "unlisted-schema-parenthesized-join",
+        f"services/register/{MIGRATIONS}/V0002__read_secrets.sql:1: unlisted_schema.secrets",
+    ),
+    (
+        "unlisted-schema-parenthesized-list",
+        f"services/register/{MIGRATIONS}/V0002__read_secrets.sql:1: unlisted_schema.secrets",
+    ),
     ("function-search-path", f"services/register/{MIGRATIONS}/V0002__count.sql:1: search_path ictrisk"),
     ("grant-on-schema", f"services/register/{MIGRATIONS}/V0002__grant_assessments.sql:1: schema ictrisk"),
     ("create-schema", f"services/register/{MIGRATIONS}/V0002__create_schema.sql:1: schema ictrisk"),
