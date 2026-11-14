@@ -89,6 +89,13 @@ jobs:
           distribution: temurin
           java-version-file: .java-version
           cache: maven
+      # Lint runs the structure checks of T1.12, which run on uv.
+      - name: read the uv pin
+        id: pins
+        run: echo "uv=$(cat .uv-version)" >> "$GITHUB_OUTPUT"
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: ${{ steps.pins.outputs.uv }}
       - name: lint
         run: tools/quality lint java
       - name: format check
@@ -116,6 +123,13 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+      # Lint runs the structure checks of T1.12, which run on uv.
+      - name: read the uv pin
+        id: pins
+        run: echo "uv=$(cat .uv-version)" >> "$GITHUB_OUTPUT"
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: ${{ steps.pins.outputs.uv }}
       - name: install from lock files
         run: npm ci
       - name: lint

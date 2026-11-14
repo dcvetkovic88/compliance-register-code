@@ -126,9 +126,10 @@ module.exports = {
     },
     {
       name: "AR-W7-component-imports-a-client",
-      comment: "AR-W7: components do not import the API clients directly; hooks and services do.",
+      comment:
+        "AR-W7: components of the web and its packages do not import the API clients directly; hooks and services do.",
       severity: "error",
-      from: { path: "^apps/web/src/.*\\.tsx$", pathNot: [API_CLIENTS, TESTS] },
+      from: { path: "^(apps/web|packages)/.*\\.tsx$", pathNot: [API_CLIENTS, TESTS] },
       to: { path: API_CLIENTS },
     },
   ],
