@@ -50,7 +50,7 @@ def synced_with(tmp_path: Path, spec_repo: Path, name: str, fixture: str) -> Pat
 
 
 @pytest.mark.parametrize(
-    ("name", "fixture", "message"),
+    "case",
     [
         ("platform.openapi.yaml", "openapi-3.0.yaml", "platform.openapi.yaml is not OpenAPI 3.1"),
         ("web-bff.openapi.yaml", "openapi-3.1-without-info.yaml", "web-bff.openapi.yaml is not valid OpenAPI 3.1"),
@@ -62,7 +62,8 @@ def synced_with(tmp_path: Path, spec_repo: Path, name: str, fixture: str) -> Pat
         ),
     ],
 )
-def test_111_ac5_check_fails_on_a_contract_that_is_not_valid(tmp_path, spec_repo, name, fixture, message):
+def test_111_ac5_check_fails_on_a_contract_that_is_not_valid(tmp_path, spec_repo, case):
+    name, fixture, message = case
     contracts = synced_with(tmp_path, spec_repo, name, fixture)
 
     result = run_script("check", "--contracts", str(contracts))

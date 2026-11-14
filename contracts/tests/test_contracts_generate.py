@@ -62,8 +62,10 @@ def test_111_ac5_generated_clients_type_check_and_reject_a_path_outside_the_cont
             'export const session = bff.GET("/session");',
             "// @ts-expect-error a path the contract does not hold is a type error",
             'export const missing = bff.GET("/no-such-path");',
-            *(f'export const {type_name[0].lower()}{type_name[1:]} = create{type_name}Client("http://localhost");'
-              for name, type_name in SERVICES.items()),
+            *(
+                f'export const {type_name[0].lower()}{type_name[1:]} = create{type_name}Client("http://localhost");'
+                for name, type_name in SERVICES.items()
+            ),
             "",
         ]
     )
