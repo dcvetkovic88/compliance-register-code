@@ -1,0 +1,23 @@
+{
+  "name": "@register/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tools of the synced contracts: OpenAPI 3.1 and AsyncAPI 3.0 validation, and the TypeScript types and typed web clients generated at build (plan D6). TypeScript 5 here, because openapi-typescript needs it.",
+  "type": "module",
+  "engines": {
+    "node": "26.13.0"
+  },
+  "dependencies": {
+    "@asyncapi/parser": "3.6.6",
+    "@readme/openapi-parser": "10.0.0",
+    "openapi-fetch": "0.17.0",
+    "openapi-types": "12.1.3",
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "sync": "scripts/sync",
+    "check": "scripts/check",
+    "generate": "scripts/generate"
+  }
+}

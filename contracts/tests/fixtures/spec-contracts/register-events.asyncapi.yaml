@@ -1,0 +1,19 @@
+asyncapi: 3.0.0
+info:
+  title: register events fixture
+  version: 0.0.1
+channels:
+  itemCreated:
+    address: register.item-created
+    messages:
+      itemCreated:
+        payload:
+          type: object
+          properties:
+            item_id:
+              type: string
+operations:
+  publishItemCreated:
+    action: send
+    channel:
+      $ref: '#/channels/itemCreated'

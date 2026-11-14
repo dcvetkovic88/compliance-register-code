@@ -1,0 +1,266 @@
+openapi: 3.1.0
+info:
+  title: Web BFF
+  version: 0.1.0
+  description: >
+    DRAFT 2026-11-13 (111 plan D22, owner decision OD-4). The web BFF signs the user in,
+    keeps the session and the user's tokens on the server, and passes the web's calls on to
+    the services. It has five operations of its own. The paths under /api/{service}/ are
+    passed on unchanged and are described by each service's own contract.
+    AMENDED 2026-11-14 (109-F2 regeneration): switchDemoUser moves here from platform.openapi.yaml, because the
+    BFF holds the session (109 brief M6), with 401, 404 and 422 (109-F2 PQ-32); the session limits of 109-F2-FR8:
+    only a request of the user counts as activity, and a call the web marks with the X-Background-Request header
+    does not (getSession and every call passed on under /api/{service}/); sign-in and sign-out record their
+    events in the platform before the session is created or ended (109-F2-FR9, FR10; pending 109-F2 PQ-36, PQ-37,
+    PQ-48); the Problem types demo-mode-off, demo-switch-target-invalid and demo-switch-sign-in-refused.
+servers:
+  - url: /
+paths:
+  /session:
+    get:
+      operationId: getSession
+      summary: The signed-in user's session, for the web's guard
+      description: >
+        A session past its idle or absolute limit (109-F2-FR8) is ended before the answer and the call is answered
+        401. A call with X-Background-Request true does not count as activity of the user.
+      x-caller: user
+      x-public: false
+      parameters:
+        - $ref: "#/components/parameters/BackgroundRequest"
+      responses:
+        "200":
+          description: A session exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /auth/sign-in:
+    get:
+      operationId: startSignIn
+      summary: Start the OIDC code flow; answers with a redirect to the provider
+      x-public: true
+      parameters:
+        - name: return_to
+          in: query
+          required: false
+          description: A path of the web to return to after sign-in. Only same-origin paths are accepted.
+          schema:
+            type: string
+            pattern: "^/[^/].*$|^/$"
+      responses:
+        "302":
+          description: Redirect to the provider's authorization endpoint
+        "400":
+          description: return_to is not a same-origin path
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /auth/callback:
+    get:
+      operationId: completeSignIn
+      summary: The OIDC redirect target; exchanges the code, creates the session, redirects to the web
+      x-public: true
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: error
+          in: query
+          required: false
+          description: Set by the provider when sign-in failed or was cancelled.
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Session created; redirect to the return path, or to the signed-out page when the provider reported an error
+        "400":
+          description: Unknown or replayed state, or the code exchange failed
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /auth/sign-out:
+    post:
+      operationId: signOut
+      summary: End the session in the BFF and at the provider
+      description: >
+        The BFF first records the end through the platform's recordSessionEnd with the session's own token, which
+        audits auth.logout naming the user (109-F2-FR9, FR10; pending 109-F2 PQ-36, PQ-37, PQ-48), then revokes the
+        refresh token at the provider, drops the session and answers with the end-session address. The address
+        carries only client_id and post_logout_redirect_uri and never a token, an ID token hint included (109-F2
+        SC2). When the platform or the provider cannot take the record at that moment, the session still ends and
+        the answer is still 200 with the end-session address; the BFF keeps the end in its pending table and
+        retries it with the access token it kept at logout until auth.logout is recorded or that token has
+        expired (109-F2 plan D8; pending 109-F2 PQ-53).
+      x-caller: user
+      x-action: P58
+      parameters:
+        - $ref: "#/components/parameters/AntiForgery"
+      responses:
+        "200":
+          description: Session ended; the body gives the provider's end-session address the web must go to
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [end_session_url]
+                properties:
+                  end_session_url:
+                    type: string
+                    format: uri
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: Anti-forgery token missing or wrong
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /demo/switch:
+    post:
+      operationId: switchDemoUser
+      summary: Switch the session to another demo account of the caller's tenant (109-F2-FR3). Demo mode only
+      description: >
+        A real sign-in of the chosen identity, not a role overlay. The BFF checks that the target is a demo account
+        of the caller's own tenant (the platform's listDemoUsers), signs the target in at the provider through its
+        demo-only adapter with no password typed (pending 109-F2 PQ-31), has the platform admit the target
+        (recordSignIn), records the end of the caller's session (recordSessionEnd, reason demo_switch, which writes
+        the demo.switch event with both users), and only then replaces the session: new session id, new cookie,
+        new anti-forgery token. When the target is refused the caller stays signed in with the session they had,
+        the refusal is audited through the platform's recordDemoSwitchRefusal, and the answer is 422 for a target
+        that is not a demo account of the caller's tenant or 401 when the provider or the platform refuses the
+        target (pending 109-F2 PQ-32). A switch to the user already signed in answers 200 with the unchanged
+        session and writes no event. Outside demo mode the answer is 404 and nothing else happens.
+      x-caller: user
+      x-action: P59
+      x-audit-object: platform:demo-switch
+      parameters:
+        - $ref: "#/components/parameters/AntiForgery"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [user_id]
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+              examples:
+                - user_id: 6f1c2a9e-0b7d-4e4b-9a51-3c2d8e7f0a11
+      responses:
+        "200":
+          description: The session now belongs to the chosen user, or is unchanged for a switch to the current user
+          headers:
+            Set-Cookie:
+              description: The new session cookie
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "401":
+          description: The provider or the platform refused the target's sign-in; the caller stays signed in
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: Anti-forgery token missing or wrong
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Demo mode is off
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: The target is not a demo account of the caller's tenant; the caller stays signed in
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+components:
+  parameters:
+    BackgroundRequest:
+      name: X-Background-Request
+      in: header
+      required: false
+      description: >
+        Set to true by the web on calls it makes on its own (a timer or a tab regaining focus), never on a call a
+        user action starts. Such a call does not count as activity for the idle limit (109-F2-FR8). The BFF removes
+        the header before it passes a call on.
+      schema:
+        type: boolean
+    AntiForgery:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      description: The anti_forgery_token of the session. Required on every call that is not a read, including calls passed on to services.
+      schema:
+        type: string
+  responses:
+    Unauthenticated:
+      description: No session. Never a redirect on this path.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+  schemas:
+    Session:
+      type: object
+      required: [user_id, tenant_id, display_name, locale, granted_actions, anti_forgery_token, demo_mode]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+        locale:
+          type: string
+          enum: [en, sr-Latn, sr-Cyrl]
+        granted_actions:
+          type: array
+          description: Qualified permission ids as the platform service returns them (109-F1). No token is ever part of this body.
+          items:
+            type: string
+        anti_forgery_token:
+          type: string
+        demo_mode:
+          type: boolean
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          description: The error code, kebab-case (conventions SA-1.2-10).
+          enum: [unauthenticated, anti-forgery-token-invalid, bad-return-path, sign-in-failed, demo-mode-off, demo-switch-target-invalid, demo-switch-sign-in-refused]
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        correlation_id:
+          type: string
+          format: uuid

@@ -1,0 +1,1871 @@
+openapi: 3.1.0
+info:
+  title: platform API (standalone register build, draft)
+  version: 0.1.0-draft
+  description: >
+    Draft for feature 109 (access governance: profile and roles, demo role switch, business units,
+    role mapping, confidentiality and grants, four-eyes approvals and delegations, audit trail) and
+    110-F1 (user locale). Standalone build, constitution Article IX; frozen at planning-done (IX.2).
+    Served by platform-service (L1 section 3); the browser reaches it only through the web BFF, whose
+    sign-in, callback and session operations are in web-bff.openapi.yaml and are not redefined here.
+    Status: DRAFT | Added 2026-11-04 by decision of Dusan (Raiffeisen Demo Decisions and Build Brief).
+    AMENDED 2026-11-05: example arrangement reference aligned with docs/standalone/demo-seed.md (cross-file reconciliation).
+    AMENDED 2026-11-06 (Dusan decision H2, 109-F4 plan D8): listAnnotationVersions, proposeAnnotationVersion (P86) and getActiveAnnotationVersion (service) added; Approval.subject_service gains monitoring, matching the data model (109-F4-FR10).
+    AMENDED 2026-11-06 (speckit-analyze 2026-11-06 finding U1, 109-F4 plan D9): Approval gains the required read-only `no_eligible_checker` boolean, returned by listApprovals and getApproval.
+    AMENDED 2026-11-06 (Dusan decision, speckit-analyze 2026-11-06 finding I1, 109-F4 spec edge cases): `no_eligible_checker` removed from Approval again; the no-eligible-checker case is PILOT scope, the demo seed always has two active compliance users.
+    AMENDED 2026-11-06 (speckit-clarify, docs/analyze-2026-11-06.md 109-F1 M): proposeRoleMappingChange states the 422 incompatible_roles refusal of 109-F1-FR2 and its audit.
+    AMENDED 2026-11-06 (109-F1 re-analyze H1): the 422 pre-check applies to assign_role; group mappings are checked at sign-in.
+    AMENDED 2026-11-06 (speckit-clarify, docs/analyze-2026-11-06.md 109-F3 H3, 109-F3 plan D9): listGrants x-roles narrowed to the matrix P65 holders (outsourcing-manager, legal).
+    AMENDED 2026-11-06 (109-F4 speckit-plan, final 109-F4 analyze findings I1, M2, M5, L3; Confirmed by Dusan 2026-11-06, Q-163): decideApproval states its response rule (403 PLATFORM_NOT_IN_MATRIX before the owning service is called, owning-service Problem responses relayed unchanged, platform codes for platform-owned kinds, 503 PLATFORM_OWNING_SERVICE_UNAVAILABLE with the approval still pending) and lists 403, 422 and 503; proposeRoleMappingChange states the 409 PLATFORM_LAST_CHECKING_ADMIN refusal; both codes added to x-error-codes; Problem example detail aligned with 109-F4 Story 1.
+    AMENDED 2026-11-06 (109-F4 speckit-plan, analyze report final-109-F4-c1t1 findings I1, U1; Confirmed by Dusan 2026-11-06, Q-163 extended): decideApproval answers 403 only to a caller who is neither a checker of the kind nor the maker nor an excluded identity (platform.approval_caller_relation), so a maker without a checker role gets the four-eyes refusal; the 403 and 503 refusals are audited; x-roles adds security and it-governance, the makers of risk_acceptance and function_criticality_confirmation who hold P71 (109-F1).
+    AMENDED 2026-11-06 (109-F1 speckit-plan, final-109-F1-p1 analyze C1): proposeRoleMappingChange lists its 409 PLATFORM_LAST_CHECKING_ADMIN and 422 incompatible_roles Problem responses explicitly; no behaviour changed.
+    AMENDED 2026-11-04 (independent review H5, C2): ApprovalKind gains four kinds of 109-F4-FR1; decideApproval applies
+    the change through the owning service's applyApproval operation, synchronously (109-F4-FR10).
+    AMENDED 2026-11-05 (Dusan decision Q-004, Q-011): ApprovalKind gains reporting_configuration_change
+    (register-service, checker compliance or admin) and applicability_annotation_change (platform-owned).
+    AMENDED 2026-11-05 (Dusan decisions Q-103, Q-114): Me, DemoUser and UserSummary carry business_unit_ids
+    (a requester may belong to several business units, assigned through AD groups) in place of
+    business_unit_id; ApprovalKind gains register_record_edit (four-eyes on manual edits of reportable
+    register fields, register-service).
+    AMENDED 2026-11-05 (Dusan decisions Q-117, Q-118, Q-120): Approval.expires_at is null for kinds that never
+    expire (export_submission_marking) and examples use the 14-day pending period; createDelegation states the
+    30-day limit; AuditEvent gains access_metadata (client IP and user agent, kept one year, outside the hash chain).
+    AMENDED 2026-11-06 (104-F0 speckit-clarify, finding 104-F0 H4; Dusan decision Q-147): ApprovalKind gains
+    manual_entry_closure (closing manual arrangement entry after the migration sign-off, register-service,
+    checker compliance).
+    AMENDED 2026-11-06 (109-F5 speckit-plan, analyze report final-109-F5 I1, U1, U2; Confirmed by Dusan 2026-11-06,
+    Q-167): AuditExport manifest gains head_seq (taken before the export's own audit event; head_hash is the hash at it);
+    createAuditExport and getAuditExport state that content is read as the requesting auditor and that an export is
+    readable only by its requester (404 otherwise); completion and failure are audited.
+    AMENDED 2026-11-06 (109-F3 speckit-plan, analyze report final-109-F3-p1 F1, U1; Confirmed by Dusan 2026-11-06,
+    Q-170): setConfidential gains a description: marking per arrangement or case only (RecordKind unchanged), unmarking
+    keeps the marking record and revokes active grants, re-marking restores none; no operation or schema shape changed.
+    AMENDED 2026-11-06 (109-F3 speckit-plan, analyze report final-109-F3-c2t1 U2): createGrant states its refusals and
+    x-error-codes gains PLATFORM_RECORD_NOT_CONFIDENTIAL (409) for a grant on a record that is not marked or is unmarked.
+    AMENDED 2026-11-06 (109-F5 speckit-plan, analyze report final-109-F5-p1 U1, U2): getAuditEvent states that an event
+    the caller may not see answers 404; verifyAuditChain states that every run, on demand or daily, is stored and audited;
+    no operation or schema shape changed.
+    AMENDED 2026-11-06 (109-F5 speckit-plan, analyze report final-109-F5-c2t1 G1): getLatestAuditVerification added
+    (GET /api/v1/platform/audit/verifications/latest, auditor and admin, P68, audited read, 404 when no run exists), so
+    the latest verification result of 109-F5-FR7, daily or on demand, can reach the auditor's screen.
+    Rules: docs/standards/api-standards.md (paths, payloads, lists, RFC 9457 errors, security).
+    x-roles lists L1 section 2 role ids; the authoritative binding is the 109-F1 permission matrix,
+    whose action id is given in x-action. x-scope marks DEMO or PILOT per L1 section 3a.
+    AMENDED 2026-11-07 (Dusan's decision (delegated proxy, 2026-11-07) on dcvetkovic88/compliance-register#18): unquoted flow-mapping `description` values containing a comma are quoted so YAML keeps each sentence whole; no type, field, path, message or response changes (111-AC5, Redocly `struct`).
+    AMENDED 2026-11-13 (109-F1 regeneration for the production build, change against the baseline): Me gains the
+    required tenant_id (OD-20, 111 plan D22(k)); RoleMappingChange requires role_id in all four change kinds
+    (109-F1 PQ-4); the incompatible role combination is 409 with type role-combination-refused (109-F1 PQ-1); the
+    Problem schema has no error_code member, its type is the error code in kebab-case (api-standards section 5,
+    conventions SA-1.2-10); the 109-F1 codes are converted (PLATFORM_NO_ROLE to no-role, PLATFORM_NOT_IN_MATRIX to
+    not-in-matrix, PLATFORM_OUT_OF_SCOPE to out-of-scope, PLATFORM_ROLE_COMBINATION_REFUSED to
+    role-combination-refused, PLATFORM_LAST_CHECKING_ADMIN to last-checking-admin) and validation-failed is added;
+    the codes of 109-F2 to 109-F5 keep their names until those functionalities are regenerated (109-F1 plan PQ-18);
+    the six 109-F1 operations state x-caller user; getMe states the no-role case (109-F1 PROPOSED PQ-15).
+    AMENDED 2026-11-13 (109-F1 plan, Phase 1): the six 109-F1 operations drop the old x-surface mark, which
+    x-caller replaces (109-F1 research R-11); RoleMapping drops its active member, because a removed mapping is
+    deleted and only mappings in force are listed (109-F1 data model section 2).
+    AMENDED 2026-11-14 (109-F2 regeneration for the production build, change against the baseline): switchDemoUser
+    moves to web-bff.openapi.yaml, because the BFF holds the session (109 brief M6); getAuthConfig and listDemoUsers
+    state x-caller user and drop x-surface; DemoUser gains the required sign_in_name (S891); PLATFORM_DEMO_MODE_OFF
+    becomes the type demo-mode-off (conventions SA-1.2-10, SA-4-7); the tenant settings read and change operations
+    getTenantSettings and updateTenantSettings (P70) are added; the API-only operations recordSignIn,
+    recordSessionEnd (pending 109-F2 PQ-36) and recordDemoSwitchRefusal, called by the web BFF with the user's
+    token, are added (pending 109-F2 PQ-48), with the type sign-in-refused.
+    AMENDED 2026-11-14 (109-F5 regeneration for the production build, change against the baseline): the six audit
+    operations state x-caller user and drop x-surface (api-standards section 6); getAuditEvent and getAuditExport
+    list their 404 (S1013) and every audit 404 has the type not-found; the export manifest lists each file by
+    format, fixed name, SHA-256 and size with no storage path, and files are downloaded through the new
+    getAuditExportFile (109-F5 PQ-70; no buckets, OD-5), refused with audit-export-not-ready before done; the new
+    listAuditExports lists the caller's own exports, so an export left running is shown (109-F5-FR8, D-5);
+    AuditExport gains failure_reason (109-F5 PQ-71, PQ-85); AuditEvent gains actor_display_name (109-F5 PQ-73)
+    and its detail description names the AI and approval keys (S1011); TenantSettings and TenantSettingsChange
+    gain audit_retention_years (109-F5-FR6, PQ-69); PLATFORM_RETENTION_TOO_SHORT becomes the type
+    retention-too-short (conventions SA-1.2-10, SA-4-7); verifyAuditChain states who stores the run (109-F5
+    PQ-66), the range past the head (S1010) and the empty chain (109-F5 PQ-79).
+servers:
+  - url: /
+security:
+  - bearerAuth: []
+tags:
+  - name: me
+  - name: demo
+  - name: tenant-settings
+  - name: users
+  - name: business-units
+  - name: role-mapping
+  - name: confidentiality
+  - name: approvals
+  - name: delegations
+  - name: audit
+paths:
+  /api/v1/platform/me:
+    get:
+      operationId: getMe
+      tags: [me]
+      summary: Signed-in user's profile, tenant, roles, business units, effective action ids and locale
+      description: >
+        Called by the web BFF with the user's access token after sign-in and for its session (111 plan
+        D22(k)). PROPOSED (109-F1 PQ-15): an active user known to the platform gets the profile even with no
+        role, with roles and action_ids empty, so the shell can tell "no role" from "not signed in"
+        (109-F1-FR9); an unknown or inactive user gets 403 with type no-role, audited (109-F1-FR10).
+      x-roles: [requester, outsourcing-manager, security, it-governance, compliance, legal, auditor, admin]
+      x-action: P58
+      x-caller: user
+      x-audit-object: platform:me
+      x-scope: DEMO
+      responses:
+        '200':
+          description: Profile of the signed-in user
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Me'}
+        '403': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+    patch:
+      operationId: updateMyLocale
+      tags: [me]
+      summary: Change the signed-in user's preferred locale (110-F1-FR3)
+      x-roles: [requester, outsourcing-manager, security, it-governance, compliance, legal, auditor, admin]
+      x-action: P58
+      x-surface: user
+      x-audit-object: platform:user
+      x-scope: DEMO
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [locale]
+              properties:
+                locale: {$ref: '#/components/schemas/Locale'}
+              examples:
+                - {locale: sr-Cyrl}
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Me'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/me/page-refusals:
+    post:
+      operationId: recordPageRefusal
+      tags: [me]
+      summary: Record a page refusal that the shell decided from the granted actions (109-F1-FR9, FR14)
+      description: >
+        PROPOSED (109-F1 PQ-29). The shell calls this once per navigation to a route whose action is not
+        granted, or to any route for a user with no role. The handler is marked own profile as getMe: an
+        active user known to the platform may call it with or without a role; an unknown or inactive user
+        gets 403 with type no-role, audited by the access check. The platform checks that action_id is a
+        matrix action refused to the caller, and writes one refused access-decision event with channel page
+        per user and navigation_id; a repeated call with the same navigation_id writes nothing and answers
+        204. A granted or unknown action_id is 422 validation-failed and writes nothing.
+      x-roles: [requester, outsourcing-manager, security, it-governance, compliance, legal, auditor, admin]
+      x-action: P58
+      x-caller: user
+      x-audit-object: platform:page-refusal
+      x-scope: DEMO
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [navigation_id, action_id, route]
+              properties:
+                navigation_id: {type: string, format: uuid}
+                action_id: {type: string, pattern: '^P[0-9]{2}$'}
+                route: {type: string, minLength: 1, maxLength: 200}
+              examples:
+                - {navigation_id: 3f2c9a1e-7b4d-4c8e-9a0f-1d2e3c4b5a69, action_id: P60, route: /admin/role-mappings}
+      responses:
+        '204':
+          description: The refusal is recorded, or was already recorded for this navigation
+        '403': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/auth-config:
+    get:
+      operationId: getAuthConfig
+      tags: [demo]
+      summary: Authentication mode of the caller's tenant (demo or production); no secrets
+      description: >
+        The mode the platform wrote into the caller's tenant settings at its last start (109-F2-FR1). Readable by
+        every signed-in user with a role, so every screen can show the demo marker (P58). Changed only through
+        deployment configuration, never by a user.
+      x-roles: [requester, outsourcing-manager, security, it-governance, compliance, legal, auditor, admin]
+      x-action: P58
+      x-caller: user
+      x-audit-object: platform:auth-config
+      x-scope: DEMO
+      responses:
+        '200':
+          description: Mode
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthConfig'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/tenant-settings:
+    get:
+      operationId: getTenantSettings
+      tags: [tenant-settings]
+      summary: The authentication and audit retention fields of the caller's tenant settings (109-F2-FR12, 109-F5-FR6)
+      description: >
+        One settings record per tenant. Other functionalities add their own fields to this resource when they are
+        regenerated (default locale 110-F1, confidential default roles 109-F3, the approved AI endpoint record IX.5);
+        109-F5 adds the audit retention (109-F5 PQ-69).
+      x-roles: [admin]
+      x-action: P70
+      x-caller: user
+      x-audit-object: platform:tenant-settings
+      x-scope: DEMO
+      responses:
+        '200':
+          description: Settings of the caller's tenant
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TenantSettings'}
+        '403': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+    patch:
+      operationId: updateTenantSettings
+      tags: [tenant-settings]
+      summary: Change the session limits, the second-factor claim or the audit retention of the caller's tenant (109-F2-FR8, FR5, FR11, FR12; 109-F5-FR6)
+      description: >
+        Only the members below can be changed. A request naming the mode, the rehearsal flag or the demo-tenant flag
+        is refused with 422 validation-failed naming that member, and nothing changes. The idle limit may not exceed
+        the absolute limit. A change applies to sessions started after it. An audit retention below five years is
+        refused with 422 retention-too-short and nothing changes; a retention change removes no audit event
+        (109-F5-FR6, PQ-69). Audited with before and after values.
+      x-roles: [admin]
+      x-action: P70
+      x-caller: user
+      x-audit-object: platform:tenant-settings
+      x-scope: DEMO
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TenantSettingsChange'}
+      responses:
+        '200':
+          description: Settings after the change
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TenantSettings'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/me/sign-ins:
+    post:
+      operationId: recordSignIn
+      tags: [me]
+      summary: Admit or refuse a sign-in and audit it. API only, called by the web BFF (109-F2-FR10, FR15)
+      description: >
+        Called by the web BFF once with the new access token after the code exchange, and with the target's access
+        token during a demo switch, before any session is created (109-F2-FR10; pending 109-F2 PQ-48). The platform
+        refuses a user it does not know or who is inactive, a demo account while the tenant's mode is production,
+        and, at pilot, a token without the tenant's second-factor statement; it writes one auth.sign_in event,
+        allowed or denied, or for a subject of no known tenant a service log line only (Q-182). In production mode
+        it also creates the user and recomputes roles and units from the groups claim (PILOT, 109-F2-FR7). The
+        handler carries the sign-in mark, which admits a verified user token of any subject (109-F2 PQ-48).
+      x-roles: [requester, outsourcing-manager, security, it-governance, compliance, legal, auditor, admin]
+      x-action: P58
+      x-caller: user
+      x-audit-object: platform:sign-in
+      x-scope: DEMO
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [via]
+              properties:
+                via: {type: string, enum: [code_flow, demo_switch]}
+              examples:
+                - {via: code_flow}
+      responses:
+        '200':
+          description: Sign-in admitted; the BFF creates the session with these limits
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SignInAdmission'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/me/session-ends:
+    post:
+      operationId: recordSessionEnd
+      tags: [me]
+      summary: Record the end of the caller's session and audit it. API only, called by the web BFF (109-F2-FR8, FR9)
+      description: >
+        Called by the web BFF with the session's own access token before it drops the session: at logout, at the
+        idle or absolute limit, and for the previous user of a demo switch (pending 109-F2 PQ-36 and PQ-48). The
+        session is named by the session claim of the token (CR_OIDC_SESSION_CLAIM), never by the body. In one
+        transaction the platform records the ended session, which every service then refuses, and writes one
+        event: auth.logout, auth.session_expired or demo.switch with the previous and the next user. A second call
+        for the same session answers 204 and writes nothing, so each ended session has exactly one event. The
+        handler carries the sign-in mark, so a user who lost every role or was deactivated can still end a session.
+      x-roles: [requester, outsourcing-manager, security, it-governance, compliance, legal, auditor, admin]
+      x-action: P58
+      x-caller: user
+      x-audit-object: platform:session
+      x-scope: DEMO
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SessionEnd'}
+      responses:
+        '204':
+          description: The end is recorded, or was already recorded for this session
+        '403': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/demo/users:
+    get:
+      operationId: listDemoUsers
+      tags: [demo]
+      summary: Demo accounts of the caller's tenant for the demo user switch. Demo mode only (109-F2-FR3)
+      description: >
+        The twelve demo accounts of the caller's own tenant (docs/standalone/demo-seed.md section 3), each with the
+        sign-in name the web BFF's demo adapter uses (S891). The whole list, no paging (109-F2 PQ-49). Answers 404
+        with type demo-mode-off when the tenant's mode is production.
+      x-roles: [requester, outsourcing-manager, security, it-governance, compliance, legal, auditor, admin]
+      x-action: P59
+      x-caller: user
+      x-audit-object: platform:demo-users
+      x-scope: DEMO
+      responses:
+        '200':
+          description: Demo users ordered by role id, then display name, then user id
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/DemoUser'}}
+        '404': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/demo/switch-refusals:
+    post:
+      operationId: recordDemoSwitchRefusal
+      tags: [demo]
+      summary: Audit a refused demo switch. API only, called by the web BFF (109-F2-FR3, FR10)
+      description: >
+        Called by the web BFF with the caller's access token when a switch is refused, while the caller stays signed
+        in (pending 109-F2 PQ-32 and PQ-48). Writes one demo.switch_refused event naming the caller, the target and
+        the reason, on its own connection. Answers 404 with type demo-mode-off when the tenant's mode is production.
+        The switch itself is the web BFF's operation switchDemoUser (web-bff.openapi.yaml).
+      x-roles: [requester, outsourcing-manager, security, it-governance, compliance, legal, auditor, admin]
+      x-action: P59
+      x-caller: user
+      x-audit-object: platform:demo-switch
+      x-scope: DEMO
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [target_user_id, reason]
+              properties:
+                target_user_id: {type: string, format: uuid}
+                reason: {type: string, enum: [target_not_demo_account, target_sign_in_refused, target_admission_refused]}
+              examples:
+                - {target_user_id: 6f1c2a9e-0b7d-4e4b-9a51-3c2d8e7f0a11, reason: target_sign_in_refused}
+      responses:
+        '204':
+          description: The refusal is recorded
+        '404': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: Users with roles and business units (ordering display_name asc, id asc)
+      x-roles: [admin, auditor]
+      x-action: P60
+      x-caller: user
+      x-audit-object: platform:users
+      x-scope: DEMO
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - {name: role_id, in: query, required: false, schema: {$ref: '#/components/schemas/RoleId'}}
+        - {name: business_unit_id, in: query, required: false, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Page of users
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/UserSummary'}}
+                  next_cursor: {type: [string, 'null']}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/business-units:
+    get:
+      operationId: listBusinessUnits
+      tags: [business-units]
+      summary: Business units (ordering code asc)
+      x-roles: [requester, outsourcing-manager, security, it-governance, compliance, legal, auditor, admin]
+      x-action: P58
+      x-caller: user
+      x-audit-object: platform:business-units
+      x-scope: DEMO
+      responses:
+        '200':
+          description: All business units of the tenant
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/BusinessUnit'}}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/business-units/{code}:
+    put:
+      operationId: upsertBusinessUnit
+      tags: [business-units]
+      summary: Create or replace a business unit by code
+      x-roles: [admin]
+      x-action: P63
+      x-caller: user
+      x-audit-object: platform:business-unit
+      x-scope: DEMO
+      parameters:
+        - {name: code, in: path, required: true, schema: {type: string, pattern: '^[a-z0-9-]{2,40}$'}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name, active]
+              properties:
+                name: {type: string, minLength: 1, maxLength: 200}
+                active: {type: boolean}
+              examples:
+                - {name: Retail Banking, active: true}
+      responses:
+        '200':
+          description: The business unit
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/BusinessUnit'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/role-mappings:
+    get:
+      operationId: listRoleMappings
+      tags: [role-mapping]
+      summary: Identity-provider group to role mappings in force, and pending changes (ordering idp_group_id asc, role_id asc)
+      description: >
+        pending_approval_ids holds the ids of the pending approvals of kind role_mapping_change of the caller's
+        tenant, ordered by requested_at, then id; ids only. The content of a pending change is read only through
+        getApproval (P71), which auditor does not hold (109-F1-FR5, PQ-2; Q-184).
+      x-roles: [admin, auditor]
+      x-action: P60
+      x-caller: user
+      x-audit-object: platform:role-mappings
+      x-scope: DEMO
+      responses:
+        '200':
+          description: Mappings and pending change approvals
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, pending_approval_ids]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/RoleMapping'}}
+                  pending_approval_ids: {type: array, items: {type: string, format: uuid}}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/role-mapping-changes:
+    post:
+      operationId: proposeRoleMappingChange
+      tags: [role-mapping]
+      summary: >
+        Propose a mapping change or a direct role assignment. Creates a pending four-eyes approval of kind
+        role_mapping_change; nothing changes until a different admin approves (109-F1-FR5, 109-F4).
+        Refused with 409 and type role-combination-refused, audited as a refused access decision, with no
+        approval created, when an assign_role change would give its user auditor with another role or admin
+        with a business role (109-F1-FR2, PQ-1); add_mapping is checked per user at sign-in (109-F2, PILOT).
+        Refused with 409 and type last-checking-admin, audited, with no approval created, when a remove_role
+        change would leave no active user holding admin (109-F1-FR5; Confirmed by Dusan 2026-11-06, Q-163);
+        remove_mapping is checked at sign-in (PILOT), as add_mapping is.
+        Refused with 422 and type validation-failed when a field the change kind needs is missing (idp_group_id
+        for add_mapping and remove_mapping, user_id for assign_role and remove_role, business_unit_id when
+        role_id is requester).
+        An approved add_mapping or remove_mapping takes effect at each user's next sign-in; an approved
+        assign_role or remove_role on the target user's next request.
+      x-roles: [admin]
+      x-action: P61
+      x-caller: user
+      x-audit-object: platform:role-mapping-change
+      x-scope: DEMO
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RoleMappingChange'}
+      responses:
+        '201':
+          description: Pending approval created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Approval'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/confidential-records/{record_kind}/{record_id}:
+    put:
+      operationId: setConfidential
+      tags: [confidentiality]
+      summary: Mark or unmark an arrangement or case as confidential (covers its contracts and documents)
+      description: >-
+        Contracts and documents inherit the marking of their arrangement or case and cannot be
+        marked on their own (per-contract marking is PILOT, Q-170 Confirmed by Dusan 2026-11-06). Unmarking keeps the
+        marking record and revokes every active grant on the record (reason unmarked); marking
+        again restores no grant (109-F3 plan D3).
+      x-roles: [outsourcing-manager, legal]
+      x-action: P64
+      x-surface: user
+      x-audit-object: platform:confidential-record
+      x-scope: DEMO
+      parameters:
+        - {name: record_kind, in: path, required: true, schema: {$ref: '#/components/schemas/RecordKind'}}
+        - {name: record_id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [confidential]
+              properties:
+                confidential: {type: boolean}
+              examples:
+                - {confidential: true}
+      responses:
+        '200':
+          description: Current confidentiality of the record
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [record_kind, record_id, confidential]
+                properties:
+                  record_kind: {$ref: '#/components/schemas/RecordKind'}
+                  record_id: {type: string, format: uuid}
+                  confidential: {type: boolean}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/grants:
+    get:
+      operationId: listGrants
+      tags: [confidentiality]
+      summary: Confidential grants of the tenant, for P65 holders (ordering created_at desc, id desc)
+      x-roles: [outsourcing-manager, legal]
+      x-action: P65
+      x-surface: user
+      x-audit-object: platform:grants
+      x-scope: DEMO
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - {name: record_kind, in: query, required: false, schema: {$ref: '#/components/schemas/RecordKind'}}
+        - {name: record_id, in: query, required: false, schema: {type: string, format: uuid}}
+        - {name: active, in: query, required: false, schema: {type: boolean}}
+      responses:
+        '200':
+          description: Page of grants of the caller's tenant (P65 holders only; 109-F3 plan D9)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/Grant'}}
+                  next_cursor: {type: [string, 'null']}
+        default: {$ref: '#/components/responses/Problem'}
+    post:
+      operationId: createGrant
+      tags: [confidentiality]
+      summary: Grant one named user access to one confidential arrangement or case
+      description: >-
+        Refused with 409 PLATFORM_RECORD_NOT_CONFIDENTIAL when the arrangement or case is not
+        marked confidential or has been unmarked (109-F3 plan D3), 422 PLATFORM_SELF_GRANT for a
+        grant to the caller and 422 PLATFORM_GRANT_OUTSIDE_UNIT for a requester outside the
+        record's business unit; every refusal is audited with its reason (109-F3-FR9).
+      x-roles: [outsourcing-manager, legal]
+      x-action: P65
+      x-surface: user
+      x-audit-object: platform:grant
+      x-scope: DEMO
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [record_kind, record_id, grantee_id, reason]
+              properties:
+                record_kind: {$ref: '#/components/schemas/RecordKind'}
+                record_id: {type: string, format: uuid}
+                grantee_id: {type: string, format: uuid}
+                reason: {type: string, minLength: 1, maxLength: 1000}
+                expires_at: {type: [string, 'null'], format: date-time}
+              examples:
+                - record_kind: arrangement
+                  record_id: 2b7e1c4a-5d3f-4a8b-9c0e-1f2a3b4c5d6e
+                  grantee_id: 9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d
+                  reason: Security review of the hosting terms
+                  expires_at: '2026-12-31T23:00:00Z'
+      responses:
+        '201':
+          description: Grant created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Grant'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/grants/{grant_id}/revoke:
+    post:
+      operationId: revokeGrant
+      tags: [confidentiality]
+      summary: Revoke a grant
+      x-roles: [outsourcing-manager, legal]
+      x-action: P65
+      x-surface: user
+      x-audit-object: platform:grant
+      x-scope: DEMO
+      parameters:
+        - {name: grant_id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Revoked grant
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Grant'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/approvals:
+    get:
+      operationId: listApprovals
+      tags: [approvals]
+      summary: >
+        Approvals the caller may decide (role, delegation and identity rules applied) or made
+        (ordering requested_at asc, id asc)
+      x-roles: [outsourcing-manager, security, it-governance, compliance, admin]
+      x-action: P71
+      x-surface: user
+      x-audit-object: platform:approvals
+      x-scope: DEMO
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - {name: view, in: query, required: false, schema: {type: string, enum: [to_decide, made_by_me], default: to_decide}}
+        - {name: state, in: query, required: false, schema: {$ref: '#/components/schemas/ApprovalState'}}
+        - {name: kind, in: query, required: false, schema: {$ref: '#/components/schemas/ApprovalKind'}}
+      responses:
+        '200':
+          description: Page of approvals
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/Approval'}}
+                  next_cursor: {type: [string, 'null']}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/approvals/{approval_id}:
+    get:
+      operationId: getApproval
+      tags: [approvals]
+      summary: One approval with the proposed change and the subject's current state
+      x-roles: [outsourcing-manager, security, it-governance, compliance, admin]
+      x-action: P71
+      x-surface: user
+      x-audit-object: platform:approval
+      x-scope: DEMO
+      parameters:
+        - $ref: '#/components/parameters/ApprovalId'
+      responses:
+        '200':
+          description: Approval detail
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ApprovalDetail'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/approvals/{approval_id}/decide:
+    post:
+      operationId: decideApproval
+      tags: [approvals]
+      summary: >
+        Approve or reject. The checker must hold a checker role for the kind or an active delegation and
+        must not be the maker or an excluded identity. Approval applies the change in the owning service in
+        the same transaction (109-F4 plan D6).
+      description: >
+        Response rule (109-F4-FR10, plan D6; Confirmed by Dusan 2026-11-06, Q-163). The handler reads
+        the caller's relation to the approval with platform.approval_caller_relation (maker, excluded, checker
+        or none, in that precedence). Before any owning service is called: relation none (neither a checker of
+        the kind by role or active delegation, nor the maker, nor an excluded identity; for example an admin on
+        any business kind, 109-F4-AC8) gives 403 not-in-matrix with the kind in the detail, audited
+        with reason not_checker; a decided approval gives 409 PLATFORM_APPROVAL_NOT_PENDING; a reject without
+        reason gives 422 PLATFORM_REASON_REQUIRED. The maker or an excluded identity, with or without a checker
+        role, is never answered 403: the decision proceeds and is refused for four-eyes (109-F4-AC1). For a kind
+        owned by register-service, ict-risk-service or monitoring-service the handler calls that service's
+        applyApproval with the caller's identity and relays its Problem response unchanged (status, error code,
+        detail), for example 409 REGISTER_FOUR_EYES, ICT_SELF_APPROVAL, ICT_RISK_CHANGED_SINCE_REQUEST or
+        MON_SELF_APPROVAL. For the platform-owned kinds role_mapping_change and applicability_annotation_change
+        a four-eyes refusal gives 409 PLATFORM_FOUR_EYES_VIOLATION and a changed subject 409
+        PLATFORM_APPROVAL_STALE. When the owning service cannot be reached or does not answer in time and the
+        approval is still pending, 503 PLATFORM_OWNING_SERVICE_UNAVAILABLE, audited with reason
+        owning_service_unavailable; the approval stays pending. Every refusal, including the 403 and the 503,
+        is audited and its audit is committed (109-F4 plan D6, D10).
+      x-roles: [outsourcing-manager, security, it-governance, compliance, admin]
+      x-action: P71
+      x-surface: user
+      x-audit-object: platform:approval
+      x-scope: DEMO
+      parameters:
+        - $ref: '#/components/parameters/ApprovalId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [decision]
+              properties:
+                decision: {type: string, enum: [approve, reject]}
+                reason: {type: [string, 'null'], maxLength: 2000, description: Required when decision is reject}
+              examples:
+                - {decision: reject, reason: Exit plan clause still missing}
+      responses:
+        '200':
+          description: Decided approval
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Approval'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/approvals/{approval_id}/withdraw:
+    post:
+      operationId: withdrawApproval
+      tags: [approvals]
+      summary: Maker withdraws a pending approval
+      x-roles: [outsourcing-manager, security, it-governance, compliance, admin]
+      x-action: P71
+      x-surface: user
+      x-audit-object: platform:approval
+      x-scope: DEMO
+      parameters:
+        - $ref: '#/components/parameters/ApprovalId'
+      responses:
+        '200':
+          description: Withdrawn approval
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Approval'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/applicability-annotations:
+    get:
+      operationId: listAnnotationVersions
+      tags: [approvals]
+      summary: Applicability annotation versions with status (ordering created_at desc, id desc) (109-F4 plan D8)
+      x-roles: [compliance]
+      x-action: P86
+      x-surface: user
+      x-audit-object: platform:annotation-versions
+      x-scope: DEMO
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Page of annotation versions (without content)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/AnnotationVersion'}}
+                  next_cursor: {type: [string, 'null']}
+        default: {$ref: '#/components/responses/Problem'}
+    post:
+      operationId: proposeAnnotationVersion
+      tags: [approvals]
+      summary: >
+        Upload a complete applicability annotation file as a new version. Creates the version as proposed and a
+        pending four-eyes approval of kind applicability_annotation_change; the active version changes only when a
+        different compliance user approves (109-F4-FR10, Dusan decision 2026-11-06, H2). A file that fails the
+        annotation shape or names a clause outside the active catalogs gives 422.
+      x-roles: [compliance]
+      x-action: P86
+      x-surface: user
+      x-audit-object: platform:annotation-version
+      x-scope: DEMO
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AnnotationUpload'}
+      responses:
+        '201':
+          description: Pending approval created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Approval'}
+        '422': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/applicability-annotations/active:
+    get:
+      operationId: getActiveAnnotationVersion
+      tags: [approvals]
+      summary: >
+        The single approved annotation version with its content, for ai-document-service's applicability rules
+        (108-F2-FR2); a proposed version is never returned (109-F4 plan D8)
+      x-roles: [service]
+      x-surface: service
+      x-audit-object: platform:annotation-version
+      x-scope: DEMO
+      responses:
+        '200':
+          description: Active annotation version
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/AnnotationVersion'
+                  - type: object
+                    required: [content]
+                    properties:
+                      content: {type: object}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/delegations:
+    get:
+      operationId: listDelegations
+      tags: [delegations]
+      summary: Delegations where the caller is delegator or delegate (ordering starts_at desc, id desc)
+      x-roles: [outsourcing-manager, compliance, admin]
+      x-action: P67
+      x-surface: user
+      x-audit-object: platform:delegations
+      x-scope: DEMO
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Page of delegations
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/Delegation'}}
+                  next_cursor: {type: [string, 'null']}
+        default: {$ref: '#/components/responses/Problem'}
+    post:
+      operationId: createDelegation
+      tags: [delegations]
+      summary: Delegate the caller's own checker right for named kinds to a holder of the same role
+      description: The period (ends_at minus starts_at) is at most the tenant's delegation_max_days, default and maximum
+        30 days; the delegate must hold role_id; otherwise PLATFORM_DELEGATION_INVALID (109-F4-FR6, Q-117).
+      x-roles: [outsourcing-manager, compliance, admin]
+      x-action: P67
+      x-surface: user
+      x-audit-object: platform:delegation
+      x-scope: DEMO
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [delegate_id, role_id, kinds, starts_at, ends_at]
+              properties:
+                delegate_id: {type: string, format: uuid}
+                role_id: {$ref: '#/components/schemas/RoleId'}
+                kinds: {type: array, minItems: 1, items: {$ref: '#/components/schemas/ApprovalKind'}}
+                starts_at: {type: string, format: date-time}
+                ends_at: {type: string, format: date-time}
+              examples:
+                - delegate_id: 1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f
+                  role_id: compliance
+                  kinds: [risk_acceptance]
+                  starts_at: '2026-11-09T07:00:00Z'
+                  ends_at: '2026-11-11T17:00:00Z'
+      responses:
+        '201':
+          description: Delegation created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Delegation'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/delegations/{delegation_id}/revoke:
+    post:
+      operationId: revokeDelegation
+      tags: [delegations]
+      summary: Delegator revokes a delegation
+      x-roles: [outsourcing-manager, compliance, admin]
+      x-action: P67
+      x-surface: user
+      x-audit-object: platform:delegation
+      x-scope: DEMO
+      parameters:
+        - {name: delegation_id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Revoked delegation
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Delegation'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/audit/events:
+    get:
+      operationId: listAuditEvents
+      tags: [audit]
+      summary: >
+        Audit events (ordering seq asc). Auditor sees every event class with confidential values masked
+        without a grant; admin sees authentication, access-decision and administration events only.
+      description: >
+        Read through the one read path of platform-service (109-F5 plan D9), which applies the 109-F5-FR7
+        visibility (the admin-visible event types of the 109-F5 catalog, PQ-74) and the 109-F3 masking for the
+        caller. Ordering is seq ascending; the cursor is opaque. A from after to is refused with 422
+        validation-failed (109-F5 data-model section 10). The read is itself audited, with the filter and the
+        number of rows returned (109-F5-FR2).
+      x-roles: [auditor, admin]
+      x-action: P68
+      x-caller: user
+      x-audit-object: platform:audit-events
+      x-scope: DEMO
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - {name: from, in: query, required: false, schema: {type: string, format: date-time}}
+        - {name: to, in: query, required: false, schema: {type: string, format: date-time}}
+        - {name: actor_id, in: query, required: false, schema: {type: string, format: uuid}}
+        - {name: action_id, in: query, required: false, schema: {type: string, pattern: '^P[0-9]{2}$'}}
+        - {name: event_type, in: query, required: false, schema: {type: string}}
+        - {name: object_type, in: query, required: false, schema: {type: string}}
+        - {name: object_id, in: query, required: false, schema: {type: string}}
+        - {name: outcome, in: query, required: false, schema: {$ref: '#/components/schemas/Outcome'}}
+        - {name: correlation_id, in: query, required: false, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Page of audit events
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/AuditEvent'}}
+                  next_cursor: {type: [string, 'null']}
+        '403': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/audit/events/{event_id}:
+    get:
+      operationId: getAuditEvent
+      tags: [audit]
+      summary: One audit event with before and after values (masked per 109-F3-FR6)
+      description: >
+        Read through the one read path of platform-service with the 109-F5-FR7 visibility (109-F5 plan D9). An event
+        the caller may not see (for admin, any event type outside the admin-visible types of the 109-F5 catalog), an
+        event of another tenant and an unknown id all answer 404 with type not-found (S1013). The read is itself
+        audited (109-F5-FR2).
+      x-roles: [auditor, admin]
+      x-action: P68
+      x-caller: user
+      x-audit-object: platform:audit-event
+      x-scope: DEMO
+      parameters:
+        - {name: event_id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Audit event
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuditEvent'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/audit/verifications:
+    post:
+      operationId: verifyAuditChain
+      tags: [audit]
+      summary: Recompute the hash chain of the caller's tenant over a sequence range (whole chain when omitted)
+      description: >
+        Every run, on demand or by the daily job, stores one verification run and writes one audit event in the chain
+        of the tenant it verified (109-F5-FR5). The action stays a read of the trail (P68); the run and its event are
+        written by platform-service under its own service identity, with the requesting user in the event detail
+        (109-F5 PQ-66, S1006). A to_seq past the head reports broken with first_break_seq the head plus one (S1010);
+        a tenant with no event reports intact at sequence 0 with the genesis hash of 64 zeros (109-F5 PQ-79).
+        from_seq below 1 or above to_seq is refused with 422 validation-failed. The result holds sequence numbers and
+        hashes only, no event content (109-F5-FR7, D-3).
+      x-roles: [auditor, admin]
+      x-action: P68
+      x-caller: user
+      x-audit-object: platform:audit-verification
+      x-scope: DEMO
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                from_seq: {type: string, pattern: '^[0-9]+$'}
+                to_seq: {type: string, pattern: '^[0-9]+$'}
+              examples:
+                - {from_seq: '1', to_seq: '5000'}
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuditVerification'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/audit/verifications/latest:
+    get:
+      operationId: getLatestAuditVerification
+      tags: [audit]
+      summary: The latest verification result of the caller's tenant, daily or on demand
+      description: >
+        Returns the verification run with the latest run_at, whichever kind of run wrote it (109-F5-FR7, FR11), so
+        the result of the daily job reaches the verification status screen. 404 with type not-found when no run
+        exists yet. The read is itself audited (109-F5-FR2). Sequence numbers and hashes only, no event content.
+      x-roles: [auditor, admin]
+      x-action: P68
+      x-caller: user
+      x-audit-object: platform:audit-verification
+      x-scope: DEMO
+      responses:
+        '200':
+          description: Latest verification result
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuditVerification'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/audit/exports:
+    get:
+      operationId: listAuditExports
+      tags: [audit]
+      summary: The caller's own audit exports, newest first, with their state (109-F5-FR8, FR12)
+      description: >
+        Lists only the exports the caller requested; an export of another auditor is never listed (D-3). An export
+        left running by a stopped job stays running and is listed so (D-5). Ordering is created_at descending, then
+        id; the cursor is opaque. The read is itself audited (109-F5-FR2).
+      x-roles: [auditor]
+      x-action: P69
+      x-caller: user
+      x-audit-object: platform:audit-exports
+      x-scope: DEMO
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Page of the caller's exports
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/AuditExport'}}
+                  next_cursor: {type: [string, 'null']}
+        '403': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+    post:
+      operationId: createAuditExport
+      tags: [audit]
+      summary: Export a filtered set of events as CSV and JSON Lines with a manifest (job)
+      description: >
+        Inserts a queued export of the caller and answers 202. The export job of platform-service (109-F5 plan D13,
+        pending PQ-65 and PQ-71) runs under the platform's service identity, checks at start that the requester is
+        still an active user holding P69, reads the trail through the same read path as the screens with the
+        requester's visibility and masking (109-F3-FR6), bounded by the head sequence it takes before its own audit
+        event, writes the two files as stored files of the platform (OD-5), and audits completion with scope,
+        head_seq, file hashes and the requester, or failure with outcome error (109-F5-FR8, FR11).
+      x-roles: [auditor]
+      x-action: P69
+      x-caller: user
+      x-audit-object: platform:audit-export
+      x-scope: DEMO
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AuditFilter'}
+      responses:
+        '202':
+          description: Export accepted
+          headers:
+            Location:
+              description: URL of the export resource
+              schema: {type: string}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [job_id]
+                properties:
+                  job_id: {type: string, format: uuid}
+        '403': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/audit/exports/{export_id}:
+    get:
+      operationId: getAuditExport
+      tags: [audit]
+      summary: Export state and, when done, its manifest
+      description: >
+        Readable only by the auditor who requested the export; any other caller, another tenant and an unknown id
+        get 404 with type not-found (109-F5-FR8, D-3, S1013). The manifest lists each file by format, fixed name,
+        SHA-256 and size, with no path or link, so two manifests of the same filter over unchanged data differ only
+        in generated_at, head_seq and head_hash (109-F5-AC7, PQ-70); the files are read through getAuditExportFile.
+        The read is itself audited (109-F5-FR2).
+      x-roles: [auditor]
+      x-action: P69
+      x-caller: user
+      x-audit-object: platform:audit-export
+      x-scope: DEMO
+      parameters:
+        - {name: export_id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Export
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuditExport'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+
+  /api/v1/platform/audit/exports/{export_id}/files/{format}:
+    get:
+      operationId: getAuditExportFile
+      tags: [audit]
+      summary: Download one file of a done export (109-F5-FR8, FR12)
+      description: >
+        Answers the stored file of the export in the requested format, byte for byte as the export job wrote it;
+        its SHA-256 equals the manifest's (109-F5-AC12). Readable only by the auditor who requested the export; any
+        other caller, another tenant and an unknown id get 404 with type not-found (D-3). Before the export is done
+        the answer is 409 with type audit-export-not-ready (109-F5 PQ-70). The download is itself audited with the
+        format and the file's SHA-256 (109-F5-FR2).
+      x-roles: [auditor]
+      x-action: P69
+      x-caller: user
+      x-audit-object: platform:audit-export-file
+      x-scope: DEMO
+      parameters:
+        - {name: export_id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: format, in: path, required: true, schema: {type: string, enum: [csv, jsonl]}}
+      responses:
+        '200':
+          description: The file content, with a Content-Disposition attachment header naming the file's fixed name
+          content:
+            text/csv:
+              schema: {type: string}
+            application/x-ndjson:
+              schema: {type: string}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: {type: integer, minimum: 1, maximum: 500, default: 50}
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema: {type: string}
+    ApprovalId:
+      name: approval_id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+  responses:
+    Problem:
+      description: RFC 9457 problem details
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+  schemas:
+    RoleId:
+      type: string
+      enum: [requester, outsourcing-manager, security, it-governance, compliance, legal, auditor, admin]
+      examples: [compliance]
+    Locale:
+      type: string
+      enum: [en, sr-Latn, sr-Cyrl]
+      examples: [sr-Latn]
+    RecordKind:
+      type: string
+      enum: [arrangement, case]
+      examples: [arrangement]
+    Outcome:
+      type: string
+      enum: [allowed, denied, error]
+      examples: [denied]
+    ApprovalKind:
+      type: string
+      enum:
+        - lifecycle_final_approval
+        - register_entry_approval
+        - critical_important_classification
+        - risk_acceptance
+        - methodology_approval
+        - ictrisk_campaign_signoff
+        - remediation_campaign_signoff
+        - export_submission_marking
+        - role_mapping_change
+        - classification_confirmation
+        - function_criticality_confirmation
+        - exit_plan_approval
+        - scoring_configuration_approval
+        - reporting_configuration_change
+        - applicability_annotation_change
+        - register_record_edit
+        - manual_entry_closure
+      examples: [register_entry_approval]
+    ApprovalState:
+      type: string
+      enum: [pending, approved, rejected, withdrawn, expired, stale]
+      examples: [pending]
+    Me:
+      type: object
+      required: [user_id, tenant_id, display_name, email, roles, business_unit_ids, action_ids, locale, demo_mode, is_demo]
+      properties:
+        user_id: {type: string, format: uuid}
+        tenant_id:
+          type: string
+          format: uuid
+          description: The user's tenant, from the platform's record of the user; the web BFF builds its session from it (OD-20)
+        display_name: {type: string}
+        email: {type: string, format: email}
+        roles: {type: array, items: {$ref: '#/components/schemas/RoleId'}}
+        business_unit_ids:
+          type: array
+          description: Business units of a requester (one or more, 109-F1-FR6, Q-103); empty for cross-unit roles
+          items: {type: string, format: uuid}
+        action_ids:
+          type: array
+          description: >
+            Effective matrix action ids with qualifier, e.g. P01:S; one entry per held qualifier, so a cell with two
+            qualifiers gives two entries (P18:M and P18:C); empty when the user holds no role
+          items: {type: string, pattern: '^P[0-9]{2}:[XSRMCG]$'}
+        locale: {$ref: '#/components/schemas/Locale'}
+        demo_mode: {type: boolean}
+        is_demo: {type: boolean}
+      examples:
+        - user_id: 6f1c2a9e-0b7d-4e4b-9a51-3c2d8e7f0a11
+          tenant_id: 5a6b7c8d-9e0f-4a1b-8c2d-3e4f5a6b7c8d
+          display_name: Legal (demo)
+          email: legal@demo.invalid
+          roles: [legal]
+          business_unit_ids: []
+          action_ids: ['P01:R', 'P05:X', 'P16:S']
+          locale: sr-Latn
+          demo_mode: true
+          is_demo: true
+    AuthConfig:
+      type: object
+      required: [mode]
+      properties:
+        mode: {type: string, enum: [demo, production]}
+      examples:
+        - {mode: demo}
+    DemoUser:
+      type: object
+      required: [user_id, display_name, roles, business_unit_ids, sign_in_name]
+      properties:
+        user_id: {type: string, format: uuid}
+        display_name: {type: string}
+        roles: {type: array, items: {$ref: '#/components/schemas/RoleId'}}
+        business_unit_ids: {type: array, items: {type: string, format: uuid}}
+        sign_in_name:
+          type: string
+          description: The account's sign-in name at the identity provider of the local stack (S891)
+      examples:
+        - user_id: 6f1c2a9e-0b7d-4e4b-9a51-3c2d8e7f0a11
+          display_name: Security (demo)
+          roles: [security]
+          business_unit_ids: []
+          sign_in_name: usr-security@demo-bank.invalid
+    TenantSettings:
+      type: object
+      description: >
+        The 109-F2 fields of the one settings record of a tenant (109-F2-FR12). auth_mode is written only at the
+        platform's start; rehearsal and demo_tenant only by the tenants loader; no user changes them.
+      required: [tenant_id, auth_mode, rehearsal, demo_tenant, session_idle_minutes, session_absolute_minutes, second_factor_claim, second_factor_value, audit_retention_years, updated_at]
+      properties:
+        tenant_id: {type: string, format: uuid}
+        auth_mode: {type: string, enum: [demo, production]}
+        rehearsal: {type: boolean}
+        demo_tenant: {type: boolean}
+        session_idle_minutes: {type: integer, minimum: 1, maximum: 1440}
+        session_absolute_minutes: {type: integer, minimum: 1, maximum: 1440}
+        second_factor_claim:
+          type: [string, 'null']
+          description: Name of the token claim that states a second factor (PILOT, 109-F2-FR5); null in demo tenants
+        second_factor_value:
+          type: [string, 'null']
+          description: The value of that claim that counts as a second factor (PILOT); null in demo tenants
+        audit_retention_years:
+          type: integer
+          minimum: 5
+          description: Years an audit event is kept; default 10, at least 5 (109-F5-FR6, D-2)
+        updated_at: {type: string, format: date-time}
+      examples:
+        - tenant_id: 5a6b7c8d-9e0f-4a1b-8c2d-3e4f5a6b7c8d
+          auth_mode: demo
+          rehearsal: false
+          demo_tenant: true
+          session_idle_minutes: 60
+          session_absolute_minutes: 600
+          second_factor_claim: null
+          second_factor_value: null
+          audit_retention_years: 10
+          updated_at: '2026-11-14T09:00:00Z'
+    TenantSettingsChange:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      description: >
+        Members that are absent keep their value. second_factor_claim and second_factor_value are set together;
+        null clears both.
+      properties:
+        session_idle_minutes: {type: integer, minimum: 1, maximum: 1440}
+        session_absolute_minutes: {type: integer, minimum: 1, maximum: 1440}
+        second_factor_claim: {type: [string, 'null'], minLength: 1, maxLength: 100}
+        second_factor_value: {type: [string, 'null'], minLength: 1, maxLength: 200}
+        audit_retention_years:
+          type: integer
+          description: Years, at least 5; a smaller value is refused with 422 retention-too-short (109-F5-FR6, PQ-69)
+      examples:
+        - {session_idle_minutes: 30}
+        - {audit_retention_years: 12}
+    SignInAdmission:
+      type: object
+      required: [user_id, tenant_id, auth_mode, session_idle_minutes, session_absolute_minutes]
+      properties:
+        user_id: {type: string, format: uuid}
+        tenant_id: {type: string, format: uuid}
+        auth_mode: {type: string, enum: [demo, production]}
+        session_idle_minutes: {type: integer, minimum: 1, maximum: 1440}
+        session_absolute_minutes: {type: integer, minimum: 1, maximum: 1440}
+      examples:
+        - user_id: 6f1c2a9e-0b7d-4e4b-9a51-3c2d8e7f0a11
+          tenant_id: 5a6b7c8d-9e0f-4a1b-8c2d-3e4f5a6b7c8d
+          auth_mode: demo
+          session_idle_minutes: 60
+          session_absolute_minutes: 600
+    SessionEnd:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      description: next_user_id is required when reason is demo_switch and absent otherwise (422 validation-failed).
+      properties:
+        reason: {type: string, enum: [logout, idle_limit, absolute_limit, demo_switch]}
+        next_user_id: {type: string, format: uuid}
+      examples:
+        - {reason: logout}
+        - {reason: demo_switch, next_user_id: 6f1c2a9e-0b7d-4e4b-9a51-3c2d8e7f0a11}
+    UserSummary:
+      type: object
+      required: [user_id, display_name, email, roles, business_unit_ids, active, is_demo]
+      properties:
+        user_id: {type: string, format: uuid}
+        display_name: {type: string}
+        email: {type: string, format: email}
+        roles: {type: array, items: {$ref: '#/components/schemas/RoleId'}}
+        business_unit_ids: {type: array, items: {type: string, format: uuid}}
+        active: {type: boolean}
+        is_demo: {type: boolean}
+      examples:
+        - user_id: 9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d
+          display_name: Requester (demo)
+          email: requester@demo.invalid
+          roles: [requester]
+          business_unit_ids: [0d1e2f3a-4b5c-4d6e-8f70-819a2b3c4d5e]
+          active: true
+          is_demo: true
+    BusinessUnit:
+      type: object
+      required: [id, code, name, active]
+      properties:
+        id: {type: string, format: uuid}
+        code: {type: string}
+        name: {type: string}
+        active: {type: boolean}
+      examples:
+        - {id: 0d1e2f3a-4b5c-4d6e-8f70-819a2b3c4d5e, code: retail, name: Retail Banking, active: true}
+    RoleMapping:
+      type: object
+      required: [id, idp_group_id, role_id, business_unit_id]
+      description: >
+        A mapping in force. A removed mapping no longer exists; its before state is in the audit trail (109-F1
+        data model section 2).
+      properties:
+        id: {type: string, format: uuid}
+        idp_group_id: {type: string}
+        role_id: {$ref: '#/components/schemas/RoleId'}
+        business_unit_id: {type: [string, 'null'], format: uuid}
+      examples:
+        - id: 3e4f5a6b-7c8d-4e9f-a0b1-c2d3e4f5a6b7
+          idp_group_id: grp-outsourcing-legal
+          role_id: legal
+          business_unit_id: null
+    RoleMappingChange:
+      type: object
+      additionalProperties: false
+      required: [change_type, role_id, reason]
+      description: >
+        One of four change kinds; role_id is required in all four (109-F1 PQ-4). The fields each kind needs are
+        listed in proposeRoleMappingChange; a missing one is 422 validation-failed.
+      properties:
+        change_type: {type: string, enum: [add_mapping, remove_mapping, assign_role, remove_role]}
+        idp_group_id: {type: [string, 'null'], description: Required for add_mapping and remove_mapping}
+        user_id: {type: [string, 'null'], format: uuid, description: Required for assign_role and remove_role}
+        role_id: {$ref: '#/components/schemas/RoleId'}
+        business_unit_id: {type: [string, 'null'], format: uuid, description: 'Required when role_id is requester; absent or null otherwise, and a non-null value for another role is 422 validation-failed'}
+        reason: {type: string, minLength: 1, maxLength: 1000}
+      examples:
+        - change_type: add_mapping
+          idp_group_id: grp-outsourcing-security
+          role_id: security
+          business_unit_id: null
+          reason: Security team joins the outsourcing review
+    Grant:
+      type: object
+      required: [id, record_kind, record_id, grantee_id, granted_by, reason, expires_at, revoked_at, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        record_kind: {$ref: '#/components/schemas/RecordKind'}
+        record_id: {type: string, format: uuid}
+        grantee_id: {type: string, format: uuid}
+        granted_by: {type: string, format: uuid}
+        reason: {type: string}
+        expires_at: {type: [string, 'null'], format: date-time}
+        revoked_at: {type: [string, 'null'], format: date-time}
+        created_at: {type: string, format: date-time}
+      examples:
+        - id: 5a6b7c8d-9e0f-4a1b-8c2d-3e4f5a6b7c8d
+          record_kind: arrangement
+          record_id: 2b7e1c4a-5d3f-4a8b-9c0e-1f2a3b4c5d6e
+          grantee_id: 9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d
+          granted_by: 6f1c2a9e-0b7d-4e4b-9a51-3c2d8e7f0a11
+          reason: Security review of the hosting terms
+          expires_at: null
+          revoked_at: null
+          created_at: '2026-11-09T09:12:00Z'
+    Approval:
+      type: object
+      required: [id, kind, subject_service, subject_kind, subject_id, maker_id, state, requested_at, expires_at, decided_by, decided_at, decision_reason, delegation_id, correlation_id]
+      properties:
+        id: {type: string, format: uuid}
+        kind: {$ref: '#/components/schemas/ApprovalKind'}
+        subject_service: {type: string, enum: [register, ict-risk, monitoring, platform]}
+        subject_kind: {type: string}
+        subject_id: {type: string, format: uuid}
+        maker_id: {type: string, format: uuid}
+        state: {$ref: '#/components/schemas/ApprovalState'}
+        requested_at: {type: string, format: date-time}
+        expires_at: {type: [string, 'null'], format: date-time, description: 'requested_at plus the tenant pending period (default 14 days); null for export_submission_marking, which never expires (Q-118)'}
+        decided_by: {type: [string, 'null'], format: uuid}
+        decided_at: {type: [string, 'null'], format: date-time}
+        decision_reason: {type: [string, 'null']}
+        delegation_id: {type: [string, 'null'], format: uuid}
+        correlation_id: {type: string, format: uuid}
+      examples:
+        - id: 7b8c9d0e-1f2a-4b3c-8d4e-5f6a7b8c9d0e
+          kind: register_entry_approval
+          subject_service: register
+          subject_kind: arrangement
+          subject_id: 2b7e1c4a-5d3f-4a8b-9c0e-1f2a3b4c5d6e
+          maker_id: 4c5d6e7f-8a9b-4c0d-9e1f-2a3b4c5d6e7f
+          state: pending
+          requested_at: '2026-11-09T09:00:00Z'
+          expires_at: '2026-11-23T09:00:00Z'
+          decided_by: null
+          decided_at: null
+          decision_reason: null
+          delegation_id: null
+          correlation_id: 8d9e0f1a-2b3c-4d4e-9f5a-6b7c8d9e0f1a
+    ApprovalDetail:
+      allOf:
+        - $ref: '#/components/schemas/Approval'
+        - type: object
+          required: [proposed_change, current_state, can_decide, refusal_reason]
+          properties:
+            proposed_change: {type: object}
+            current_state: {type: [object, 'null'], description: Subject's current values as read by the caller}
+            can_decide: {type: boolean}
+            refusal_reason:
+              type: [string, 'null']
+              enum: [maker, excluded, no_checker_role, not_pending, null]
+      examples:
+        - id: 7b8c9d0e-1f2a-4b3c-8d4e-5f6a7b8c9d0e
+          kind: register_entry_approval
+          subject_service: register
+          subject_kind: arrangement
+          subject_id: 2b7e1c4a-5d3f-4a8b-9c0e-1f2a3b4c5d6e
+          maker_id: 4c5d6e7f-8a9b-4c0d-9e1f-2a3b4c5d6e7f
+          state: pending
+          requested_at: '2026-11-09T09:00:00Z'
+          expires_at: '2026-11-23T09:00:00Z'
+          decided_by: null
+          decided_at: null
+          decision_reason: null
+          delegation_id: null
+          correlation_id: 8d9e0f1a-2b3c-4d4e-9f5a-6b7c8d9e0f1a
+          proposed_change: {B_02.01.0010: ARR-036}
+          current_state: null
+          can_decide: true
+          refusal_reason: null
+    AnnotationUpload:
+      type: object
+      additionalProperties: false
+      required: [version, content]
+      properties:
+        version: {type: string, minLength: 1, maxLength: 20}
+        content:
+          type: object
+          description: Complete annotation file keyed by (regulation_id, clause_id) with conditions critical_or_important, cloud, sub_outsourcing, national_scope (108-F2-FR2)
+      examples:
+        - version: '1.1'
+          content: {entries: [{regulation_id: dora, clause_id: art30-3-a, conditions: [critical_or_important]}]}
+    AnnotationVersion:
+      type: object
+      required: [id, version, status, proposed_by, approval_id, approved_at, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        version: {type: string}
+        status: {type: string, enum: [proposed, approved, superseded]}
+        proposed_by: {type: string, format: uuid}
+        approval_id: {type: [string, 'null'], format: uuid}
+        approved_at: {type: [string, 'null'], format: date-time}
+        created_at: {type: string, format: date-time}
+      examples:
+        - id: 1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f
+          version: '1.0'
+          status: approved
+          proposed_by: 0a0b0c0d-0e0f-4a1b-8c2d-3e4f5a6b7c8d
+          approval_id: 2d3e4f5a-6b7c-4d8e-9f0a-1b2c3d4e5f6a
+          approved_at: '2026-11-09T08:00:00Z'
+          created_at: '2026-11-09T08:00:00Z'
+    Delegation:
+      type: object
+      required: [id, delegator_id, delegate_id, role_id, kinds, starts_at, ends_at, revoked_at]
+      properties:
+        id: {type: string, format: uuid}
+        delegator_id: {type: string, format: uuid}
+        delegate_id: {type: string, format: uuid}
+        role_id: {$ref: '#/components/schemas/RoleId'}
+        kinds: {type: array, items: {$ref: '#/components/schemas/ApprovalKind'}}
+        starts_at: {type: string, format: date-time}
+        ends_at: {type: string, format: date-time}
+        revoked_at: {type: [string, 'null'], format: date-time}
+      examples:
+        - id: 0f1a2b3c-4d5e-4f6a-8b7c-8d9e0f1a2b3c
+          delegator_id: 6f1c2a9e-0b7d-4e4b-9a51-3c2d8e7f0a11
+          delegate_id: 1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f
+          role_id: compliance
+          kinds: [risk_acceptance]
+          starts_at: '2026-11-09T07:00:00Z'
+          ends_at: '2026-11-11T17:00:00Z'
+          revoked_at: null
+    AuditEvent:
+      type: object
+      required: [event_id, seq, occurred_at, actor_kind, actor_id, actor_display_name, actor_roles, delegation_id, action_id, event_type, object_type, object_id, outcome, reason, before, after, detail, masked, correlation_id, request_id, source_service, locale, hash, access_metadata]
+      properties:
+        event_id: {type: string, format: uuid}
+        seq: {type: string, pattern: '^[0-9]+$'}
+        occurred_at: {type: string, format: date-time}
+        actor_kind:
+          type: string
+          enum: [user, service, anonymous]
+          description: anonymous has no writer in this build and is kept until 109-F5 PQ-78 is answered (with 109-F2 PQ-48 and 109-F5 PQ-67)
+        actor_id: {type: [string, 'null'], format: uuid}
+        actor_display_name:
+          type: [string, 'null']
+          description: The actor's display name, looked up when the event is read and not part of the hashed event (109-F5-FR12, PQ-73); null for a service actor or an unknown user
+        actor_roles: {type: array, items: {$ref: '#/components/schemas/RoleId'}}
+        delegation_id: {type: [string, 'null'], format: uuid}
+        action_id: {type: [string, 'null'], pattern: '^P[0-9]{2}$'}
+        event_type:
+          type: string
+          description: A type of the event type catalog of 109-F5 (data model section 7), which also says which types admin may read (PQ-74)
+        object_type: {type: [string, 'null']}
+        object_id: {type: [string, 'null']}
+        outcome: {$ref: '#/components/schemas/Outcome'}
+        reason: {type: [string, 'null']}
+        before: {type: [object, 'null']}
+        after: {type: [object, 'null']}
+        detail:
+          type: [object, 'null']
+          description: >
+            Members named per event type in the 109-F5 catalog (S1011). An AI suggestion produced (ai.suggestion)
+            holds operation, model, prompt_template and sources; the human outcome of a suggestion (ai.confirm) holds
+            suggested, final, model, prompt_template, sources, confirmed_by and decision (confirmed, edited or
+            rejected); an approval decision holds maker and checker. Never a password, token or key.
+        masked: {type: boolean, description: 'True when before, after and detail are withheld (confidential record without grant)'}
+        correlation_id: {type: string, format: uuid}
+        request_id: {type: [string, 'null'], format: uuid}
+        source_service: {type: string}
+        locale: {type: [string, 'null']}
+        hash: {type: string, description: Hex SHA-256 of the event in the chain}
+        access_metadata:
+          type: [object, 'null']
+          description: Client IP and user agent of sign-in and write events, kept one year and not part of the hashed
+            event (109-F5-FR3, Q-120); null for other events, or after the retention job removed them
+          additionalProperties: false
+          required: [client_ip, user_agent]
+          properties:
+            client_ip: {type: [string, 'null']}
+            user_agent: {type: [string, 'null']}
+      examples:
+        - event_id: 1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d
+          seq: '1842'
+          occurred_at: '2026-11-09T09:14:03.120Z'
+          actor_kind: user
+          actor_id: 4c5d6e7f-8a9b-4c0d-9e1f-2a3b4c5d6e7f
+          actor_display_name: Ana Petrovic
+          actor_roles: [outsourcing-manager]
+          delegation_id: null
+          action_id: P53
+          event_type: ai.confirm
+          object_type: register:arrangement
+          object_id: 2b7e1c4a-5d3f-4a8b-9c0e-1f2a3b4c5d6e
+          outcome: allowed
+          reason: null
+          before: {B_02.01.0070: null}
+          after: {B_02.01.0070: '2026-12-01'}
+          detail: {suggested: '2026-12-01', final: '2026-12-01', model: claude, prompt_template: contract-read-v1, sources: ['contract-p3-s2'], confirmed_by: 4c5d6e7f-8a9b-4c0d-9e1f-2a3b4c5d6e7f, decision: confirmed}
+          masked: false
+          correlation_id: 8d9e0f1a-2b3c-4d4e-9f5a-6b7c8d9e0f1a
+          request_id: 2c3d4e5f-6a7b-4c8d-9e0f-1a2b3c4d5e6f
+          source_service: register-service
+          locale: sr-Latn
+          hash: 9f2c4e6a8b0d1f3e5a7c9e1b3d5f7a9c2e4b6d8f0a1c3e5b7d9f1a3c5e7b9d1f
+          access_metadata: {client_ip: 192.0.2.10, user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+    AuditFilter:
+      type: object
+      additionalProperties: false
+      properties:
+        from: {type: [string, 'null'], format: date-time}
+        to: {type: [string, 'null'], format: date-time}
+        actor_id: {type: [string, 'null'], format: uuid}
+        action_id: {type: [string, 'null'], pattern: '^P[0-9]{2}$'}
+        event_type: {type: [string, 'null']}
+        object_type: {type: [string, 'null']}
+        object_id: {type: [string, 'null']}
+        outcome: {type: [string, 'null'], enum: [allowed, denied, error, null]}
+        correlation_id: {type: [string, 'null'], format: uuid}
+      examples:
+        - {correlation_id: 8d9e0f1a-2b3c-4d4e-9f5a-6b7c8d9e0f1a}
+    AuditVerification:
+      type: object
+      required: [id, run_kind, from_seq, to_seq, result, first_break_seq, head_hash, run_at]
+      properties:
+        id: {type: string, format: uuid}
+        run_kind:
+          type: string
+          enum: [daily, on_demand]
+          description: daily for the run of the daily job, on_demand for a run requested through verifyAuditChain (109-F5-FR5, FR7)
+        from_seq: {type: string, pattern: '^[0-9]+$'}
+        to_seq: {type: string, pattern: '^[0-9]+$'}
+        result: {type: string, enum: [intact, broken]}
+        first_break_seq: {type: [string, 'null'], pattern: '^[0-9]+$'}
+        head_hash:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+          description: Hash of the event at to_seq when intact; 64 zeros for an empty chain (109-F5 PQ-79)
+        run_at: {type: string, format: date-time}
+      examples:
+        - id: 2d3e4f5a-6b7c-4d8e-9f0a-1b2c3d4e5f6a
+          run_kind: daily
+          from_seq: '1'
+          to_seq: '1842'
+          result: intact
+          first_break_seq: null
+          head_hash: 9f2c4e6a8b0d1f3e5a7c9e1b3d5f7a9c2e4b6d8f0a1c3e5b7d9f1a3c5e7b9d1f
+          run_at: '2026-11-09T10:00:00Z'
+    AuditExport:
+      type: object
+      required: [id, state, filter, created_at, failure_reason, manifest]
+      properties:
+        id: {type: string, format: uuid}
+        state: {type: string, enum: [queued, running, done, failed]}
+        filter: {$ref: '#/components/schemas/AuditFilter'}
+        created_at: {type: string, format: date-time}
+        failure_reason:
+          type: [string, 'null']
+          enum: [too_large, requester_not_permitted, internal_error, null]
+          description: >
+            Set only when state is failed. too_large: a file would exceed the stored-file limit, narrow the filter
+            (109-F5 PQ-85); requester_not_permitted: the requester was no longer an active user holding P69 when the
+            job started (109-F5 PQ-71); internal_error: any other failure, audited with outcome error (109-F5-FR8)
+        manifest:
+          type: [object, 'null']
+          required: [event_count, first_seq, last_seq, head_seq, head_hash, generated_at, files]
+          properties:
+            event_count: {type: integer, minimum: 0}
+            first_seq: {type: [string, 'null']}
+            last_seq: {type: [string, 'null']}
+            head_seq:
+              type: string
+              pattern: '^[0-9]+$'
+              description: Tenant's last sequence when the export read the trail, before the export's own audit event; the files hold matching events up to it
+            head_hash:
+              type: string
+              description: Chain hash of the event at head_seq; verifyAuditChain from 1 to head_seq reports it
+            generated_at: {type: string, format: date-time}
+            files:
+              type: array
+              description: One entry per format, csv first; no path or link (109-F5 PQ-70); download with getAuditExportFile
+              items:
+                type: object
+                required: [format, name, sha256, bytes]
+                properties:
+                  format: {type: string, enum: [csv, jsonl]}
+                  name: {type: string, enum: [audit-export.csv, audit-export.jsonl]}
+                  sha256: {type: string, pattern: '^[0-9a-f]{64}$'}
+                  bytes: {type: integer, minimum: 0}
+      examples:
+        - id: 3e4f5a6b-7c8d-4e9f-a0b1-c2d3e4f5a6b8
+          state: done
+          filter: {correlation_id: 8d9e0f1a-2b3c-4d4e-9f5a-6b7c8d9e0f1a}
+          created_at: '2026-11-09T10:04:58Z'
+          failure_reason: null
+          manifest:
+            event_count: 57
+            first_seq: '1790'
+            last_seq: '1842'
+            head_seq: '1842'
+            head_hash: 9f2c4e6a8b0d1f3e5a7c9e1b3d5f7a9c2e4b6d8f0a1c3e5b7d9f1a3c5e7b9d1f
+            generated_at: '2026-11-09T10:05:00Z'
+            files:
+              - {format: csv, name: audit-export.csv, sha256: 4b6d8f0a1c3e5b7d9f1a3c5e7b9d1f9f2c4e6a8b0d1f3e5a7c9e1b3d5f7a9c2e, bytes: 48213}
+              - {format: jsonl, name: audit-export.jsonl, sha256: 1c3e5b7d9f1a3c5e7b9d1f9f2c4e6a8b0d1f3e5a7c9e1b3d5f7a9c2e4b6d8f0a, bytes: 91377}
+    Problem:
+      type: object
+      required: [type, title, status, correlation_id]
+      properties:
+        type:
+          type: string
+          description: >
+            The error code, the value clients switch on (api-standards section 5, conventions SA-1.2-10); one of
+            the keys of x-error-codes. The 109-F1, 109-F2 and 109-F5 codes are kebab-case; the codes still in
+            UPPER_SNAKE_CASE belong to 109-F3 and 109-F4 and are converted when those functionalities are regenerated
+            (109-F1 plan PQ-18).
+        title: {type: string}
+        status: {type: integer}
+        detail: {type: string}
+        correlation_id: {type: string}
+        errors:
+          type: array
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field: {type: string}
+              message: {type: string}
+      examples:
+        - type: role-combination-refused
+          title: Incompatible role combination
+          status: 409
+          detail: The proposed assignment would give the user auditor together with another role.
+          correlation_id: 8d9e0f1a-2b3c-4d4e-9f5a-6b7c8d9e0f1a
+  x-error-codes:
+    no-role: {status: 403, title: No role assigned}
+    not-in-matrix: {status: 403, title: Action not permitted for any held role}
+    out-of-scope: {status: 403, title: Action outside the user's scope}
+    role-combination-refused: {status: 409, title: Incompatible role combination}
+    last-checking-admin: {status: 409, title: Change would leave no admin able to check mapping changes}
+    validation-failed: {status: 422, title: Request fields are missing or invalid}
+    demo-mode-off: {status: 404, title: Not found}
+    sign-in-refused: {status: 403, title: Sign-in refused}
+    not-found: {status: 404, title: Not found}
+    audit-export-not-ready: {status: 409, title: The export is not done yet}
+    retention-too-short: {status: 422, title: Audit retention below five years}
+    PLATFORM_FOUR_EYES_VIOLATION: {status: 409, title: Four-eyes rule}
+    PLATFORM_APPROVAL_STALE: {status: 409, title: Subject changed since approval was requested}
+    PLATFORM_APPROVAL_NOT_PENDING: {status: 409, title: Approval already decided}
+    PLATFORM_OWNING_SERVICE_UNAVAILABLE: {status: 503, title: Owning service unavailable; the approval stays pending}
+    PLATFORM_REASON_REQUIRED: {status: 422, title: Reason required}
+    PLATFORM_SELF_GRANT: {status: 422, title: Cannot grant to oneself}
+    PLATFORM_GRANT_OUTSIDE_UNIT: {status: 422, title: Grantee outside the record's business unit}
+    PLATFORM_RECORD_NOT_CONFIDENTIAL: {status: 409, title: Record is not marked confidential}
+    PLATFORM_DELEGATION_INVALID: {status: 422, title: Delegation violates delegation rules}
+    PLATFORM_EXPORT_SCOPE_NOT_READABLE: {status: 403, title: Export needs a user who can read all records in scope}

@@ -1,0 +1,8 @@
+# Suites of the contracts path (plan D18). The tests run on the tools uv project; the scripts they drive
+# install this folder's own npm packages from its lock file when they are missing.
+suites:
+  - id: 111-B4
+    runner: pytest
+    selector: suite_111_B4
+    project: tools
+    paths: [tests]
