@@ -167,6 +167,12 @@ jobs:
         run: tools/quality format-check python
       - name: type check
         run: tools/quality typecheck python
+      # The unit tests build tools/arch-rules with ./mvnw, so Maven needs the pinned JDK.
+      - uses: actions/setup-java@v6.1.0
+        with:
+          distribution: temurin
+          java-version-file: .java-version
+          cache: maven
       - name: unit tests
         run: tools/quality test python
       # Coverage is reported, never a gate (SA-3-5, T1.9).
