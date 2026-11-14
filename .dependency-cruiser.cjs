@@ -125,6 +125,15 @@ module.exports = {
       to: {},
     },
     {
+      name: "AR-W5-shell-module-outside-the-shell-isolated",
+      comment:
+        "AR-W5: header, navigation, theme and locale switch exist only under packages/shell; a module rule, so a " +
+        "shell module with no imports and no importers fails too.",
+      severity: "error",
+      from: { orphan: true, path: `^(apps|packages)/.*${SHELL_MODULES}`, pathNot: SHELL },
+      to: {},
+    },
+    {
       name: "AR-W7-component-imports-a-client",
       comment:
         "AR-W7: components of the web and its packages do not import the API clients directly; hooks and services do.",
