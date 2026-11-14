@@ -10,8 +10,8 @@
     {
       "task": "T1.10",
       "test_command": "npm ci && uv run --project tools --frozen pytest tests/test_typescript_quality.py -q",
-      "red_commit": "4da178ff9ef8a3c3c96b28d2a9843b00c0490381",
-      "green_commit": "79fbb0045225a72367d56fad48436646814e34be"
+      "red_commit": "8433aac3eb4a11b98a60b4bca46d127c822d3cfc",
+      "green_commit": "039322edb0ae91b8b79c21182017e7bb82bc4211"
     },
     {
       "task": "T1.11",
