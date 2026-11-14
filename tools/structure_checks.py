@@ -5,10 +5,10 @@ deploy/, contracts/scripts) and never sits in services/, libs/, apps/ or package
 (not in the Python service), libs/ and tools/arch-rules (suite readiness rule 6).
 sql-schemas: the SQL of services/<folder> names only the folder's own schema and, unless the service has no
 usage on schema platform, the platform functions of tools/sql-schemas.yaml, called (suite readiness rule 3).
-A name may be quoted and then hold any character. A listed schema is found wherever it qualifies a name. Any other qualifier but pg_catalog is a schema where
-only a schema can qualify (a function call, a three-part name, a relation after FROM, JOIN, INTO, UPDATE, TABLE,
-ON and the like or in a list after one, a type after ::), unless the SQL also holds it unqualified, as an alias
-or a table does.
+A name may be quoted and then hold any character. A listed schema is found wherever it qualifies a name.
+Any other qualifier but pg_catalog is a schema where only a schema can qualify (a function call, a three-part
+name, a relation after FROM, JOIN, INTO, UPDATE, TABLE, ON and the like or in a list after one, a type after ::),
+unless the SQL also holds it unqualified, as an alias or a table does.
 The SQL is that of the .sql files and of the string literals of the .java and .py files holding an SQL keyword
 (the JdbcClient and psycopg queries, plan D3), string literals joined by + read as one; Java and Python comments
 and docstrings are not read.
