@@ -48,6 +48,10 @@ SQL_VIOLATIONS = [
     ("unlisted-schema-in-a-list", f"services/register/{MIGRATIONS}/V0002__read_secrets.sql:2: unlisted_schema.secrets"),
     ("unlisted-schema-function", f"services/register/{MIGRATIONS}/V0002__leak.sql:1: unlisted_schema.leak"),
     (
+        "unlisted-schema-also-a-column",
+        f"services/register/{MIGRATIONS}/V0002__read_secrets.sql:1: unlisted_schema.secrets",
+    ),
+    (
         "search-path-unlisted-schema",
         f"services/register/{MIGRATIONS}/V0002__read_secrets.sql:1: search_path unlisted_schema",
     ),
