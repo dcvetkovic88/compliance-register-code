@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# contracts/scripts/sync (plan D6; 111-FR5): see contracts/scripts/lib/sync.mjs.
+set -euo pipefail
+exec node "$(dirname "${BASH_SOURCE[0]}")/lib/sync.mjs" "$@"

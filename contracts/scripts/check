@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# contracts/scripts/check (plan D6; 111-FR5): see contracts/scripts/lib/check.mjs.
+set -euo pipefail
+exec node "$(dirname "${BASH_SOURCE[0]}")/lib/check.mjs" "$@"
